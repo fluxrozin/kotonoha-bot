@@ -2,84 +2,206 @@
 
 場面緘黙自助グループ運営支援 Discord ボットのドキュメント集です。
 
-## ドキュメント一覧
+## クイックスタート
 
-### プロジェクト管理
+- **[Getting Started](./getting-started.md)**: 5 分で始める開発環境セットアップガイド（初めての方はここから）
 
-- **[要件定義書](./requirements.md)**: プロジェクトの要件定義
-- **[機能要件一覧・非機能要件一覧](./functional-requirements.md)**: 機能要件と非機能要件の詳細一覧
-- **[WBS（作業分解構造）](./wbs.md)**: プロジェクトの作業分解
-- **[実装ロードマップ](./implementation-roadmap.md)**: 6 段階の実装計画と順序 ⭐ **実装開始前に必読**
-- **[プロダクトバックログ](./product-backlog.md)**: 開発項目のバックログ
-- **[ユーザーストーリー](./user-stories.md)**: ユーザーストーリー一覧
+## ドキュメント構成
 
-### 設計ドキュメント
+### 要件定義
 
-- **[システム構成図・技術スタック定義](./system-architecture.md)**: システム構成、技術スタック、環境変数、ボリューム設計
-- **[ミドルウェア選定書](./middleware-selection.md)**: 使用技術の選定理由
-- **[基本設計書](./basic-design.md)**: システムの基本設計
-- **[詳細設計書](./detailed-design.md)**: モジュール仕様、関数仕様、テーブル仕様
-- **[内部設計・ディレクトリ構造](./requirements.md#12-付録システム構成詳細)**: ディレクトリ構造（要件定義書内）
+- [**要件概要**](./requirements/overview.md): プロジェクトの目的、背景、スコープ、システム構成、制約事項、成功基準（プロジェクト理解の出発点）
+- [機能要件一覧](./requirements/functional-requirements.md): 基本機能、会話の契機、セッション管理、AI機能、エラーハンドリング、コマンド、運用機能の詳細要件と非機能要件
+- [会話の契機の詳細](./requirements/conversation-triggers.md): メンション応答型、スレッド型、DM型、聞き耳型（LLM判断・ルールベース）の4つの会話方式の詳細説明
+- [ユーザーストーリー](./requirements/user-stories.md): エンドユーザー視点の機能記述、エピック、受け入れテストシナリオ
+- [ユースケース](./requirements/use-cases.md): 各会話の契機、会話継続、エラー処理の詳細なユースケース記述とフロー図
+- [プロジェクト管理](./requirements/project-management.md): WBS（作業分解構造）、プロダクトバックログ、6スプリント計画、マイルストーン、リスク管理
 
-### 機能仕様
+### アーキテクチャ
 
-- **[コマンド・機能仕様書](./command-specification.md)**: スラッシュコマンド、機能一覧
-- **[イベント処理仕様書](./event-specification.md)**: Discord イベント、カスタムイベント、バックグラウンドタスク
-- **[ユースケース記述](./use-cases.md)**: ユースケースの詳細記述
+- [**システム構成図**](./architecture/system-architecture.md): システムアーキテクチャ図、技術スタック、環境変数、ディレクトリ構造（システム理解の出発点）
+- [基本設計書](./architecture/basic-design.md): レイヤー構成、モジュール設計、モジュール間の依存関係、責務分担
+- [詳細設計書](./architecture/detailed-design.md): 各モジュールのクラス・メソッド仕様、パラメータ、戻り値、依存関係
+- [データベース設計](./architecture/database-design.md): ER図、テーブル定義（sessions/messages/settings）、永続化戦略、インデックス設計
+- [**ADR (Architecture Decision Records)**](./architecture/adr/): アーキテクチャ上の重要な意思決定の記録とその理由
+  - [ADR について](./architecture/adr/README.md): ADRの目的、命名規則、ステータス、テンプレート、作成方法
+  - [ADR-0002: Gemini API 選定](./architecture/adr/0002-select-gemini-api.md): Gemini API採用の理由、代替案（OpenAI/Groq/HuggingFace/Ollama）の比較と評価
+  - [ADR-0004: ハイブリッドセッション管理](./architecture/adr/0004-hybrid-session-management.md): SQLite + ChatSessionハイブリッド管理の採用理由、同期戦略、代替案比較
 
-### データベース設計
+### 仕様書
 
-- **[ER 図・テーブル定義・永続化戦略](./database-design.md)**: データベース設計、永続化戦略
+- [API 仕様書](./specifications/api-specification.md): Discord API（WebSocket/HTTP）、Gemini API、内部APIの詳細仕様とリクエスト・レスポンス形式
+- [コマンド仕様書](./specifications/command-specification.md): スラッシュコマンド（/chat start, reset, status, /settings）の仕様と使用例
+- [イベント処理仕様書](./specifications/event-specification.md): Discordイベント（message, thread, ready）の処理フローとカスタムイベント
 
-### API 仕様
+### 実装
 
-- **[外部インターフェース仕様書・API 仕様書](./api-specification.md)**: Discord API、Gemini API、内部 API
-
-### 実装関連
-
-- **[実装検討事項詳細](./implementation-considerations.md)**: 実装前に検討すべき技術的な詳細事項
-
-### デプロイメント・運用
-
-- **[デプロイメント・運用フロー](./deployment-operations.md)**: デプロイメント手順、運用フロー、トラブルシューティング
+- [**実装ロードマップ**](./implementation/roadmap.md): 6段階の実装計画（環境構築→AI応答→セッション管理→会話の契機→高度機能→CI/CD）と各段階の詳細（実装開始前に必読）
+- [実装検討事項](./implementation/considerations.md): 実装前に検討すべき技術的詳細（エラーハンドリング、レート制限、セキュリティなど）
+- [ミドルウェア選定書](./implementation/middleware-selection.md): Python 3.14、discord.py、uv、Gemini APIなど使用技術の選定理由と代替案比較
+- [**Phase 1 実装計画**](./implementation/phases/phase1.md): MVP（メンション応答型）の詳細実装ステップ、コード例、完了基準
 
 ### テスト
 
-- **[テスト計画書](./test-plan.md)**: テスト計画、テスト戦略
-- **[テスト仕様書](./test-specification.md)**: テスト仕様、テストケース
+- [テスト計画書](./testing/test-plan.md): テスト戦略（単体・統合・システム・受入）、テスト項目、環境、手法
+- [テスト仕様書](./testing/test-specification.md): 具体的なテストケース、期待される結果、テストデータ
+
+### 運用
+
+- [デプロイメント・運用](./operations/deployment-operations.md): CI/CDパイプライン（GitHub Actions→GHCR→Watchtower）、デプロイ手順、運用フロー、監視
+- [トラブルシューティング](./operations/troubleshooting.md): よくある問題（Discord接続、APIエラー、DB問題、パフォーマンス、デプロイメント）と解決方法
+
+### 開発者向け
+
+- [コントリビューションガイド](./development/contributing.md): 開発フロー、コーディング規約、コミット規約、PRガイドライン、テストの書き方
+- [FAQ](./development/faq.md): セットアップ、開発環境、Bot動作、AI機能、セッション管理、デプロイメント、トラブルシューティングに関するよくある質問と回答
 
 ---
 
 ## ドキュメントの読み方
 
-### 開発開始時
+### 初めての方
 
-1. **[要件定義書](./requirements.md)**: プロジェクトの全体像を把握
-2. **[実装ロードマップ](./implementation-roadmap.md)**: 段階的な実装計画を確認 ⭐ **重要**
-3. **[実装検討事項詳細](./implementation-considerations.md)**: 実装上の注意点を確認
-4. **[WBS](./wbs.md)**: 作業項目を確認
+1. **[Getting Started](./getting-started.md)**: 開発環境のセットアップ
+2. **[要件概要](./requirements/overview.md)**: プロジェクトの目的と全体像を把握
+3. **[システム構成図](./architecture/system-architecture.md)**: システムアーキテクチャを理解
 
-### 設計時
+### 開発を始める方
 
-1. **[基本設計書](./basic-design.md)**: システムの基本設計を確認
-2. **[詳細設計書](./detailed-design.md)**: モジュール・関数の詳細を確認
-3. **[API 仕様書](./api-specification.md)**: API の仕様を確認
+1. **[実装ロードマップ](./implementation/roadmap.md)**: 段階的な実装計画を確認
+2. **[ADR](./architecture/adr/)**: 重要な技術的決定の背景を理解
+3. **[実装検討事項](./implementation/considerations.md)**: 実装上の注意点を確認
+4. **[プロジェクト管理](./requirements/project-management.md)**: 現在のスプリントとタスクを確認
 
-### 実装時
+### 設計を確認する方
 
-1. **[コマンド・機能仕様書](./command-specification.md)**: 実装する機能の仕様を確認
-2. **[イベント処理仕様書](./event-specification.md)**: イベント処理の仕様を確認
-3. **[データベース設計](./database-design.md)**: データベースの設計を確認
+1. **[基本設計書](./architecture/basic-design.md)**: システムの基本設計
+2. **[詳細設計書](./architecture/detailed-design.md)**: モジュール・関数の詳細
+3. **[データベース設計](./architecture/database-design.md)**: データモデルとスキーマ
+4. **[API 仕様書](./specifications/api-specification.md)**: API インターフェース
 
-### テスト時
+### 実装する方
 
-1. **[テスト計画書](./test-plan.md)**: テスト計画を確認
-2. **[テスト仕様書](./test-specification.md)**: テストケースを確認
+1. **[コマンド仕様書](./specifications/command-specification.md)**: 実装する機能の仕様
+2. **[イベント処理仕様書](./specifications/event-specification.md)**: イベント処理の仕様
+3. **[コントリビューションガイド](./development/contributing.md)**: コーディング規約とワークフロー
 
-### デプロイ時
+### テストする方
 
-1. **[デプロイメント・運用フロー](./deployment-operations.md)**: デプロイメント手順を確認
-2. **[システム構成図](./system-architecture.md)**: システム構成を確認
+1. **[テスト計画書](./testing/test-plan.md)**: テスト戦略
+2. **[テスト仕様書](./testing/test-specification.md)**: テストケース
+3. **[コントリビューションガイド - テスト](./development/contributing.md#テストの書き方)**: テストの書き方
+
+### デプロイ・運用する方
+
+1. **[デプロイメント・運用](./operations/deployment-operations.md)**: デプロイ手順
+2. **[システム構成図](./architecture/system-architecture.md)**: インフラ構成
+3. **[トラブルシューティング](./operations/troubleshooting.md)**: 問題解決ガイド
+
+### 困ったときは
+
+1. **[FAQ](./development/faq.md)**: よくある質問
+2. **[トラブルシューティング](./operations/troubleshooting.md)**: 具体的な問題と解決方法
+3. **GitHub Issues**: 質問や報告（注: GitHubリポジトリURLは実際の組織名/ユーザー名に置き換えてください）
+
+---
+
+## ドキュメント構造
+
+```text
+docs/
+├── README.md                          # このファイル（ドキュメント全体のナビゲーション）
+├── getting-started.md                 # 5分で始める開発環境セットアップ
+│
+├── requirements/                      # 要件定義
+│   ├── overview.md                    # 目的、背景、スコープ、制約（必読）
+│   ├── functional-requirements.md     # 機能要件・非機能要件の詳細
+│   ├── conversation-triggers.md       # 4つの会話方式の詳細説明
+│   ├── user-stories.md                # ユーザー視点の機能記述
+│   ├── use-cases.md                   # 詳細なユースケース
+│   └── project-management.md          # WBS、バックログ、スプリント計画
+│
+├── architecture/                      # アーキテクチャ
+│   ├── system-architecture.md         # システム構成、技術スタック、環境変数（必読）
+│   ├── basic-design.md                # レイヤー構成、モジュール設計
+│   ├── detailed-design.md             # クラス・メソッド詳細仕様
+│   ├── database-design.md             # ER図、テーブル定義、インデックス設計
+│   └── adr/                           # Architecture Decision Records
+│       ├── README.md                  # ADRの目的と作成方法
+│       ├── 0002-select-gemini-api.md  # Gemini API選定理由と代替案評価
+│       └── 0004-hybrid-session-management.md  # ハイブリッドセッション管理の採用理由
+│
+├── specifications/                    # 仕様書
+│   ├── api-specification.md           # Discord/Gemini API仕様
+│   ├── command-specification.md       # スラッシュコマンド仕様
+│   └── event-specification.md         # イベント処理フロー
+│
+├── implementation/                    # 実装
+│   ├── roadmap.md                     # 6段階実装計画（実装開始前必読）
+│   ├── considerations.md              # 実装上の検討事項
+│   ├── middleware-selection.md        # 使用技術の選定理由
+│   └── phases/                        # フェーズ別実装計画
+│       ├── phase1.md                  # Phase 1: MVP実装ステップ（現在）
+│       ├── phase2.md                  # Phase 2: 4つの会話の契機（将来作成）
+│       ├── phase3.md                  # Phase 3: CI/CD・運用機能（将来作成）
+│       ├── phase4.md                  # Phase 4: 最適化（将来作成）
+│       ├── phase5.md                  # Phase 5: 拡張機能（将来作成）
+│       └── phase6.md                  # Phase 6: 本番リリース（将来作成）
+│
+├── testing/                           # テスト
+│   ├── test-plan.md                   # テスト戦略と計画
+│   └── test-specification.md          # テストケースと期待結果
+│
+├── operations/                        # 運用
+│   ├── deployment-operations.md       # CI/CDパイプラインと監視
+│   └── troubleshooting.md             # 問題解決ガイド
+│
+└── development/                       # 開発者向け
+    ├── contributing.md                # 開発フロー、規約、PRガイドライン
+    └── faq.md                         # よくある質問と回答
+```
+
+### ディレクトリ説明
+
+**requirements/** - プロジェクトの「何を作るか」を定義
+
+- プロジェクトの目的、機能要件、非機能要件、制約条件
+- ユーザーストーリーとユースケース
+- プロジェクト管理（WBS、バックログ、スプリント計画）
+
+**architecture/** - システムの「どう作るか」を定義
+
+- システム全体の構成と技術スタック
+- モジュール設計とクラス設計
+- データベース設計
+- 重要な技術的決定（ADR）
+
+**specifications/** - インターフェースの「詳細仕様」を定義
+
+- 外部 API（Discord、Gemini）の使用方法
+- 内部 API の仕様
+- イベント処理とコマンド処理の詳細
+
+**implementation/** - 実装の「手順と計画」を定義
+
+- 段階的な実装ロードマップ
+- 各フェーズの詳細な実装計画（ステップバイステップ）
+- 実装上の注意点と技術選定理由
+
+**testing/** - テストの「計画と仕様」を定義
+
+- テスト戦略（単体・統合・E2E）
+- 具体的なテストケース
+
+**operations/** - 運用の「手順と対処法」を定義
+
+- デプロイ方法（CI/CD）
+- トラブルシューティング
+
+**development/** - 開発者の「参加方法」を定義
+
+- コーディング規約とワークフロー
+- FAQ（開発・運用に関する質問）
 
 ---
 
@@ -87,9 +209,23 @@
 
 ドキュメントは随時更新されます。最新の情報については、各ドキュメントの「最終更新日」を確認してください。
 
+### ドキュメント貢献
+
+ドキュメントの改善も大歓迎です！誤字脱字、わかりにくい説明、不足している情報などがあれば、[コントリビューションガイド](./development/contributing.md)を参照して Pull Request を作成してください。
+
 ---
 
-**作成日**: 2024 年
-**最終更新日**: 2024 年
-**バージョン**: 1.0
+## プロジェクト情報
+
+- **プロジェクト名**: Kotonoha（コトノハ）Discord Bot
+- **目的**: 場面緘黙自助グループの運営支援
+- **技術スタック**: Python 3.14, discord.py, Google Gemini API, SQLite, Docker
+- **ホスティング**: Synology NAS + Docker + Watchtower
+- **CI/CD**: GitHub Actions → GHCR → Watchtower
+
+---
+
+**作成日**: 2026年1月14日
+**最終更新日**: 2026年1月14日
+**バージョン**: 2.0
 **作成者**: kotonoha-bot 開発チーム

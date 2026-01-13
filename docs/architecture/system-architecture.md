@@ -149,70 +149,70 @@ sequenceDiagram
 
 | 変数名           | 説明                   | 例                                         | 必須 |
 | ---------------- | ---------------------- | ------------------------------------------ | ---- |
-| `DISCORD_TOKEN`  | Discord Bot トークン   | `MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.XXXXXX.XXXXXX` | ✅   |
-| `GEMINI_API_KEY` | Google Gemini API キー | `AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`      | ✅   |
+| `DISCORD_TOKEN`  | Discord Bot トークン   | `MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.XXXXXX.XXXXXX` | 必須 |
+| `GEMINI_API_KEY` | Google Gemini API キー | `AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`      | 必須 |
 
 ### 3.2 オプション環境変数
 
 #### 3.2.1 Gemini API 設定
 
-| 変数名               | 説明           | デフォルト値       | 必須 |
-| -------------------- | -------------- | ------------------ | ---- |
-| `GEMINI_FLASH_MODEL` | Flash モデル名 | `gemini-1.5-flash` | ❌   |
-| `GEMINI_PRO_MODEL`   | Pro モデル名   | `gemini-1.5-pro`   | ❌   |
-| `GEMINI_TEMPERATURE` | 温度パラメータ | `0.7`              | ❌   |
-| `GEMINI_MAX_TOKENS`  | 最大トークン数 | `2048`             | ❌   |
+| 変数名               | 説明           | デフォルト値       | 必須       |
+| -------------------- | -------------- | ------------------ | ---------- |
+| `GEMINI_FLASH_MODEL` | Flash モデル名 | `gemini-1.5-flash` | オプション |
+| `GEMINI_PRO_MODEL`   | Pro モデル名   | `gemini-1.5-pro`   | オプション |
+| `GEMINI_TEMPERATURE` | 温度パラメータ | `0.7`              | オプション |
+| `GEMINI_MAX_TOKENS`  | 最大トークン数 | `2048`             | オプション |
 
 #### 3.2.2 データベース設定
 
-| 変数名                | 説明                     | デフォルト値            | 必須 |
-| --------------------- | ------------------------ | ----------------------- | ---- |
-| `DATABASE_PATH`       | データベースファイルパス | `/app/data/kotonoha.db` | ❌   |
-| `DATABASE_BACKUP_DIR` | バックアップディレクトリ | `/app/backups`          | ❌   |
+| 変数名                | 説明                     | デフォルト値            | 必須       |
+| --------------------- | ------------------------ | ----------------------- | ---------- |
+| `DATABASE_PATH`       | データベースファイルパス | `/app/data/kotonoha.db` | オプション |
+| `DATABASE_BACKUP_DIR` | バックアップディレクトリ | `/app/backups`          | オプション |
 
 #### 3.2.3 セッション設定
 
-| 変数名                   | 説明                         | デフォルト値   | 必須 |
-| ------------------------ | ---------------------------- | -------------- | ---- |
-| `SESSION_TIMEOUT_ACTIVE` | アクティブタイムアウト（秒） | `300` (5 分)   | ❌   |
-| `SESSION_TIMEOUT_IDLE`   | アイドルタイムアウト（秒）   | `1800` (30 分) | ❌   |
-| `SESSION_MAX_MEMORY`     | メモリ内最大セッション数     | `100`          | ❌   |
-| `SESSION_HISTORY_LIMIT`  | メモリ内履歴保持数           | `50`           | ❌   |
+| 変数名                   | 説明                         | デフォルト値   | 必須       |
+| ------------------------ | ---------------------------- | -------------- | ---------- |
+| `SESSION_TIMEOUT_ACTIVE` | アクティブタイムアウト（秒） | `300` (5 分)   | オプション |
+| `SESSION_TIMEOUT_IDLE`   | アイドルタイムアウト（秒）   | `1800` (30 分) | オプション |
+| `SESSION_MAX_MEMORY`     | メモリ内最大セッション数     | `100`          | オプション |
+| `SESSION_HISTORY_LIMIT`  | メモリ内履歴保持数           | `50`           | オプション |
 
 #### 3.2.4 聞き耳型設定
 
-| 変数名                          | 説明                             | デフォルト値 | 必須 |
-| ------------------------------- | -------------------------------- | ------------ | ---- |
-| `EAVESDROP_ENABLED`             | 聞き耳型の有効/無効              | `true`       | ❌   |
-| `EAVESDROP_APPROACH`            | アプローチ選択 (`llm` or `rule`) | `llm`        | ❌   |
-| `EAVESDROP_LOG_SIZE`            | 会話ログ保持数                   | `10`         | ❌   |
-| `EAVESDROP_KEYWORD_PROBABILITY` | キーワード検知時の反応確率       | `0.5`        | ❌   |
-| `EAVESDROP_RANDOM_PROBABILITY`  | ランダム反応確率                 | `0.03`       | ❌   |
+| 変数名                          | 説明                             | デフォルト値 | 必須       |
+| ------------------------------- | -------------------------------- | ------------ | ---------- |
+| `EAVESDROP_ENABLED`             | 聞き耳型の有効/無効              | `true`       | オプション |
+| `EAVESDROP_APPROACH`            | アプローチ選択 (`llm` or `rule`) | `llm`        | オプション |
+| `EAVESDROP_LOG_SIZE`            | 会話ログ保持数                   | `10`         | オプション |
+| `EAVESDROP_KEYWORD_PROBABILITY` | キーワード検知時の反応確率       | `0.5`        | オプション |
+| `EAVESDROP_RANDOM_PROBABILITY`  | ランダム反応確率                 | `0.03`       | オプション |
 
 #### 3.2.5 ログ設定
 
-| 変数名             | 説明                                                         | デフォルト値             | 必須 |
-| ------------------ | ------------------------------------------------------------ | ------------------------ | ---- |
-| `LOG_LEVEL`        | ログレベル (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) | `INFO`                   | ❌   |
-| `LOG_FILE`         | ログファイルパス                                             | `/app/logs/kotonoha.log` | ❌   |
-| `LOG_MAX_SIZE`     | ログファイル最大サイズ（MB）                                 | `10`                     | ❌   |
-| `LOG_BACKUP_COUNT` | ログバックアップ数                                           | `5`                      | ❌   |
+| 変数名             | 説明                                                         | デフォルト値             | 必須       |
+| ------------------ | ------------------------------------------------------------ | ------------------------ | ---------- |
+| `LOG_LEVEL`        | ログレベル (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) | `INFO`                   | オプション |
+| `LOG_FILE`         | ログファイルパス                                             | `/app/logs/kotonoha.log` | オプション |
+| `LOG_MAX_SIZE`     | ログファイル最大サイズ（MB）                                 | `10`                     | オプション |
+| `LOG_BACKUP_COUNT` | ログバックアップ数                                           | `5`                      | オプション |
 
 #### 3.2.6 レート制限設定
 
-| 変数名                         | 説明                          | デフォルト値 | 必須 |
-| ------------------------------ | ----------------------------- | ------------ | ---- |
-| `RATE_LIMIT_FLASH_MAX`         | Flash API 最大リクエスト数/分 | `15`         | ❌   |
-| `RATE_LIMIT_PRO_MAX`           | Pro API 最大リクエスト数/分   | `2`          | ❌   |
-| `RATE_LIMIT_WARNING_THRESHOLD` | 警告閾値（使用率）            | `0.8`        | ❌   |
+| 変数名                         | 説明                          | デフォルト値 | 必須       |
+| ------------------------------ | ----------------------------- | ------------ | ---------- |
+| `RATE_LIMIT_FLASH_MAX`         | Flash API 最大リクエスト数/分 | `15`         | オプション |
+| `RATE_LIMIT_PRO_MAX`           | Pro API 最大リクエスト数/分   | `2`          | オプション |
+| `RATE_LIMIT_WARNING_THRESHOLD` | 警告閾値（使用率）            | `0.8`        | オプション |
 
 #### 3.2.7 その他設定
 
-| 変数名               | 説明                   | デフォルト値 | 必須 |
-| -------------------- | ---------------------- | ------------ | ---- |
-| `BOT_PREFIX`         | コマンドプレフィックス | `/`          | ❌   |
-| `MESSAGE_MAX_LENGTH` | メッセージ最大長       | `2000`       | ❌   |
-| `HEALTH_CHECK_PORT`  | ヘルスチェックポート   | `8080`       | ❌   |
+| 変数名               | 説明                   | デフォルト値 | 必須       |
+| -------------------- | ---------------------- | ------------ | ---------- |
+| `BOT_PREFIX`         | コマンドプレフィックス | `/`          | オプション |
+| `MESSAGE_MAX_LENGTH` | メッセージ最大長       | `2000`       | オプション |
+| `HEALTH_CHECK_PORT`  | ヘルスチェックポート   | `8080`       | オプション |
 
 ### 3.3 環境変数設定例
 
@@ -291,11 +291,11 @@ volumes:
 
 ### 4.2 マウントポイント
 
-| ホストパス                         | コンテナパス   | 用途                 | 永続化 |
-| ---------------------------------- | -------------- | -------------------- | ------ |
-| `/volume1/docker/kotonoha/data`    | `/app/data`    | SQLite データベース  | ✅     |
-| `/volume1/docker/kotonoha/logs`    | `/app/logs`    | ログファイル         | ❌     |
-| `/volume1/docker/kotonoha/backups` | `/app/backups` | バックアップファイル | ✅     |
+| ホストパス                         | コンテナパス   | 用途                 | 永続化     |
+| ---------------------------------- | -------------- | -------------------- | ---------- |
+| `/volume1/docker/kotonoha/data`    | `/app/data`    | SQLite データベース  | 必須       |
+| `/volume1/docker/kotonoha/logs`    | `/app/logs`    | ログファイル         | オプション |
+| `/volume1/docker/kotonoha/backups` | `/app/backups` | バックアップファイル | 必須       |
 
 ### 4.3 Docker Compose 設定例
 
@@ -369,8 +369,68 @@ chown -R 1000:1000 /volume1/docker/kotonoha/backups
 | **ファイル名形式**   | `kotonoha_YYYYMMDD_HHMMSS.db`  |
 | **自動削除**         | 7 日以上古いファイルを自動削除 |
 
+## 5. ディレクトリ構造
+
+### 5.1 プロジェクト構造
+
+```console
+kotonoha-bot/
+├── .github/
+│   └── workflows/
+│       └── docker-build.yml      # GitHub Actionsワークフロー
+├── docs/
+│   ├── README.md                 # ドキュメントインデックス
+│   ├── getting-started.md        # クイックスタートガイド
+│   ├── requirements/             # 要件定義
+│   ├── architecture/             # アーキテクチャ設計
+│   ├── specifications/           # 仕様書
+│   ├── implementation/           # 実装関連
+│   ├── testing/                  # テスト
+│   ├── operations/               # 運用
+│   └── development/              # 開発者向け
+├── src/
+│   └── kotonoha_bot/
+│       ├── __init__.py
+│       ├── bot.py                # Discordボットメイン
+│       ├── ai/
+│       │   ├── __init__.py
+│       │   ├── base.py           # 抽象化インターフェース
+│       │   └── gemini.py         # Gemini API実装
+│       ├── database/
+│       │   ├── __init__.py
+│       │   └── sqlite.py         # SQLite管理
+│       ├── session/
+│       │   ├── __init__.py
+│       │   ├── manager.py        # セッション管理（ハイブリッド）
+│       │   └── chat_session.py   # ChatSessionクラス
+│       ├── router/
+│       │   ├── __init__.py
+│       │   └── message_router.py # 会話の契機判定
+│       ├── eavesdrop/
+│       │   ├── __init__.py
+│       │   ├── llm_judge.py      # アプローチ1: LLM判断
+│       │   └── rule_judge.py     # アプローチ2: ルールベース判断
+│       └── commands/
+│           └── chat.py           # チャットコマンド
+├── data/
+│   └── kotonoha.db               # SQLiteデータベース（.gitignore）
+├── Dockerfile
+├── docker-compose.yml            # 開発用（オプション）
+├── .env.example                  # 環境変数テンプレート
+├── pyproject.toml
+└── README.md
+```
+
+### 5.2 Dockerfile 構成（予定）
+
+- Python 3.14 slim ベースイメージ
+- uv による依存関係インストール
+- 非 root ユーザーでの実行
+- ヘルスチェック設定
+- データボリュームマウントポイント: `/app/data`
+
 ---
 
-**作成日**: 2024 年
+**作成日**: 2026 年 1 月 14 日
 **バージョン**: 1.0
 **作成者**: kotonoha-bot 開発チーム

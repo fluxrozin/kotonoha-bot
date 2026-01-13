@@ -330,6 +330,6 @@ logrotate -f /etc/logrotate.d/kotonoha
 
 ---
 
-**作成日**: 2024 年
+**作成日**: 2026年1月14日
 **バージョン**: 1.0
 **作成者**: kotonoha-bot 開発チーム
