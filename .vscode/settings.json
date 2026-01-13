@@ -1,0 +1,5 @@
+{
+    "markdown-preview-enhanced.enableScriptExecution": true,
+    "markdown-preview-enhanced.previewTheme": "none.css",
+    "markdown-preview-enhanced.codeBlockTheme": "default.css",
+}

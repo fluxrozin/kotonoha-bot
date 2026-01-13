@@ -1,0 +1,340 @@
+
+/* Please visit the URL below for more information: */
+/*   https://shd101wyy.github.io/markdown-preview-enhanced/#/customize-css */
+
+.markdown-preview.markdown-preview {
+  /* =========================================
+     Base Settings: 基本設定
+     ========================================= */
+  /* PDFエクスポート時に背景色を保持 */
+  -webkit-print-color-adjust: exact !important;
+  print-color-adjust: exact !important;
+  
+  /* プレビューコンテナ自体のスタイル */
+  background-color: white !important;
+  /* Override VS Code webview inline code colors */
+  --vscode-textPreformat-background: #eee;
+  --vscode-textPreformat-foreground: #c7254e;
+  font-size: 11pt !important;
+  font-family: "Migu 1C", "Meiryo UI", "Yu Gothic UI", "Segoe UI", sans-serif !important;
+  color: #2c3e50 !important;
+  line-height: 1.6 !important;
+  text-align: justify !important;
+  max-width: 210mm !important;
+  margin: 0 auto !important;
+  padding: 2em !important;
+  
+  /* body要素のスタイル（存在する場合） */
+  body {
+    background-color: white !important;
+    font-size: 11pt !important;
+    font-family: "Migu 1C", "Meiryo UI", "Yu Gothic UI", "Segoe UI", sans-serif !important;
+    color: #2c3e50 !important;
+    line-height: 1.6 !important;
+    text-align: justify !important;
+    max-width: 210mm !important;
+    margin: 0 auto !important;
+    padding: 2em !important;
+  }
+
+  /* =========================================
+     Headings: 階層構造のデザイン
+     ========================================= */
+  /* 大見出し：章タイトル（ページ区切り） */
+  h1 {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-size: 18pt !important;
+    font-weight: bold !important;
+    color: #fff !important;
+    background-color: #2c3e50 !important; /* 濃紺の帯 */
+    padding: 10px 20px !important;
+    margin-top: 0 !important;
+    margin-bottom: 30px !important;
+    border-left: 10px solid #3498db !important; /* 青のアクセント */
+    page-break-before: always !important; /* 直前で改ページ */
+  }
+
+  /* 中見出し：セクション */
+  h2 {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-size: 14pt !important;
+    font-weight: bold !important;
+    margin-top: 30px !important;
+    margin-bottom: 20px !important;
+    color: #2c3e50 !important;
+  }
+  h2::before {
+    content: "■" !important; /* 四角い記号でデジタル感を演出 */
+    color: #3498db !important;
+    font-size: 0.8em !important;
+    vertical-align: text-bottom !important;
+    margin-right: 0.5em !important; /* ■と見出しテキストの間隔 */
+  }
+
+  /* 小見出し：サブセクション */
+  h3 {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-size: 12pt !important;
+    font-weight: bold !important;
+    margin-top: 20px !important;
+    margin-bottom: 15px !important;
+    padding-left: 15px !important;
+    border-left: 4px solid #3498db !important;
+    color: #2c3e50 !important;
+  }
+
+  /* 最小見出し：サブサブセクション */
+  h4 {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-size: 11pt !important;
+    font-weight: bold !important;
+    margin-top: 15px !important;
+    margin-bottom: 10px !important;
+    padding-left: 12px !important;
+    border-left: 2px solid #3498db !important;
+    color: #34495e !important;
+  }
+
+  /* 最小見出し：サブサブサブセクション */
+  h5 {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    font-size: 11pt !important;
+    font-weight: bold !important;
+    margin-top: 12px !important;
+    margin-bottom: 8px !important;
+    padding-left: 15px !important;
+    border-left: 1px solid #3498db !important;
+    color: #34495e !important;
+  }
+
+  /* =========================================
+     Code Blocks: 技術文書向け調整
+     ========================================= */
+  pre {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background-color: #f8f9fa !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 0 !important; /* 角丸なし（シャープさ重視） */
+    padding: 15px !important;
+    margin: 20px 0 !important;
+  }
+
+  code {
+    font-family: "HackGen", "Consolas", "Monaco", "Courier New", monospace !important;
+    /* 本文より小さくしてバランスを取る */
+    font-size: 10pt !important; 
+    line-height: 1.35 !important;
+    color: #d63384 !important;
+  }
+
+  /* インラインコード */
+  p code,
+  li code,
+  table td > code,
+  table th > code,
+  table td :not(pre) > code,
+  table th :not(pre) > code {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background-color: #eee !important;
+    padding: 2px 4px !important;
+    border: 1px solid #ccc !important;
+    color: #c7254e !important;
+    font-size: 0.9em !important;
+    margin: 0 2px !important;
+  }
+
+  /* Inline code in tables: force light background */
+  table td > code,
+  table th > code,
+  table td > code *,
+  table th > code * {
+    background-color: #eee !important;
+    box-shadow: none !important;
+  }
+
+  /* =========================================
+     Syntax Highlighting (highlight.js)
+     モノクロ印刷でも区別できるように明度の違いで表現
+     ========================================= */
+  pre code {
+    color: #2c3e50;
+  }
+
+  /* キーワード: 最も濃い（黒に近い） */
+  .hljs-keyword {
+    color: #000000 !important;
+    font-weight: bold !important;
+  }
+  
+  /* 文字列: 濃いグレー */
+  .hljs-string {
+    color: #333333 !important;
+  }
+  
+  /* コメント: 薄いグレー + イタリック */
+  .hljs-comment {
+    color: #888888 !important;
+    font-style: italic !important;
+  }
+  
+  /* 数値: 中程度の濃さ */
+  .hljs-number {
+    color: #555555 !important;
+  }
+  
+  /* 関数名: 濃いグレー + 太字 */
+  .hljs-title.function_ {
+    color: #1a1a1a !important;
+    font-weight: bold !important;
+  }
+  
+  /* クラス名: 中程度の濃さ */
+  .hljs-title.class_ {
+    color: #444444 !important;
+  }
+  
+  /* 変数: 中程度の濃さ */
+  .hljs-variable {
+    color: #444444 !important;
+  }
+  
+  /* 属性: 中程度の濃さ */
+  .hljs-attr {
+    color: #555555 !important;
+  }
+  
+  /* リテラル: 中程度の濃さ */
+  .hljs-literal {
+    color: #555555 !important;
+  }
+  
+  /* 型: 中程度の濃さ */
+  .hljs-type {
+    color: #444444 !important;
+  }
+  
+  /* 組み込み関数: 濃いグレー */
+  .hljs-built_in {
+    color: #2a2a2a !important;
+  }
+  
+  /* メタ: 薄いグレー */
+  .hljs-meta {
+    color: #777777 !important;
+  }
+  
+  /* 強調: イタリック */
+  .hljs-emphasis {
+    font-style: italic !important;
+  }
+  
+  /* 強調: 太字 */
+  .hljs-strong {
+    font-weight: bold !important;
+  }
+
+  /* Normalize code token backgrounds */
+  pre code,
+  pre code span,
+  pre code .token,
+  pre code .hljs {
+    background: transparent !important;
+  }
+
+  /* =========================================
+     Tables: データの視認性
+     ========================================= */
+  table {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    border-collapse: collapse !important;
+    width: 100% !important;
+    margin: 20px 0 !important;
+    font-size: 9pt !important;
+    border: 2px solid #2c3e50 !important;
+  }
+
+  th {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background-color: #eceff1 !important;
+    border: 1px solid #90a4ae !important;
+    padding: 8px !important;
+    font-weight: bold !important;
+    text-align: center !important;
+  }
+
+  td {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    border: 1px solid #cfd8dc !important;
+    padding: 8px !important;
+    vertical-align: top !important;
+  }
+
+  tr:nth-child(even) {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background-color: #fafafa !important;
+  }
+
+  /* =========================================
+     Others: 引用・リストなど
+     ========================================= */
+  blockquote {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    border-left: 4px solid #95a5a6 !important;
+    background-color: #f8f9fa !important;
+    margin: 20px 0 !important;
+    padding: 10px 20px !important;
+    color: #555 !important;
+  }
+
+  a {
+    color: #2980b9 !important; /* コントラスト比向上: 4.5:1 → 5.9:1 */
+    text-decoration: none !important;
+  }
+
+  /* ===============================
+    ネストされた ol をすべて対象
+    折り返しインデント対応版
+    =============================== */
+
+  ol ol,
+  ul ol {
+    list-style: none !important;
+    counter-reset: my-nested-counter !important;
+    padding-left: 1.8em; /* ← 全体のインデント幅 */
+  }
+
+  ol ol li,
+  ul ol li {
+    list-style: none !important;
+    counter-increment: my-nested-counter !important;
+
+    /* ぶら下げインデントの核心 */
+    padding-left: 1em;     /* 本文の開始位置 */
+    text-indent: -1em;     /* 1行目だけ左に引き戻す */
+  }
+
+  ol ol li::marker,
+  ul ol li::marker {
+    content: none !important;
+    display: none !important;
+  }
+
+  ol ol li::before,
+  ul ol li::before {
+    content: "(" counter(my-nested-counter) ") ";
+    display: inline-block;
+    width: 1em;            /* ← text-indent と一致させる */
+  }
+}
