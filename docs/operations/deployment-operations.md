@@ -91,12 +91,17 @@ docker logs kotonoha-bot 2>&1 | grep ERROR
 
 #### 2.1.2 ヘルスチェック
 
+詳細は [ヘルスチェックドキュメント](./health-check.md) を参照してください。
+
 ```bash
-# ヘルスチェックエンドポイントにアクセス
+# Docker ヘルスチェックの状態を確認
+docker ps
+
+# HTTP ヘルスチェックエンドポイントにアクセス（ポート公開時）
 curl http://localhost:8080/health
 
 # 期待される応答
-{"status": "healthy", "database": "connected", "discord": "connected"}
+{"status": "healthy", "discord": "connected", "sessions": 5}
 ```
 
 #### 2.1.3 リソース監視

@@ -1,8 +1,8 @@
 """ヘルスチェックサーバー"""
-import asyncio
+
 import json
 import logging
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 from typing import Callable
 
@@ -33,36 +33,42 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
     def _handle_health(self) -> None:
         """ヘルスチェックエンドポイント"""
         try:
-            status = self.get_status() if self.get_status else {"status": "unknown"}
+            get_status_func = HealthCheckHandler.get_status
+            status = get_status_func() if get_status_func else {"status": "unknown"}
             is_healthy = status.get("status") == "healthy"
 
             self.send_response(200 if is_healthy else 503)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps(status).encode())
+            self.wfile.write(json.dumps(status).encode() + b"\n")
         except Exception as e:
             logger.error(f"Health check error: {e}")
             self.send_response(500)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"status": "error", "error": str(e)}).encode())
+            self.wfile.write(
+                json.dumps({"status": "error", "error": str(e)}).encode() + b"\n"
+            )
 
     def _handle_ready(self) -> None:
         """レディネスチェックエンドポイント"""
         try:
-            status = self.get_status() if self.get_status else {"status": "unknown"}
+            get_status_func = HealthCheckHandler.get_status
+            status = get_status_func() if get_status_func else {"status": "unknown"}
             is_ready = status.get("discord") == "connected"
 
             self.send_response(200 if is_ready else 503)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"ready": is_ready}).encode())
+            self.wfile.write(json.dumps({"ready": is_ready}).encode() + b"\n")
         except Exception as e:
             logger.error(f"Ready check error: {e}")
             self.send_response(500)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"ready": False, "error": str(e)}).encode())
+            self.wfile.write(
+                json.dumps({"ready": False, "error": str(e)}).encode() + b"\n"
+            )
 
 
 class HealthCheckServer:

@@ -13,8 +13,7 @@ services:
     container_name: kotonoha-bot
     restart: unless-stopped
 
-    # rootで起動してパーミッション修正後にユーザーを切り替える
-    # entrypoint.shが自動的にパーミッションを修正し、botuserに切り替えます
+    # rootで起動し、entrypoint.shが自動的にパーミッションを修正してbotuserに切り替えます
     user: root
 
     # 環境変数ファイル
@@ -22,47 +21,27 @@ services:
       - .env
 
     # ボリュームマウント（データの永続化）
-    # 注意: 初回起動前に、ホスト側でディレクトリを作成してください
-    # docker compose up する前に以下を実行:
-    #   mkdir -p data logs backups
-    #
-    # パーミッションについて:
-    # コンテナはrootで起動され、entrypoint.shが自動的にパーミッションを修正します。
-    # 通常は手動でのパーミッション設定は不要ですが、自動修正が失敗する場合は
-    # 以下のいずれかを実行してください:
-    #   方法1: chmod 775 data logs backups
-    #   方法2: sudo chown -R 1000:1000 data logs backups
     volumes:
-      # データベース（必須）
       - ./data:/app/data
-      # ログ（オプション - LOG_FILE が設定されている場合のみ必要）
       - ./logs:/app/logs
-      # バックアップ（オプション）
       - ./backups:/app/backups
 
     # ネットワーク設定
     networks:
       - kotonoha-network
 
-    # ヘルスチェック用ポート（オプション）
-    # ports:
-    #   - "8080:8080"
-
-    # リソース制限
-    # 注意: CPU CFS未サポートのNAS環境では、deployセクション全体をコメントアウトしてください
-    # リソース制限が必要な場合は、Container ManagerのGUIから設定してください
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: "1.0"
-    #       memory: 512M
-    #     reservations:
-    #       cpus: "0.25"
-    #       memory: 128M
+    # ポート公開（オプション）
+    # ヘルスチェックエンドポイントに外部からアクセスする場合に有効化
+    # セキュリティ上の理由から、本番環境ではリバースプロキシ経由でのアクセスを推奨
+    ports:
+      - "8080:8080"  # ホスト:コンテナ
 
     # ヘルスチェック
+    # HTTPエンドポイントを使用してアプリケーションの状態を確認
+    # HEALTH_CHECK_ENABLED=true の場合、ポート8080でHTTPサーバーが起動します
+    # HTTPサーバーが無効な場合は、Pythonプロセスの存在を確認します
     healthcheck:
-      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5).read()\" 2>/dev/null || python -c 'import sys; sys.exit(0)'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -74,26 +53,6 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
-
-  # Watchtower（自動更新）- オプション
-  # CI/CD 設定後に有効化
-  # watchtower:
-  #   image: containrrr/watchtower
-  #   container_name: watchtower
-  #   restart: unless-stopped
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #     # GHCR 認証用（プライベートリポジトリの場合）
-  #     # - ~/.docker/config.json:/config.json:ro
-  #   environment:
-  #     - WATCHTOWER_CLEANUP=true
-  #     - WATCHTOWER_POLL_INTERVAL=300
-  #     - WATCHTOWER_INCLUDE_STOPPED=false
-  #     - WATCHTOWER_LABEL_ENABLE=true
-  #   networks:
-  #     - kotonoha-network
-  #   labels:
-  #     - "com.centurylinklabs.watchtower.enable=false"
 
 networks:
   kotonoha-network:

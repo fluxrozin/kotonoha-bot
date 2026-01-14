@@ -53,6 +53,7 @@
 ### 運用
 
 - [デプロイメント・運用](./operations/deployment-operations.md): CI/CD パイプライン（GitHub Actions→GHCR→Watchtower）、デプロイ手順、運用フロー、監視
+- [ヘルスチェック](./operations/health-check.md): Docker ヘルスチェックと HTTP エンドポイントの設定・使用方法
 - [トラブルシューティング](./operations/troubleshooting.md): よくある問題（Discord 接続、API エラー、DB 問題、パフォーマンス、デプロイメント）と解決方法
 
 ### 開発者向け
@@ -160,6 +161,7 @@ docs/
 │
 ├── operations/                        # 運用
 │   ├── deployment-operations.md       # CI/CDパイプラインと監視
+│   ├── health-check.md                # ヘルスチェックの設定・使用方法
 │   └── troubleshooting.md             # 問題解決ガイド
 │
 └── development/                       # 開発者向け
