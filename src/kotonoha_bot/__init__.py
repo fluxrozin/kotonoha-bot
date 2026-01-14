@@ -1,2 +1,2 @@
-def hello() -> str:
-    return "Hello from kotonoha-bot!"
+"""Kotonoha Discord Bot"""
+__version__ = "0.1.0"

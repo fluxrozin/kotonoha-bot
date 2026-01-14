@@ -31,13 +31,13 @@ NNNN-title-with-dashes.md
 
 ## ADR 一覧
 
-| ID   | タイトル                                                        | ステータス | 日付       |
-| ---- | --------------------------------------------------------------- | ---------- | ---------- |
-| 0001 | [Python 3.14 の採用](0001-use-python-3-14.md)                   | Accepted   | 2024-01-15 |
-| 0002 | [Gemini API の選定](0002-select-gemini-api.md)                  | Accepted   | 2024-01-15 |
-| 0003 | [SQLite の採用](0003-use-sqlite.md)                             | Accepted   | 2024-01-15 |
-| 0004 | [ハイブリッドセッション管理](0004-hybrid-session-management.md) | Accepted   | 2024-01-15 |
-| 0005 | [4 つの会話の契機](0005-four-conversation-triggers.md)          | Accepted   | 2024-01-15 |
+| ID   | タイトル                                                                  | ステータス | 日付       |
+| ---- | ------------------------------------------------------------------------- | ---------- | ---------- |
+| 0001 | [Python 3.14 の採用](0001-use-python-3-14.md)                             | Accepted   | 2026-01-14 |
+| 0002 | [LiteLLM マルチプロバイダー戦略](0002-litellm-multi-provider-strategy.md) | Accepted   | 2026-01-14 |
+| 0003 | [SQLite の採用](0003-use-sqlite.md)                                       | Accepted   | 2026-01-14 |
+| 0004 | [ハイブリッドセッション管理](0004-hybrid-session-management.md)           | Accepted   | 2026-01-14 |
+| 0005 | [4 つの会話の契機](0005-four-conversation-triggers.md)                    | Accepted   | 2026-01-14 |
 
 ## ADR テンプレート
 
@@ -130,5 +130,5 @@ NNNN-title-with-dashes.md
 
 ---
 
-**作成日**: 2026年1月14日
-**最終更新日**: 2026年1月14日
+**作成日**: 2026 年 1 月 14 日
+**最終更新日**: 2026 年 1 月 14 日

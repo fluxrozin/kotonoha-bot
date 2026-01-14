@@ -39,7 +39,6 @@
 - `detect_trigger_type(message)`: 会話の契機を判定
 - `handle_mention(message)`: メンション応答型の処理
 - `handle_thread(message)`: スレッド型の処理
-- `handle_dm(message)`: DM 型の処理
 - `handle_eavesdrop(message)`: 聞き耳型の処理
 
 **依存関係**:
@@ -131,9 +130,9 @@
 
 **対応プロバイダー**:
 
-- **開発**: `gemini/gemini-1.5-flash`（Google Gemini API）
-- **調整**: `anthropic/claude-sonnet-4-5-20250514`（Claude API）
-- **本番**: `anthropic/claude-opus-4-5-20250514`（Claude API）
+- **開発**: `anthropic/claude-3-haiku-20240307`（Anthropic Claude API、レガシー、超低コスト）
+- **調整**: `anthropic/claude-sonnet-4-5`（Claude API）
+- **本番**: `anthropic/claude-opus-4-5`（Claude API）
 
 **依存関係**:
 
@@ -398,7 +397,7 @@
 **制約**:
 
 - PRIMARY KEY: `session_key`
-- CHECK: `session_type IN ('mention', 'thread', 'dm', 'eavesdrop')`
+- CHECK: `session_type IN ('mention', 'thread', 'eavesdrop')`
 - CHECK: `is_archived IN (0, 1)`
 
 **インデックス**:
@@ -492,6 +491,6 @@ sequenceDiagram
 
 ---
 
-**作成日**: 2026年1月14日
+**作成日**: 2026 年 1 月 14 日
 **バージョン**: 1.0
 **作成者**: kotonoha-bot 開発チーム

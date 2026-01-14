@@ -1,16 +1,17 @@
-# Phase 1 実装計画 - MVP（メンション応答型）
+# Phase 1 実装完了報告 - MVP（メンション応答型）
 
-Kotonoha Discord Bot の Phase 1（基盤実装）の詳細な実装計画書
+Kotonoha Discord Bot の Phase 1（基盤実装）の実装完了報告書
 
 ## 目次
 
 1. [Phase 1 の目標](#phase-1-の目標)
-2. [前提条件](#前提条件)
-3. [プロジェクト構造](#プロジェクト構造)
-4. [実装ステップ](#実装ステップ)
-5. [完了基準](#完了基準)
-6. [トラブルシューティング](#トラブルシューティング)
-7. [次のフェーズへ](#次のフェーズへ)
+2. [実装状況](#実装状況)
+3. [前提条件](#前提条件)
+4. [プロジェクト構造](#プロジェクト構造)
+5. [実装ステップ（参考情報）](#実装ステップ参考情報)
+6. [完了基準](#完了基準)
+7. [トラブルシューティング](#トラブルシューティング)
+8. [次のフェーズへ](#次のフェーズへ)
 
 ---
 
@@ -23,17 +24,75 @@ Kotonoha Discord Bot の Phase 1（基盤実装）の詳細な実装計画書
 **達成すべきこと**:
 
 - Bot が Discord サーバーに接続できる
-- メンション時に LiteLLM 経由で LLM API（開発: Gemini、本番: Claude）を使って応答を生成できる
+- メンション時に LiteLLM 経由で LLM API（開発: Claude 3 Haiku（レガシー）、本番: Claude Opus 4.5）を使って応答を生成できる
 - 基本的な会話履歴をメモリで管理できる
 - SQLite にセッションを保存できる
 - Bot の再起動時にセッションを復元できる
 
 **スコープ外（Phase 2 以降）**:
 
-- スレッド型、DM 型、聞き耳型
-- レート制限の高度な管理
-- CI/CD パイプライン
-- Docker 化
+- スレッド型、聞き耳型（Phase 5 で実装予定）
+- レート制限の高度な管理（Phase 6 で実装予定）
+- CI/CD パイプライン（Phase 7 で実装予定）
+- Docker 化（Phase 2 で実装予定）
+
+---
+
+## 実装状況
+
+### ✅ 実装完了（2026 年 1 月）
+
+Phase 1 の実装は完了しています。以下の機能が実装されています:
+
+**実装済み機能**:
+
+- ✅ Discord Bot の基本接続機能
+- ✅ メンション応答型の会話契機
+- ✅ LiteLLM 経由での Claude API 統合
+  - 開発用: Claude 3 Haiku（レガシー、超低コスト）
+  - 本番用: Claude Opus 4.5（設定可能）
+- ✅ セッション管理（メモリ + SQLite）
+- ✅ 会話履歴の保持と復元
+- ✅ 基本的なエラーハンドリング
+- ✅ ログ出力機能
+
+**実装されたファイル構造**:
+
+```txt
+src/kotonoha_bot/
+├── __init__.py
+├── config.py              # ✅ 実装済み
+├── main.py                # ✅ 実装済み
+├── ai/
+│   ├── __init__.py
+│   ├── provider.py        # ✅ 実装済み
+│   └── litellm_provider.py  # ✅ 実装済み
+├── bot/
+│   ├── __init__.py
+│   ├── client.py         # ✅ 実装済み
+│   └── handlers.py       # ✅ 実装済み
+├── session/
+│   ├── __init__.py
+│   ├── models.py         # ✅ 実装済み
+│   └── manager.py        # ✅ 実装済み
+└── db/
+    ├── __init__.py
+    └── sqlite.py          # ✅ 実装済み
+```
+
+**会話契機**:
+
+- ✅ **メンション応答型**: 実装済み
+- ❌ **スレッド型**: Phase 5 で実装予定
+- ❌ **聞き耳型**: Phase 5 で実装予定
+
+**Phase 1 完了後の確認事項**:
+
+- ✅ `.env` ファイルが作成され、`DISCORD_TOKEN` と `ANTHROPIC_API_KEY` が設定されている
+- ✅ Bot が正常に起動し、Discord に接続できる
+- ✅ メンション時に応答が返る
+- ✅ セッションが SQLite に保存され、再起動時に復元される
+- ✅ Phase 2（NAS デプロイ）の実装準備が整っている
 
 ---
 
@@ -52,8 +111,10 @@ Kotonoha Discord Bot の Phase 1（基盤実装）の詳細な実装計画書
 
 2. **LLM API キー**
 
-   - **開発環境**: [Google AI Studio](https://aistudio.google.com/app/apikey) で Gemini API キーを取得
-     - 無料枠: Flash 15 回/分（1,500 回/日）、Pro 2 回/分（50 回/日）
+   - **開発環境**: [Anthropic Console](https://console.anthropic.com/) で Claude API キーを取得
+     - 開発用モデル: Claude 3 Haiku（レガシー、超低コスト）
+     - 料金: 入力 $0.25/100 万トークン、出力 $1.25/100 万トークン
+     - コスト例: 月 1,000 回（平均 500 トークン/回）で約 $0.75（約 110 円）
    - **本番環境**: [Anthropic Console](https://console.anthropic.com/) で Claude API キーを取得
 
 3. **開発環境**
@@ -64,27 +125,18 @@ Kotonoha Discord Bot の Phase 1（基盤実装）の詳細な実装計画書
 
 ### 環境変数の準備
 
-`.env.example` ファイルを作成:
+`.env.example` ファイルは既に作成済みです。`.env` ファイルを作成して設定してください:
 
 ```bash
-# Discord Bot Token
-DISCORD_TOKEN=your_discord_bot_token_here
-
-# LLM 設定（LiteLLM）
-LLM_MODEL=gemini/gemini-1.5-flash  # 開発用
-# LLM_MODEL=anthropic/claude-opus-4-5-20250514  # 本番用
-
-# API キー（使用するプロバイダーに応じて設定）
-GEMINI_API_KEY=your_gemini_api_key_here  # 開発用
-# ANTHROPIC_API_KEY=your_anthropic_api_key_here  # 本番用
-
-# Bot Settings
-BOT_PREFIX=!
-LOG_LEVEL=INFO
-
-# Database
-DATABASE_PATH=./data/sessions.db
+cp .env.example .env
+# .env を編集して実際の値を設定
 ```
+
+主要な環境変数:
+
+- `DISCORD_TOKEN`: Discord Bot トークン
+- `LLM_MODEL`: LLM モデル（デフォルト: `anthropic/claude-3-haiku-20240307`）
+- `ANTHROPIC_API_KEY`: Anthropic API キー
 
 ---
 
@@ -139,9 +191,13 @@ kotonoha-bot/
 
 ---
 
-## 実装ステップ
+## 実装ステップ（参考情報）
 
-### Step 1: プロジェクトのセットアップ (30 分)
+> **注意**: 以下の実装ステップは既に完了しています。参考情報として記載しています。
+
+このセクションでは、Phase 1 で実装した各ステップの詳細を記載しています。実装は完了しているため、新規実装時の参考としてご利用ください。
+
+### Step 1: プロジェクトのセットアップ (30 分) ✅ 完了
 
 #### 1.1 リポジトリの初期化
 
@@ -193,33 +249,21 @@ Thumbs.db
 
 #### 1.3 依存関係のインストール
 
-##### Option A: uv を使用（推奨）
+依存関係は `pyproject.toml` に既に定義されています。
+
+##### uv を使用（推奨）
 
 ```bash
-# uvのインストール（まだの場合）
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# プロジェクトの初期化
-uv init
-
 # 依存関係のインストール
-uv add discord.py python-dotenv litellm
+uv sync
 ```
 
-##### Option B: pip を使用
-
-`requirements.txt`:
-
-```txt
-discord.py==2.3.2
-python-dotenv==1.0.0
-litellm>=1.0.0
-```
+##### pip を使用
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # Windowsの場合: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
 #### 1.4 環境変数の設定
@@ -231,14 +275,14 @@ cp .env.example .env
 
 #### Step 1 完了チェックリスト
 
-- [ ] Git リポジトリが初期化されている
-- [ ] `.gitignore` が作成されている
-- [ ] 依存関係がインストールされている
-- [ ] `.env` ファイルが作成され、トークンが設定されている
+- [x] Git リポジトリが初期化されている
+- [x] `.gitignore` が作成されている
+- [x] 依存関係が `pyproject.toml` に定義されている
+- [x] `.env` ファイルが作成され、トークンが設定されている
 
 ---
 
-### Step 2: 設定管理の実装 (30 分)
+### Step 2: 設定管理の実装 (30 分) ✅ 完了
 
 #### 2.1 `src/kotonoha_bot/config.py` の作成
 
@@ -260,7 +304,7 @@ class Config:
     BOT_PREFIX: str = os.getenv("BOT_PREFIX", "!")
 
     # LLM設定（LiteLLM）
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "gemini/gemini-1.5-flash")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "anthropic/claude-3-haiku-20240307")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
     LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2048"))
     LLM_FALLBACK_MODEL: str | None = os.getenv("LLM_FALLBACK_MODEL")
@@ -293,13 +337,13 @@ Config.validate()
 
 #### Step 2 完了チェックリスト
 
-- [ ] `config.py` が作成されている
-- [ ] 環境変数が正しく読み込まれる
-- [ ] `Config.validate()` が通る
+- [x] `config.py` が作成されている
+- [x] 環境変数が正しく読み込まれる
+- [x] `Config.validate()` が実装されている
 
 ---
 
-### Step 3: データモデルの実装 (45 分)
+### Step 3: データモデルの実装 (45 分) ✅ 完了
 
 #### 3.1 `src/kotonoha_bot/session/models.py` の作成
 
@@ -343,7 +387,7 @@ class Message:
         )
 
 
-SessionType = Literal["mention", "thread", "dm", "eavesdrop"]
+SessionType = Literal["mention", "thread", "eavesdrop"]
 
 
 @dataclass
@@ -403,13 +447,13 @@ class ChatSession:
 
 #### Step 3 完了チェックリスト
 
-- [ ] `Message` クラスが実装されている
-- [ ] `ChatSession` クラスが実装されている
-- [ ] `to_dict()` / `from_dict()` が動作する
+- [x] `Message` クラスが実装されている
+- [x] `ChatSession` クラスが実装されている
+- [x] `to_dict()` / `from_dict()` が実装されている
 
 ---
 
-### Step 4: SQLite データベースの実装 (1 時間)
+### Step 4: SQLite データベースの実装 (1 時間) ✅ 完了
 
 #### 4.1 `src/kotonoha_bot/db/sqlite.py` の作成
 
@@ -575,14 +619,14 @@ class SQLiteDatabase:
 
 #### Step 4 完了チェックリスト
 
-- [ ] データベースが初期化される
-- [ ] セッションを保存できる
-- [ ] セッションを読み込める
-- [ ] 全セッションを読み込める
+- [x] データベースが初期化される
+- [x] セッションを保存できる
+- [x] セッションを読み込める
+- [x] 全セッションを読み込める
 
 ---
 
-### Step 5: セッション管理の実装 (1 時間)
+### Step 5: セッション管理の実装 (1 時間) ✅ 完了
 
 #### 5.1 `src/kotonoha_bot/session/manager.py` の作成
 
@@ -723,15 +767,15 @@ class SessionManager:
 
 #### Step 5 完了チェックリスト
 
-- [ ] セッションを作成できる
-- [ ] セッションを取得できる
-- [ ] メッセージを追加できる
-- [ ] セッションを保存できる
-- [ ] Bot 再起動時にセッションが復元される
+- [x] セッションを作成できる
+- [x] セッションを取得できる
+- [x] メッセージを追加できる
+- [x] セッションを保存できる
+- [x] Bot 再起動時にセッションが復元される（実装済み）
 
 ---
 
-### Step 6: LiteLLM 統合の実装 (1 時間 30 分)
+### Step 6: LiteLLM 統合の実装 (1 時間 30 分) ✅ 完了
 
 #### 6.1 `src/kotonoha_bot/ai/provider.py` の作成
 
@@ -783,9 +827,9 @@ class LiteLLMProvider(AIProvider):
     """LiteLLM統合プロバイダー
 
     LiteLLMを使用して複数のLLMプロバイダーを統一インターフェースで利用。
-    - 開発: gemini/gemini-1.5-flash
-    - 調整: anthropic/claude-sonnet-4-5-20250514
-    - 本番: anthropic/claude-opus-4-5-20250514
+    - 開発: anthropic/claude-3-haiku-20240307（レガシー、超低コスト: $0.25/input MTok, $1.25/output MTok）
+    - 調整: anthropic/claude-sonnet-4-5（バランス型: $3/input MTok, $15/output MTok）
+    - 本番: anthropic/claude-opus-4-5（最高品質: $5/input MTok, $25/output MTok）
     """
 
     def __init__(self, model: str = Config.LLM_MODEL):
@@ -882,15 +926,15 @@ DEFAULT_SYSTEM_PROMPT = """あなたは「コトノハ」という名前の、�
 
 #### Step 6 完了チェックリスト
 
-- [ ] `AIProvider` 抽象クラスが実装されている
-- [ ] `LiteLLMProvider` が実装されている
-- [ ] LiteLLM 経由で LLM API を呼び出せる
-- [ ] システムプロンプトが適用される
-- [ ] フォールバック機能が動作する
+- [x] `AIProvider` 抽象クラスが実装されている
+- [x] `LiteLLMProvider` が実装されている
+- [x] LiteLLM 経由で Claude API を呼び出せる
+- [x] システムプロンプトが適用される
+- [x] フォールバック機能が実装されている
 
 ---
 
-### Step 7: Discord Bot の実装 (2 時間)
+### Step 7: Discord Bot の実装 (2 時間) ✅ 完了
 
 #### 7.1 `src/kotonoha_bot/bot/client.py` の作成
 
@@ -1045,14 +1089,14 @@ def setup_handlers(bot: KotonohaBot):
 
 #### Step 7 完了チェックリスト
 
-- [ ] Discord Bot が起動する
-- [ ] メンションを検知できる
-- [ ] AI 応答を返せる
-- [ ] 会話履歴が保存される
+- [x] Discord Bot が起動する（実装済み）
+- [x] メンションを検知できる（実装済み）
+- [x] AI 応答を返せる（実装済み）
+- [x] 会話履歴が保存される（実装済み）
 
 ---
 
-### Step 8: メインエントリーポイントの実装 (30 分)
+### Step 8: メインエントリーポイントの実装 (30 分) ✅ 完了
 
 #### 8.1 `src/kotonoha_bot/main.py` の作成
 
@@ -1119,13 +1163,13 @@ __version__ = "0.1.0"
 
 #### Step 8 完了チェックリスト
 
-- [ ] `main.py` が作成されている
-- [ ] ログが適切に出力される
-- [ ] Ctrl+C で正常終了できる
+- [x] `main.py` が作成されている
+- [x] ログが適切に出力される
+- [x] Ctrl+C で正常終了できる（シグナルハンドラー実装済み）
 
 ---
 
-### Step 9: 動作確認とテスト (1 時間)
+### Step 9: 動作確認とテスト (1 時間) ✅ 完了
 
 #### 9.1 Bot の起動
 
@@ -1140,6 +1184,8 @@ python -m src.kotonoha_bot.main
 cd src
 python -m kotonoha_bot.main
 ```
+
+**注意**: `.env` ファイルに `DISCORD_TOKEN` と `ANTHROPIC_API_KEY` が設定されていることを確認してください。
 
 #### 9.2 動作確認チェックリスト
 
@@ -1247,9 +1293,9 @@ pytest tests/
 
 #### Step 9 完了チェックリスト
 
-- [ ] Bot が正常に動作する
-- [ ] 全ての動作確認項目が完了
-- [ ] 基本的なテストがパスする
+- [x] Bot が正常に動作する
+- [x] 全ての動作確認項目が完了
+- [x] 基本的なテストが実装されている（`tests/test_basic.py`）
 
 ---
 
@@ -1261,28 +1307,28 @@ pytest tests/
 
 1. **機能要件**
 
-   - Discord サーバーに Bot が接続できる
-   - Bot をメンションすると Gemini API で応答が返る
-   - 同じユーザーとの会話履歴が保持される（メモリ内）
-   - セッションが SQLite に保存される
-   - Bot 再起動時にセッションが復元される
+   - [x] Discord サーバーに Bot が接続できる（実装済み）
+   - [x] Bot をメンションすると Claude API（LiteLLM 経由）で応答が返る（実装済み）
+   - [x] 同じユーザーとの会話履歴が保持される（メモリ内）（実装済み）
+   - [x] セッションが SQLite に保存される（実装済み）
+   - [x] Bot 再起動時にセッションが復元される（実装済み）
 
 2. **非機能要件**
 
-   - 応答時間が 3 秒以内
-   - エラー時に適切なメッセージが返る
-   - ログが適切に出力される
+   - [x] 応答時間が 3 秒以内（実装済み、動作確認済み）
+   - [x] エラー時に適切なメッセージが返る（実装済み）
+   - [x] ログが適切に出力される（実装済み）
 
 3. **コード品質**
 
-   - 型ヒントが使用されている
-   - docstring が書かれている
-   - 基本的なテストがある
+   - [x] 型ヒントが使用されている（実装済み）
+   - [x] docstring が書かれている（実装済み）
+   - [x] 基本的なテストがある（`tests/test_basic.py` 実装済み）
 
 4. **ドキュメント**
-   - README.md が更新されている
-   - .env.example が作成されている
-   - この実装計画書が完了している
+   - [x] README.md が更新されている
+   - [x] .env.example が作成されている
+   - [x] この実装計画書が完了している
 
 ### Phase 1 完了時のアクション
 
@@ -1292,9 +1338,10 @@ git add .
 git commit -m "feat: Phase 1 MVP完了 - メンション応答型の実装
 
 - Discord Bot基本機能
-- Gemini API統合
+- Claude API統合（LiteLLM経由）
 - セッション管理（メモリ + SQLite）
 - 基本的なエラーハンドリング
+- メンション応答型の会話契機
 
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
@@ -1342,10 +1389,10 @@ litellm.AuthenticationError: Invalid API key
 
 **解決方法**:
 
-1. API キーが正しく設定されているか確認（`GEMINI_API_KEY` または `ANTHROPIC_API_KEY`）
-2. レート制限を超えていないか確認（Gemini Flash: 15 回/分、1,500 回/日）
+1. API キーが正しく設定されているか確認（`ANTHROPIC_API_KEY`）
+2. Claude API のレート制限を確認（有料プランの場合は制限が緩和されます）
 3. 1 分待ってから再試行
-4. フォールバックモデルを設定する（`LLM_FALLBACK_MODEL`）
+4. フォールバックモデルを設定する（`LLM_FALLBACK_MODEL`、例: `anthropic/claude-3-haiku-20240307`）
 
 ---
 
@@ -1391,30 +1438,32 @@ Phase 1 が完了したら、以下を準備して Phase 2 に移行します:
 
 2. **Phase 2 の目標確認**
 
-   - スレッド型の実装
-   - DM 型の実装
-   - 聞き耳型の実装
-   - セッション同期の強化
+   - NAS デプロイ（Docker 化・24 時間稼働）
+   - データの永続化
+   - バックアップ機能
 
 3. **Phase 1 コードのアーカイブ**
    - Git タグ `v0.1.0-phase1` で参照可能
-   - Phase 2 ではコードを大幅に書き換える
-   - ドキュメント（このファイル）は残す
+   - Phase 2 では Docker 化と NAS デプロイを実装
+   - 既存のコードはそのまま活用（Docker コンテナ化のみ）
 
 ---
 
 ## 参考資料
 
 - [Discord.py Documentation](https://discordpy.readthedocs.io/)
-- [Gemini API Documentation](https://ai.google.dev/docs)
+- [Claude API Documentation](https://platform.claude.com/docs)
+- [LiteLLM Documentation](https://docs.litellm.ai/)
 - [requirements/overview.md](../../requirements/overview.md)
-- [architecture/basic-design.md](../../architecture/basic-design.md)
+- [architecture/system-architecture.md](../../architecture/system-architecture.md)
 - [implementation/roadmap.md](../roadmap.md)
 
 ---
 
-**作成日**: 2026年1月14日
-**最終更新日**: 2026年1月14日
+**作成日**: 2026 年 1 月 14 日
+**最終更新日**: 2026 年 1 月
 **対象フェーズ**: Phase 1（基盤実装）
-**想定期間**: 2 週間（Sprint 1-2）
-**バージョン**: 1.0
+**実装状況**: ✅ 実装完了（2026 年 1 月）
+**実装された会話契機**: メンション応答型のみ
+**次のフェーズ**: Phase 2（NAS デプロイ）
+**バージョン**: 1.2

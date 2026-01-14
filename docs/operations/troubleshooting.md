@@ -126,17 +126,17 @@ ERROR: discord.errors.LoginFailure: Improper token has been passed.
 
 ## 2. AI 応答の問題
 
-### 問題: Gemini API エラーが発生する
+### 問題: Claude API エラーが発生する
 
 **症状**:
 
 ```txt
-ERROR: google.api_core.exceptions.PermissionDenied: 403 API key not valid
+ERROR: anthropic.AuthenticationError: 401 Invalid API key
 ```
 
 **原因**:
 
-- Gemini API Key が正しく設定されていない
+- Anthropic API Key が正しく設定されていない
 - API Key が無効または期限切れ
 
 **解決方法**:
@@ -144,12 +144,12 @@ ERROR: google.api_core.exceptions.PermissionDenied: 403 API key not valid
 1. **API Key の確認**
 
    ```bash
-   cat .env | grep GEMINI_API_KEY
+   cat .env | grep ANTHROPIC_API_KEY
    ```
 
 2. **API Key の再取得**
 
-   - [Google AI Studio](https://makersuite.google.com/app/apikey) にアクセス
+   - [Anthropic Console](https://console.anthropic.com/) にアクセス
    - 新しい API Key を作成
    - `.env` ファイルを更新
 
@@ -166,12 +166,19 @@ ERROR: google.api_core.exceptions.PermissionDenied: 403 API key not valid
 **症状**:
 
 ```txt
-ERROR: google.api_core.exceptions.ResourceExhausted: 429 Resource has been exhausted
+ERROR: anthropic.RateLimitError: 429 Rate limit exceeded
+```
+
+または LiteLLM 経由の場合:
+
+```txt
+ERROR: litellm.RateLimitError: Rate limit exceeded
 ```
 
 **原因**:
 
-- Gemini API のレート制限（Flash: 15 回/分、1,500 回/日、Pro: 2 回/分、50 回/日）に達した
+- Claude API のレート制限に達した
+- 短時間に大量のリクエストを送信した
 
 **解決方法**:
 
@@ -189,6 +196,7 @@ ERROR: google.api_core.exceptions.ResourceExhausted: 429 Resource has been exhau
 3. **恒久的な対処**
    - レート制限対応の実装を確認（トークンバケットアルゴリズム）
    - 優先度管理の実装（ユーザー応答 > 聞き耳型判定）
+   - フォールバックモデルの設定（`LLM_FALLBACK_MODEL` 環境変数）
 
 ---
 
@@ -356,7 +364,7 @@ ERROR: sqlite3.DatabaseError: database disk image is malformed
 
 **原因**:
 
-- Gemini API の応答が遅い
+- Claude API の応答が遅い
 - レート制限で待機している
 - データベースクエリが遅い
 - メモリ不足
@@ -596,12 +604,12 @@ cat .env | sed 's/=.*/=***/' > env_info.txt
 
 ### 7.2 連絡先
 
-- **GitHub Issues**: GitHubリポジトリのIssuesページ（注: URLは実際の組織名に置き換えてください）
+- **GitHub Issues**: GitHub リポジトリの Issues ページ（注: URL は実際の組織名に置き換えてください）
 - **ドキュメント**: [docs/](../README.md)
 
 ---
 
-**作成日**: 2026年1月14日
-**最終更新日**: 2026年1月14日
+**作成日**: 2026 年 1 月 14 日
+**最終更新日**: 2026 年 1 月 14 日
 **バージョン**: 1.0
 **作成者**: kotonoha-bot 開発チーム

@@ -16,11 +16,11 @@
 
 ### フェーズ別モデル構成
 
-| フェーズ     | プロバイダー | モデル               | 用途                       |
-| ------------ | ------------ | -------------------- | -------------------------- |
-| **開発**     | Google       | Gemini 1.5 Flash     | 無料枠での開発・テスト     |
-| **最終調整** | Anthropic    | Claude Sonnet 4.5    | 品質調整・プロンプト最適化 |
-| **本番**     | Anthropic    | Claude Opus 4.5      | 最高品質の本番運用         |
+| フェーズ     | プロバイダー | モデル                     | 用途                       |
+| ------------ | ------------ | -------------------------- | -------------------------- |
+| **開発**     | Anthropic    | Claude 3 Haiku（レガシー） | 超低コストでの開発・テスト |
+| **最終調整** | Anthropic    | Claude Sonnet 4.5          | 品質調整・プロンプト最適化 |
+| **本番**     | Anthropic    | Claude Opus 4.5            | 最高品質の本番運用         |
 
 ### LiteLLM の採用
 
@@ -33,9 +33,13 @@
 
 ### 1. 開発コストの最適化
 
-- **開発フェーズ**: Gemini 1.5 Flash の無料枠（15 回/分、1,500 回/日）を活用
+- **開発フェーズ**: Claude 3 Haiku（レガシー）を活用
+  - **料金**: 入力 $1/100 万トークン、出力 $5/100 万トークン
+  - **コスト**: 1 回あたり約 0.3 セント（入力 500 トークン、出力 500 トークンの場合）
+  - **月間コスト例**: 1,000 回で約$3（約 450 円）、5,000 回で約$15（約 2,250 円）
+  - **メリット**: 無料枠の制限がなく、開発から本番まで同じプロバイダーで統一可能
 - **本番フェーズ**: Claude Opus 4.5 で最高品質を提供
-- **段階的な品質向上**: 開発 → 調整 → 本番で品質を段階的に向上
+- **段階的な品質向上**: 開発（Haiku）→ 調整（Sonnet）→ 本番（Opus）で品質を段階的に向上
 
 ### 2. LiteLLM による柔軟性
 
@@ -46,11 +50,16 @@
 
 ### 3. 各モデルの特性
 
-#### Gemini 1.5 Flash（開発用）
+#### Claude 3 Haiku（レガシー・開発用）
 
-- 無料枠が実用的
-- 高速応答
-- 開発・テストに十分な品質
+- 低コスト・高速
+  - 入力: $1/100 万トークン、出力: $5/100 万トークン
+  - 1 回あたり約 0.3 セント（入力 500 トークン、出力 500 トークンの場合）
+  - 月 1,000 回で約$3（約 450 円）と非常に低コスト
+- Sonnet 4 と近いコーディング性能
+- 日本語対応が優秀
+- 開発から本番まで同じプロバイダーで統一可能
+- 無料枠の制限がない
 
 #### Claude Sonnet 4.5（調整用）
 
@@ -68,7 +77,7 @@
 
 - **Claude モデル**: 日本語の品質が非常に高い
 - **場面緘黙支援**: 繊細で優しい日本語表現が必須
-- **Gemini**: 開発段階では十分な品質
+- **Claude Haiku**: 開発段階でも高品質、日本語対応が優秀
 
 ## 代替案
 
@@ -162,18 +171,17 @@
 
 ```bash
 # 開発環境
-LLM_PROVIDER=gemini
-LLM_MODEL=gemini/gemini-1.5-flash
-GEMINI_API_KEY=your_gemini_api_key
+LLM_MODEL=anthropic/claude-3-haiku-20240307
+ANTHROPIC_API_KEY=your_anthropic_api_key
 
 # 調整環境
 LLM_PROVIDER=anthropic
-LLM_MODEL=anthropic/claude-sonnet-4-5-20250514
+LLM_MODEL=anthropic/claude-sonnet-4-5
 ANTHROPIC_API_KEY=your_anthropic_api_key
 
 # 本番環境
 LLM_PROVIDER=anthropic
-LLM_MODEL=anthropic/claude-opus-4-5-20250514
+LLM_MODEL=anthropic/claude-opus-4-5
 ANTHROPIC_API_KEY=your_anthropic_api_key
 ```
 
@@ -189,3 +197,10 @@ ANTHROPIC_API_KEY=your_anthropic_api_key
 
 **作成日**: 2026 年 1 月 14 日
 **最終更新日**: 2026 年 1 月 14 日
+
+**更新履歴**:
+
+- 2026 年 1 月: 開発用モデルを Claude 3 Haiku（レガシー）に変更
+  - 旧: Claude Haiku 4.5（低コスト）
+  - 新: `claude-3-haiku-20240307` (レガシー、超低コスト、制限なし、開発から本番まで統一)
+  - 理由: Claude 3 Haiku（レガシー）が Haiku 4.5 の約 1/4 のコストで、大量テスト時にもコストを抑えられる

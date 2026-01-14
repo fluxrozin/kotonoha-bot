@@ -105,7 +105,7 @@ LiteLLM を使用して、複数の LLM プロバイダーを統一インター�
 import litellm
 
 response = litellm.completion(
-    model="gemini/gemini-1.5-flash",  # または anthropic/claude-opus-4-5-20250514
+    model="anthropic/claude-3-haiku-20240307",  # 開発用（レガシー、超低コスト）、または anthropic/claude-opus-4-5（本番用）
     messages=[
         {"role": "system", "content": "システムプロンプト"},
         {"role": "user", "content": "ユーザーメッセージ"}
@@ -138,22 +138,30 @@ response = litellm.completion(
 
 ### 2.2 対応プロバイダーとモデル
 
-| フェーズ | プロバイダー | モデル名                               | 用途                   |
-| -------- | ------------ | -------------------------------------- | ---------------------- |
-| 開発     | Google       | `gemini/gemini-1.5-flash`              | 無料枠での開発・テスト |
-| 調整     | Anthropic    | `anthropic/claude-sonnet-4-5-20250514` | 品質調整・最適化       |
-| 本番     | Anthropic    | `anthropic/claude-opus-4-5-20250514`   | 最高品質の本番運用     |
+| フェーズ | プロバイダー | モデル名                            | 用途                                                 |
+| -------- | ------------ | ----------------------------------- | ---------------------------------------------------- |
+| 開発     | Anthropic    | `anthropic/claude-3-haiku-20240307` | 超低コストでの開発・テスト（制限なし）               |
+| 調整     | Anthropic    | `anthropic/claude-sonnet-4-5`       | 品質調整・最適化（$3/input MTok, $15/output MTok）   |
+| 本番     | Anthropic    | `anthropic/claude-opus-4-5`         | 最高品質の本番運用（$5/input MTok, $25/output MTok） |
 
-### 2.3 Gemini API（開発用）
+### 2.3 Claude 3 Haiku API（レガシー・開発用）
 
-**エンドポイント**: `POST https://generativeai.googleapis.com/v1beta/models/{model}:generateContent`
+**エンドポイント**: `POST https://api.anthropic.com/v1/messages`
 
-**認証**: 環境変数 `GEMINI_API_KEY`
+**認証**: 環境変数 `ANTHROPIC_API_KEY`
 
-**レート制限**:
+**料金**（2026 年 1 月現在）:
 
-- Flash: 15 回/分（1,500 回/日）
-- Pro: 2 回/分（50 回/日）
+- 入力: $1/100 万トークン
+- 出力: $5/100 万トークン
+- 1 回あたり約 0.3 セント（入力 500 トークン、出力 500 トークンの場合）
+
+**コスト例**:
+
+- 月 1,000 回: 約$3（約 450 円）
+- 月 5,000 回: 約$15（約 2,250 円）
+
+**メリット**: 無料枠の制限がなく、開発から本番まで同じプロバイダーで統一可能
 
 ### 2.4 Claude API（本番用）
 
@@ -161,10 +169,11 @@ response = litellm.completion(
 
 **認証**: 環境変数 `ANTHROPIC_API_KEY`
 
-**モデル**:
+**モデル**（[公式モデル一覧](https://platform.claude.com/docs/en/about-claude/models/overview)）:
 
-- Claude Sonnet 4.5: `claude-sonnet-4-5-20250514`
-- Claude Opus 4.5: `claude-opus-4-5-20250514`
+- Claude 3 Haiku（レガシー）: `claude-3-haiku-20240307`（$0.25/input MTok, $1.25/output MTok）
+- Claude Sonnet 4.5: `claude-sonnet-4-5`（$3/input MTok, $15/output MTok）
+- Claude Opus 4.5: `claude-opus-4-5`（$5/input MTok, $25/output MTok）
 
 ### 2.5 エラーハンドリング
 
@@ -186,9 +195,9 @@ litellm.AuthenticationError: Invalid API key
 
 ```python
 response = litellm.completion(
-    model="anthropic/claude-opus-4-5-20250514",
+    model="anthropic/claude-opus-4-5",
     messages=messages,
-    fallbacks=["gemini/gemini-1.5-flash"]  # フォールバック先
+    fallbacks=["anthropic/claude-3-haiku-20240307"]  # フォールバック先（本番でOpusがダウンした場合）
 )
 ```
 
@@ -219,7 +228,7 @@ response = litellm.completion(
 **パラメータ**:
 
 - `session_key`: セッションキー
-- `session_type`: セッションタイプ（`mention`, `thread`, `dm`, `eavesdrop`）
+- `session_type`: セッションタイプ（`mention`, `thread`, `eavesdrop`）
 - `**kwargs`: 追加パラメータ（`channel_id`, `thread_id`, `user_id` など）
 
 **戻り値**: `ChatSession` オブジェクト
@@ -430,6 +439,6 @@ class ChatSession:
 
 ---
 
-**作成日**: 2026年1月14日
+**作成日**: 2026 年 1 月 14 日
 **バージョン**: 1.0
 **作成者**: kotonoha-bot 開発チーム

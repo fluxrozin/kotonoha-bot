@@ -11,34 +11,38 @@
 ### 要件定義
 
 - [**要件概要**](./requirements/overview.md): プロジェクトの目的、背景、スコープ、システム構成、制約事項、成功基準（プロジェクト理解の出発点）
-- [機能要件一覧](./requirements/functional-requirements.md): 基本機能、会話の契機、セッション管理、AI機能、エラーハンドリング、コマンド、運用機能の詳細要件と非機能要件
-- [会話の契機の詳細](./requirements/conversation-triggers.md): メンション応答型、スレッド型、DM型、聞き耳型（LLM判断・ルールベース）の4つの会話方式の詳細説明
+- [**Bot ペルソナ要件**](./requirements/persona-requirements.md): 場面緘黙支援のための Bot ペルソナ定義、コミュニケーション要件、禁止事項（Bot の性格と応答スタイルの設計）
+- [機能要件一覧](./requirements/functional-requirements.md): 基本機能、会話の契機、セッション管理、AI 機能、エラーハンドリング、コマンド、運用機能の詳細要件と非機能要件
+- [会話の契機の詳細](./requirements/conversation-triggers.md): メンション応答型、スレッド型、聞き耳型（LLM 判断・ルールベース）の 3 つの会話方式の詳細説明
 - [ユーザーストーリー](./requirements/user-stories.md): エンドユーザー視点の機能記述、エピック、受け入れテストシナリオ
 - [ユースケース](./requirements/use-cases.md): 各会話の契機、会話継続、エラー処理の詳細なユースケース記述とフロー図
-- [プロジェクト管理](./requirements/project-management.md): WBS（作業分解構造）、プロダクトバックログ、6スプリント計画、マイルストーン、リスク管理
+- [プロジェクト管理](./requirements/project-management.md): WBS（作業分解構造）、プロダクトバックログ、6 スプリント計画、マイルストーン、リスク管理
 
 ### アーキテクチャ
 
 - [**システム構成図**](./architecture/system-architecture.md): システムアーキテクチャ図、技術スタック、環境変数、ディレクトリ構造（システム理解の出発点）
 - [基本設計書](./architecture/basic-design.md): レイヤー構成、モジュール設計、モジュール間の依存関係、責務分担
 - [詳細設計書](./architecture/detailed-design.md): 各モジュールのクラス・メソッド仕様、パラメータ、戻り値、依存関係
-- [データベース設計](./architecture/database-design.md): ER図、テーブル定義（sessions/messages/settings）、永続化戦略、インデックス設計
+- [データベース設計](./architecture/database-design.md): ER 図、テーブル定義（sessions/messages/settings）、永続化戦略、インデックス設計
 - [**ADR (Architecture Decision Records)**](./architecture/adr/): アーキテクチャ上の重要な意思決定の記録とその理由
-  - [ADR について](./architecture/adr/README.md): ADRの目的、命名規則、ステータス、テンプレート、作成方法
-  - [ADR-0002: Gemini API 選定](./architecture/adr/0002-select-gemini-api.md): Gemini API採用の理由、代替案（OpenAI/Groq/HuggingFace/Ollama）の比較と評価
-  - [ADR-0004: ハイブリッドセッション管理](./architecture/adr/0004-hybrid-session-management.md): SQLite + ChatSessionハイブリッド管理の採用理由、同期戦略、代替案比較
+  - [ADR について](./architecture/adr/README.md): ADR の目的、命名規則、ステータス、テンプレート、作成方法
+  - [ADR-0001: Python 3.14 の採用](./architecture/adr/0001-use-python-3-14.md): Python 3.14 採用の理由
+  - [ADR-0002: LiteLLM マルチプロバイダー戦略](./architecture/adr/0002-litellm-multi-provider-strategy.md): Claude API（LiteLLM 経由）採用の理由、代替案の比較と評価
+  - [ADR-0003: SQLite の採用](./architecture/adr/0003-use-sqlite.md): SQLite 採用の理由と代替案比較
+  - [ADR-0004: ハイブリッドセッション管理](./architecture/adr/0004-hybrid-session-management.md): SQLite + ChatSession ハイブリッド管理の採用理由、同期戦略、代替案比較
+  - [ADR-0005: 4 つの会話の契機](./architecture/adr/0005-four-conversation-triggers.md): メンション型・スレッド型・DM 型・聞き耳型の採用理由
 
 ### 仕様書
 
-- [API 仕様書](./specifications/api-specification.md): Discord API（WebSocket/HTTP）、Gemini API、内部APIの詳細仕様とリクエスト・レスポンス形式
+- [API 仕様書](./specifications/api-specification.md): Discord API（WebSocket/HTTP）、Claude API、内部 API の詳細仕様とリクエスト・レスポンス形式
 - [コマンド仕様書](./specifications/command-specification.md): スラッシュコマンド（/chat start, reset, status, /settings）の仕様と使用例
-- [イベント処理仕様書](./specifications/event-specification.md): Discordイベント（message, thread, ready）の処理フローとカスタムイベント
+- [イベント処理仕様書](./specifications/event-specification.md): Discord イベント（message, thread, ready）の処理フローとカスタムイベント
 
 ### 実装
 
-- [**実装ロードマップ**](./implementation/roadmap.md): 6段階の実装計画（環境構築→AI応答→セッション管理→会話の契機→高度機能→CI/CD）と各段階の詳細（実装開始前に必読）
+- [**実装ロードマップ**](./implementation/roadmap.md): 7 段階の実装計画（環境構築 →NAS デプロイ →AI 応答 → セッション管理 → 会話の契機 → 高度機能 →CI/CD）と各段階の詳細（実装開始前に必読）
 - [実装検討事項](./implementation/considerations.md): 実装前に検討すべき技術的詳細（エラーハンドリング、レート制限、セキュリティなど）
-- [ミドルウェア選定書](./implementation/middleware-selection.md): Python 3.14、discord.py、uv、Gemini APIなど使用技術の選定理由と代替案比較
+- [ミドルウェア選定書](./implementation/middleware-selection.md): Python 3.14、discord.py、uv、Claude API など使用技術の選定理由と代替案比較
 - [**Phase 1 実装計画**](./implementation/phases/phase1.md): MVP（メンション応答型）の詳細実装ステップ、コード例、完了基準
 
 ### テスト
@@ -48,13 +52,13 @@
 
 ### 運用
 
-- [デプロイメント・運用](./operations/deployment-operations.md): CI/CDパイプライン（GitHub Actions→GHCR→Watchtower）、デプロイ手順、運用フロー、監視
-- [トラブルシューティング](./operations/troubleshooting.md): よくある問題（Discord接続、APIエラー、DB問題、パフォーマンス、デプロイメント）と解決方法
+- [デプロイメント・運用](./operations/deployment-operations.md): CI/CD パイプライン（GitHub Actions→GHCR→Watchtower）、デプロイ手順、運用フロー、監視
+- [トラブルシューティング](./operations/troubleshooting.md): よくある問題（Discord 接続、API エラー、DB 問題、パフォーマンス、デプロイメント）と解決方法
 
 ### 開発者向け
 
-- [コントリビューションガイド](./development/contributing.md): 開発フロー、コーディング規約、コミット規約、PRガイドライン、テストの書き方
-- [FAQ](./development/faq.md): セットアップ、開発環境、Bot動作、AI機能、セッション管理、デプロイメント、トラブルシューティングに関するよくある質問と回答
+- [コントリビューションガイド](./development/contributing.md): 開発フロー、コーディング規約、コミット規約、PR ガイドライン、テストの書き方
+- [FAQ](./development/faq.md): セットアップ、開発環境、Bot 動作、AI 機能、セッション管理、デプロイメント、トラブルシューティングに関するよくある質問と回答
 
 ---
 
@@ -102,7 +106,7 @@
 
 1. **[FAQ](./development/faq.md)**: よくある質問
 2. **[トラブルシューティング](./operations/troubleshooting.md)**: 具体的な問題と解決方法
-3. **GitHub Issues**: 質問や報告（注: GitHubリポジトリURLは実際の組織名/ユーザー名に置き換えてください）
+3. **GitHub Issues**: 質問や報告（注: GitHub リポジトリ URL は実際の組織名/ユーザー名に置き換えてください）
 
 ---
 
@@ -115,6 +119,7 @@ docs/
 │
 ├── requirements/                      # 要件定義
 │   ├── overview.md                    # 目的、背景、スコープ、制約（必読）
+│   ├── persona-requirements.md        # Botペルソナ定義、コミュニケーション要件（必読）
 │   ├── functional-requirements.md     # 機能要件・非機能要件の詳細
 │   ├── conversation-triggers.md       # 4つの会話方式の詳細説明
 │   ├── user-stories.md                # ユーザー視点の機能記述
@@ -128,25 +133,26 @@ docs/
 │   ├── database-design.md             # ER図、テーブル定義、インデックス設計
 │   └── adr/                           # Architecture Decision Records
 │       ├── README.md                  # ADRの目的と作成方法
-│       ├── 0002-select-gemini-api.md  # Gemini API選定理由と代替案評価
-│       └── 0004-hybrid-session-management.md  # ハイブリッドセッション管理の採用理由
+│       ├── 0001-use-python-3-14.md    # Python 3.14採用理由
+│       ├── 0002-litellm-multi-provider-strategy.md  # LiteLLMマルチプロバイダー戦略
+│       ├── 0003-use-sqlite.md         # SQLite採用理由
+│       ├── 0004-hybrid-session-management.md  # ハイブリッドセッション管理の採用理由
+│       └── 0005-four-conversation-triggers.md  # 4つの会話の契機
 │
 ├── specifications/                    # 仕様書
-│   ├── api-specification.md           # Discord/Gemini API仕様
+│   ├── api-specification.md           # Discord/Claude API仕様
 │   ├── command-specification.md       # スラッシュコマンド仕様
 │   └── event-specification.md         # イベント処理フロー
 │
 ├── implementation/                    # 実装
-│   ├── roadmap.md                     # 6段階実装計画（実装開始前必読）
+│   ├── roadmap.md                     # 7段階実装計画（実装開始前必読）
 │   ├── considerations.md              # 実装上の検討事項
 │   ├── middleware-selection.md        # 使用技術の選定理由
+│   ├── audit-logging-considerations.md  # 監査ログ検討資料
 │   └── phases/                        # フェーズ別実装計画
-│       ├── phase1.md                  # Phase 1: MVP実装ステップ（現在）
-│       ├── phase2.md                  # Phase 2: 4つの会話の契機（将来作成）
-│       ├── phase3.md                  # Phase 3: CI/CD・運用機能（将来作成）
-│       ├── phase4.md                  # Phase 4: 最適化（将来作成）
-│       ├── phase5.md                  # Phase 5: 拡張機能（将来作成）
-│       └── phase6.md                  # Phase 6: 本番リリース（将来作成）
+│       ├── phase1.md                  # Phase 1: MVP実装ステップ（完了）
+│       ├── phase2.md                  # Phase 2: NASデプロイ（Docker化・24時間稼働）
+│       └── (Phase 3-7 は roadmap.md を参照)
 │
 ├── testing/                           # テスト
 │   ├── test-plan.md                   # テスト戦略と計画
@@ -158,7 +164,9 @@ docs/
 │
 └── development/                       # 開発者向け
     ├── contributing.md                # 開発フロー、規約、PRガイドライン
-    └── faq.md                         # よくある質問と回答
+    ├── faq.md                         # よくある質問と回答
+    ├── litellm-necessity-analysis.md  # LiteLLM必要性の検討資料
+    └── llm-provider-comparison.md     # LLMプロバイダー比較資料
 ```
 
 ### ディレクトリ説明
@@ -166,6 +174,7 @@ docs/
 **requirements/** - プロジェクトの「何を作るか」を定義
 
 - プロジェクトの目的、機能要件、非機能要件、制約条件
+- Bot のペルソナ定義とコミュニケーション要件（場面緘黙支援のための設計）
 - ユーザーストーリーとユースケース
 - プロジェクト管理（WBS、バックログ、スプリント計画）
 
@@ -178,7 +187,7 @@ docs/
 
 **specifications/** - インターフェースの「詳細仕様」を定義
 
-- 外部 API（Discord、Gemini）の使用方法
+- 外部 API（Discord、Claude）の使用方法
 - 内部 API の仕様
 - イベント処理とコマンド処理の詳細
 
@@ -219,13 +228,13 @@ docs/
 
 - **プロジェクト名**: Kotonoha（コトノハ）Discord Bot
 - **目的**: 場面緘黙自助グループの運営支援
-- **技術スタック**: Python 3.14, discord.py, Google Gemini API, SQLite, Docker
+- **技術スタック**: Python 3.14, discord.py, Claude API (LiteLLM), SQLite, Docker
 - **ホスティング**: Synology NAS + Docker + Watchtower
 - **CI/CD**: GitHub Actions → GHCR → Watchtower
 
 ---
 
-**作成日**: 2026年1月14日
-**最終更新日**: 2026年1月14日
-**バージョン**: 2.0
+**作成日**: 2026 年 1 月 14 日
+**最終更新日**: 2026 年 1 月 14 日
+**バージョン**: 2.1
 **作成者**: kotonoha-bot 開発チーム

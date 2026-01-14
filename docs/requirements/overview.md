@@ -27,9 +27,9 @@ Kotonoha は、AI チャット機能を通じて、ユーザーが安心して�
 
 **含まれるもの**:
 
-- 無料で利用可能なチャット AI API (Google Gemini) の統合
+- Claude API（LiteLLM 経由）の統合
 - Discord ボットへのチャット AI 機能の統合
-- 4 つの会話の契機（メンション/スレッド/DM/聞き耳型）
+- 3 つの会話の契機（メンション/スレッド/聞き耳型）
 - 会話履歴の管理（メモリ + SQLite ハイブリッド）
 - エラーハンドリングとレート制限の対応
 - CI/CD パイプラインの構築（GitHub Actions → GHCR → Synology NAS）
@@ -78,7 +78,7 @@ graph TD
 | **言語**           | Python 3.14               | アプリケーション開発 |
 | **パッケージ管理** | uv                        | 依存関係管理         |
 | **フレームワーク** | discord.py                | Discord Bot 開発     |
-| **AI API**         | Google Gemini API         | AI 応答生成          |
+| **AI API**         | Claude API (LiteLLM 経由) | AI 応答生成          |
 | **データベース**   | SQLite                    | 会話履歴の永続化     |
 | **コンテナ**       | Docker                    | コンテナ化           |
 | **CI/CD**          | GitHub Actions            | 自動ビルド・デプロイ |
@@ -97,10 +97,9 @@ graph TD
    - ユーザーのメッセージに対して AI が自然で安心感のある応答を生成
    - 場面緘黙支援に特化したプロンプト設計
 
-2. **会話の契機（4 つの方式）**
+2. **会話の契機（3 つの方式）**
    - **メンション応答型**: Bot にメンションされた時だけ反応
    - **スレッド型**: メンション時に自動でスレッドを作成し会話継続 ⭐ 推奨
-   - **DM 型**: 1 対 1 のダイレクトメッセージで会話
    - **聞き耳型**: 適切なタイミングで自然に会話に参加 ⭐ 場面緘黙支援に最適
 
 詳細な説明については、[会話の契機の詳細](./conversation-triggers.md)を参照してください。
@@ -142,7 +141,7 @@ graph TD
 ### 4.4 コスト
 
 - **必須**: 無料で利用可能な API のみを使用
-- **無料枠**: Gemini API の無料枠内で運用
+- **低コスト**: Claude 3 Haiku（レガシー）を開発用に使用、Claude Opus 4.5 を本番用に使用
 
 詳細は [functional-requirements.md](./functional-requirements.md) の非機能要件セクションを参照してください。
 
@@ -150,7 +149,7 @@ graph TD
 
 ### 5.1 技術的制約
 
-- Gemini API のレート制限（Flash: 15 回/分、1,500 回/日、Pro: 2 回/分、50 回/日）
+- Claude API のレート制限（有料プランによる制限、フォールバック機能で対応）
 - Discord API のレート制限
 - SQLite の単一ファイルデータベース
 - Synology NAS のリソース制約
@@ -166,7 +165,7 @@ graph TD
 ### 6.1 機能面
 
 - ユーザーが自然で安心感のある会話を AI と行える
-- 4 つの会話の契機が正常に動作する
+- 3 つの会話の契機が正常に動作する
 - エラー発生時も適切に処理され、ユーザーに不安を与えない
 - プライバシーが保護され、安心して利用できる
 
@@ -231,7 +230,7 @@ graph TD
 
 ### 9.1 API ドキュメント
 
-- [Google Gemini API Documentation](https://ai.google.dev/docs)
+- [Claude API Documentation](https://platform.claude.com/docs)
 - [Groq API Documentation](https://console.groq.com/docs)
 - [Hugging Face Inference API](https://huggingface.co/docs/api-inference/index)
 - [Ollama Documentation](https://ollama.ai/docs)
@@ -292,7 +291,7 @@ graph TD
 
 ---
 
-**作成日**: 2026年1月14日
-**最終更新日**: 2026年1月14日
+**作成日**: 2026 年 1 月 14 日
+**最終更新日**: 2026 年 1 月 14 日
 **バージョン**: 2.0
 **作成者**: kotonoha-bot 開発チーム

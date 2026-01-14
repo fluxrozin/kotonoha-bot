@@ -65,7 +65,6 @@
 ```txt
 メンション応答型: channel_id または channel_id:user_id
 スレッド型: thread_id
-DM型: dm:user_id
 聞き耳型: eavesdrop:channel_id
 ```
 
@@ -204,7 +203,7 @@ stateDiagram-v2
 ```sql
 CREATE TABLE sessions (
     session_key TEXT PRIMARY KEY,
-    session_type TEXT NOT NULL,  -- 'mention', 'thread', 'dm', 'eavesdrop'
+    session_type TEXT NOT NULL,  -- 'mention', 'thread', 'eavesdrop'
     channel_id INTEGER,
     thread_id INTEGER,
     user_id INTEGER,
@@ -331,12 +330,15 @@ CREATE TABLE settings (
 
 ## 6. レート制限対策の詳細
 
-### 6.1 Gemini API のレート制限
+### 6.1 Gemini API のレート制限（2026 年 1 月現在の無料枠）
 
 **制限値:**
 
-- **Gemini 1.5 Flash**: 1 分あたり 15 リクエスト、1 日あたり 1,500 リクエスト
-- **Gemini 1.5 Pro**: 1 分あたり 2 リクエスト、1 日あたり 50 リクエスト
+- **Gemini 2.5 Flash**: 5 回/分、20 回/日、250,000 トークン/分
+- **Gemini 2.5 Flash Lite**: 10 回/分、20 回/日、250,000 トークン/分
+- **Gemini 3 Flash**: 5 回/分、20 回/日、250,000 トークン/分
+
+**重要**: 無料枠は 1 日 20 リクエストまでに制限されています。継続的な開発やテストには有料プランへの移行を検討してください。
 
 **実装上の考慮事項:**
 
@@ -369,11 +371,13 @@ class RateLimiter:
         self.requests.append(now)
 ```
 
-**使用例:**
+**使用例（無料枠の場合、2026 年 1 月現在）:**
 
 ```python
-flash_limiter = RateLimiter(max_requests=15, time_window=60)  # 1分間に15回
-pro_limiter = RateLimiter(max_requests=2, time_window=60)    # 1分間に2回
+# 無料枠の場合
+flash_limiter = RateLimiter(max_requests=5, time_window=60)  # 1分間に5回（gemini-2.5-flash）
+flash_lite_limiter = RateLimiter(max_requests=10, time_window=60)  # 1分間に10回（gemini-2.5-flash-lite）
+daily_limiter = RateLimiter(max_requests=20, time_window=86400)  # 1日に20回（無料枠共通）
 ```
 
 ## 7. メモリ管理とパフォーマンス
@@ -484,8 +488,7 @@ pro_limiter = RateLimiter(max_requests=2, time_window=60)    # 1分間に2回
 
 1. **メンション応答型**: メンション → 応答 → 会話継続
 2. **スレッド型**: メンション → スレッド作成 → 応答 → 会話継続
-3. **DM 型**: DM 送信 → 応答 → 会話継続
-4. **聞き耳型**: 会話の監視 → 判定 → 応答（適切なタイミング）
+3. **聞き耳型**: 会話の監視 → 判定 → 応答（適切なタイミング）
 
 ## 10. モニタリングとアラート
 
@@ -603,6 +606,6 @@ find /app/backups -name "kotonoha_*.db" -mtime +7 -delete
 
 ---
 
-**作成日**: 2026年1月14日
+**作成日**: 2026 年 1 月 14 日
 **バージョン**: 1.0
 **作成者**: kotonoha-bot 開発チーム

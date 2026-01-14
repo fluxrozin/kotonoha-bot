@@ -37,13 +37,13 @@ graph TB
     subgraph "外部サービス"
         Discord[Discord API]
         LiteLLM[LiteLLM]
-        Gemini[Gemini API<br/>開発用]
-        Claude[Claude API<br/>本番用]
+        ClaudeHaiku[Claude 3 Haiku<br/>開発用（レガシー）]
+        ClaudeOpus[Claude Opus 4.5<br/>本番用]
 
         Container <-->|WebSocket/HTTP| Discord
         Container -->|API Call| LiteLLM
-        LiteLLM -->|開発| Gemini
-        LiteLLM -->|本番| Claude
+        LiteLLM -->|開発| ClaudeHaiku
+        LiteLLM -->|本番| ClaudeOpus
     end
 ```
 
@@ -74,11 +74,11 @@ graph TB
 
     subgraph "AI Services"
         LiteLLM[LiteLLM<br/>統一インターフェース]
-        Gemini[Gemini 1.5 Flash<br/>開発用]
+        ClaudeHaiku[Claude 3 Haiku<br/>開発用（レガシー）]
         ClaudeSonnet[Claude Sonnet 4.5<br/>調整用]
         ClaudeOpus[Claude Opus 4.5<br/>本番用]
         AIService --> LiteLLM
-        LiteLLM --> Gemini
+        LiteLLM --> ClaudeHaiku
         LiteLLM --> ClaudeSonnet
         LiteLLM --> ClaudeOpus
     end
@@ -115,32 +115,32 @@ sequenceDiagram
 
 ### 2.1 技術スタック一覧
 
-| カテゴリ               | 技術                      | バージョン | 用途                    |
-| ---------------------- | ------------------------- | ---------- | ----------------------- |
-| **言語**               | Python                    | 3.14       | アプリケーション開発           |
-| **パッケージ管理**     | uv                        | latest     | 依存関係管理                   |
-| **フレームワーク**     | discord.py                | latest     | Discord Bot 開発               |
-| **AI 統合**            | LiteLLM                   | latest     | マルチ LLM プロバイダー統合    |
-| **AI（開発）**         | Gemini API                | 1.5        | 開発・テスト用（無料枠）       |
-| **AI（本番）**         | Claude API                | 4.5        | 本番用（Opus 4.5）             |
-| **データベース**       | SQLite                    | 3.x        | 会話履歴の永続化               |
-| **コンテナ**           | Docker                    | latest     | コンテナ化                     |
-| **CI/CD**              | GitHub Actions            | -          | 自動ビルド・デプロイ           |
-| **コンテナレジストリ** | GitHub Container Registry | -          | イメージ保存                   |
-| **自動更新**           | Watchtower                | latest     | コンテナ自動更新               |
-| **OS**                 | Ubuntu (WSL2)             | 22.04+     | 開発環境                       |
-| **本番 OS**            | DSM (Synology)            | latest     | 本番環境                       |
+| カテゴリ               | 技術                           | バージョン | 用途                         |
+| ---------------------- | ------------------------------ | ---------- | ---------------------------- |
+| **言語**               | Python                         | 3.14       | アプリケーション開発         |
+| **パッケージ管理**     | uv                             | latest     | 依存関係管理                 |
+| **フレームワーク**     | discord.py                     | latest     | Discord Bot 開発             |
+| **AI 統合**            | LiteLLM                        | latest     | マルチ LLM プロバイダー統合  |
+| **AI（開発）**         | Claude 3 Haiku API（レガシー） | 3.0        | 開発・テスト用（超低コスト） |
+| **AI（本番）**         | Claude API                     | 4.5        | 本番用（Opus 4.5）           |
+| **データベース**       | SQLite                         | 3.x        | 会話履歴の永続化             |
+| **コンテナ**           | Docker                         | latest     | コンテナ化                   |
+| **CI/CD**              | GitHub Actions                 | -          | 自動ビルド・デプロイ         |
+| **コンテナレジストリ** | GitHub Container Registry      | -          | イメージ保存                 |
+| **自動更新**           | Watchtower                     | latest     | コンテナ自動更新             |
+| **OS**                 | Ubuntu (WSL2)                  | 22.04+     | 開発環境                     |
+| **本番 OS**            | DSM (Synology)                 | latest     | 本番環境                     |
 
 ### 2.2 主要ライブラリ
 
-| ライブラリ     | バージョン | 用途                                |
-| -------------- | ---------- | ----------------------------------- |
-| discord.py     | latest     | Discord API クライアント            |
-| litellm        | latest     | マルチ LLM プロバイダー統合         |
-| aiosqlite      | latest     | 非同期 SQLite 操作                  |
-| python-dotenv  | latest     | 環境変数管理                        |
-| pytest         | latest     | テストフレームワーク                |
-| pytest-asyncio | latest     | 非同期テスト                        |
+| ライブラリ     | バージョン | 用途                        |
+| -------------- | ---------- | --------------------------- |
+| discord.py     | latest     | Discord API クライアント    |
+| litellm        | latest     | マルチ LLM プロバイダー統合 |
+| aiosqlite      | latest     | 非同期 SQLite 操作          |
+| python-dotenv  | latest     | 環境変数管理                |
+| pytest         | latest     | テストフレームワーク        |
+| pytest-asyncio | latest     | 非同期テスト                |
 
 ### 2.3 ハードウェア要件
 
@@ -158,33 +158,45 @@ sequenceDiagram
 | 変数名          | 説明                 | 例                                         | 必須 |
 | --------------- | -------------------- | ------------------------------------------ | ---- |
 | `DISCORD_TOKEN` | Discord Bot トークン | `MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.XXXXXX.XXXXXX` | 必須 |
-| `LLM_MODEL`     | LLM モデル名         | `gemini/gemini-1.5-flash`                  | 必須 |
+| `LLM_MODEL`     | LLM モデル名         | `anthropic/claude-3-haiku-20240307`        | 必須 |
 
 **プロバイダー別 API キー**（使用するプロバイダーに応じて設定）:
 
-| 変数名            | 説明                   | 例                                    | 必須                   |
-| ----------------- | ---------------------- | ------------------------------------- | ---------------------- |
-| `GEMINI_API_KEY`  | Google Gemini API キー | `AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` | 開発環境で必須         |
-| `ANTHROPIC_API_KEY` | Anthropic API キー   | `sk-ant-XXXXXXXXXXXXXXXXXXXXXXXX`     | 調整・本番環境で必須   |
+| 変数名              | 説明               | 例                                | 必須                       |
+| ------------------- | ------------------ | --------------------------------- | -------------------------- |
+| `ANTHROPIC_API_KEY` | Anthropic API キー | `sk-ant-XXXXXXXXXXXXXXXXXXXXXXXX` | 開発・調整・本番環境で必須 |
 
 ### 3.2 オプション環境変数
 
 #### 3.2.1 LLM 設定
 
-| 変数名            | 説明                     | デフォルト値              | 必須       |
-| ----------------- | ------------------------ | ------------------------- | ---------- |
-| `LLM_MODEL`       | 使用する LLM モデル      | `gemini/gemini-1.5-flash` | 必須       |
-| `LLM_TEMPERATURE` | 温度パラメータ           | `0.7`                     | オプション |
-| `LLM_MAX_TOKENS`  | 最大トークン数           | `2048`                    | オプション |
-| `LLM_FALLBACK_MODEL` | フォールバックモデル  | -                         | オプション |
+| 変数名               | 説明                 | デフォルト値                        | 必須       |
+| -------------------- | -------------------- | ----------------------------------- | ---------- |
+| `LLM_MODEL`          | 使用する LLM モデル  | `anthropic/claude-3-haiku-20240307` | 必須       |
+| `LLM_TEMPERATURE`    | 温度パラメータ       | `0.7`                               | オプション |
+| `LLM_MAX_TOKENS`     | 最大トークン数       | `2048`                              | オプション |
+| `LLM_FALLBACK_MODEL` | フォールバックモデル | -                                   | オプション |
 
 **フェーズ別推奨モデル**:
 
-| フェーズ   | `LLM_MODEL` の値                       | 説明                       |
-| ---------- | -------------------------------------- | -------------------------- |
-| 開発       | `gemini/gemini-1.5-flash`              | 無料枠での開発・テスト     |
-| 調整       | `anthropic/claude-sonnet-4-5-20250514` | 品質調整・プロンプト最適化 |
-| 本番       | `anthropic/claude-opus-4-5-20250514`   | 最高品質の本番運用         |
+| フェーズ | `LLM_MODEL` の値                    | 説明                                                         |
+| -------- | ----------------------------------- | ------------------------------------------------------------ |
+| 開発     | `anthropic/claude-3-haiku-20240307` | 超低コストでの開発・テスト（制限なし）                       |
+| 調整     | `anthropic/claude-sonnet-4-5`       | 品質調整・プロンプト最適化（$3/input MTok, $15/output MTok） |
+| 本番     | `anthropic/claude-opus-4-5`         | 最高品質の本番運用（$5/input MTok, $25/output MTok）         |
+
+**開発用モデル（Claude 3 Haiku（レガシー））のコスト**（[公式価格表](https://platform.claude.com/docs/en/about-claude/models/overview)）:
+
+- 入力: $0.25/100 万トークン、出力: $1.25/100 万トークン
+- 1 回あたり約 0.075 セント（入力 500 トークン、出力 500 トークンの場合）
+- 月間コスト例: 1,000 回で約$0.75（約 113 円）、5,000 回で約$3.75（約 563 円）
+- 無料枠の制限がなく、開発から本番まで同じプロバイダーで統一可能
+
+**Claude モデル比較**（2026 年 1 月現在）:
+
+- **Haiku 4.5**: $1/input MTok, $5/output MTok（最速、低コスト）
+- **Sonnet 4.5**: $3/input MTok, $15/output MTok（バランス型、推奨）
+- **Opus 4.5**: $5/input MTok, $25/output MTok（最高品質）
 
 #### 3.2.2 データベース設定
 
@@ -246,13 +258,12 @@ sequenceDiagram
 DISCORD_TOKEN=your_discord_bot_token_here
 
 # LLM 設定（LiteLLM）
-LLM_MODEL=gemini/gemini-1.5-flash
+LLM_MODEL=anthropic/claude-3-haiku-20240307  # 開発用（レガシー、超低コスト）
 LLM_TEMPERATURE=0.7
 LLM_MAX_TOKENS=2048
 
-# API キー（使用するプロバイダーに応じて設定）
-GEMINI_API_KEY=your_gemini_api_key_here
-# ANTHROPIC_API_KEY=your_anthropic_api_key_here  # 調整・本番環境用
+# API キー
+ANTHROPIC_API_KEY=your_anthropic_api_key_here  # 開発・調整・本番環境用
 
 # Database
 DATABASE_PATH=/app/data/kotonoha.db
@@ -290,14 +301,13 @@ HEALTH_CHECK_PORT=8080
 DISCORD_TOKEN=your_discord_bot_token_here
 
 # LLM 設定（LiteLLM）- 本番は Claude Opus 4.5
-LLM_MODEL=anthropic/claude-opus-4-5-20250514
+LLM_MODEL=anthropic/claude-opus-4-5
 LLM_TEMPERATURE=0.7
 LLM_MAX_TOKENS=2048
-LLM_FALLBACK_MODEL=gemini/gemini-1.5-flash  # フォールバック用
+LLM_FALLBACK_MODEL=anthropic/claude-3-haiku-20240307  # フォールバック用（本番でOpusがダウンした場合）
 
 # API キー
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
-GEMINI_API_KEY=your_gemini_api_key_here  # フォールバック用
 
 # Database
 DATABASE_PATH=/app/data/kotonoha.db

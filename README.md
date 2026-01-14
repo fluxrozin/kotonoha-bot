@@ -1,0 +1,188 @@
+# Kotonoha（コトノハ）Discord Bot
+
+場面緘黙自助グループ運営支援のための Discord ボットです。Claude API を使用して、優しく思いやりのある AI アシスタントとして機能します。
+
+## 概要
+
+Kotonoha Bot は、場面緘黙で困っている人々が安心してコミュニケーションできる環境を提供することを目的とした Discord ボットです。メンションされた時に Claude API 経由で応答を生成し、会話履歴を保持して継続的な対話をサポートします。
+
+## 主な機能
+
+- ✅ **メンション応答型**: Bot をメンションすると AI が応答
+- ✅ **会話履歴の保持**: セッション管理により会話の文脈を維持
+- ✅ **セッション永続化**: SQLite によるデータベース保存と復元
+- ✅ **LiteLLM 統合**: 複数の LLM プロバイダーに対応（現在は Claude API）
+- 🔄 **スレッド型・聞き耳型**: Phase 5 で実装予定
+
+## 技術スタック
+
+- **Python**: 3.14
+- **Discord**: discord.py 2.6.4+
+- **LLM**: Claude API（LiteLLM 経由）
+  - 開発用: Claude 3 Haiku（レガシー、超低コスト）
+  - 本番用: Claude Opus 4.5
+- **データベース**: SQLite
+- **パッケージマネージャー**: uv
+- **デプロイ**: Docker（Phase 2 で実装予定）
+
+## クイックスタート
+
+### 前提条件
+
+- Python 3.14
+- uv（パッケージマネージャー）
+- Discord Bot Token
+- Anthropic API Key
+
+### セットアップ
+
+1. **リポジトリのクローン**
+
+   ```bash
+   git clone https://github.com/your-org/kotonoha-bot.git
+   cd kotonoha-bot
+   ```
+
+2. **環境変数の設定**
+
+   ```bash
+   cp .env.example .env
+   # .env を編集して以下を設定:
+   # - DISCORD_TOKEN: Discord Bot Token
+   # - ANTHROPIC_API_KEY: Anthropic API Key
+   # - LLM_MODEL: anthropic/claude-3-haiku-20240307 (開発用)
+   ```
+
+3. **依存関係のインストール**
+
+   ```bash
+   # uv をインストール（未インストールの場合）
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+
+   # 依存関係をインストール
+   uv sync
+   ```
+
+4. **Bot の起動**
+
+   ```bash
+   python -m src.kotonoha_bot.main
+   ```
+
+詳細なセットアップ手順は [Getting Started ガイド](./docs/getting-started.md) を参照してください。
+
+## プロジェクト構成
+
+```txt
+kotonoha-bot/
+├── src/kotonoha_bot/      # ソースコード
+│   ├── bot/               # Discord Bot 関連
+│   ├── ai/                # AI プロバイダー（LiteLLM）
+│   ├── session/           # セッション管理
+│   └── db/                # データベース（SQLite）
+├── tests/                 # テスト
+├── docs/                  # ドキュメント
+├── data/                  # データベースファイル（自動生成）
+└── pyproject.toml         # プロジェクト設定
+```
+
+## ドキュメント
+
+詳細なドキュメントは [`docs/`](./docs/) ディレクトリを参照してください。
+
+### 主要ドキュメント
+
+- **[Getting Started](./docs/getting-started.md)**: 開発環境のセットアップガイド
+- **[実装ロードマップ](./docs/implementation/roadmap.md)**: 7 段階の実装計画
+- **[システムアーキテクチャ](./docs/architecture/system-architecture.md)**: システム構成と技術スタック
+- **[Phase 1 実装完了報告](./docs/implementation/phases/phase1.md)**: MVP 実装の詳細
+
+### ドキュメント一覧
+
+- [要件定義](./docs/requirements/)
+- [アーキテクチャ設計](./docs/architecture/)
+- [API 仕様](./docs/specifications/)
+- [実装計画](./docs/implementation/)
+- [テスト計画](./docs/testing/)
+- [運用ガイド](./docs/operations/)
+- [開発者向けガイド](./docs/development/)
+
+## 実装状況
+
+### Phase 1: MVP（メンション応答型）✅ 完了
+
+- Discord Bot の基本接続
+- メンション応答型の会話契機
+- LiteLLM 経由での Claude API 統合
+- セッション管理（メモリ + SQLite）
+- 会話履歴の保持と復元
+
+### Phase 2: NAS デプロイ 🔄 実装予定
+
+- Docker コンテナ化
+- NAS 上での 24 時間稼働
+- データの永続化
+- バックアップ機能
+
+詳細は [実装ロードマップ](./docs/implementation/roadmap.md) を参照してください。
+
+## 開発
+
+### 開発環境のセットアップ
+
+```bash
+# 開発用依存関係を含めてインストール
+uv sync --group dev
+
+# コードフォーマットとリント
+uv run ruff format .
+uv run ruff check .
+
+# テストの実行
+uv run pytest
+```
+
+### コントリビューション
+
+コントリビューションを歓迎します！詳細は [コントリビューションガイド](./docs/development/contributing.md) を参照してください。
+
+## ライセンス
+
+MIT License
+
+Copyright (c) 2026 fluxrozin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+## 作者
+
+- fluxrozin ([fluxrozin@gmail.com](mailto:fluxrozin@gmail.com))
+
+## リンク
+
+- [Discord Developer Portal](https://discord.com/developers/applications)
+- [Anthropic Console](https://console.anthropic.com/)
+- [LiteLLM Documentation](https://docs.litellm.ai/)
+- [discord.py Documentation](https://discordpy.readthedocs.io/)
+
+詳細なドキュメントは [docs/README.md](./docs/README.md) を参照してください。
+
+---
+
+**注意**: このプロジェクトは開発中です。本番環境で使用する前に、適切なセキュリティ設定とテストを実施してください。

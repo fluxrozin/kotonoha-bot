@@ -167,7 +167,7 @@ docker-compose restart kotonoha
 
 2. **API キーの確認**
 
-   - Gemini API キーの有効性
+   - Anthropic API キーの有効性
    - レート制限の状態
 
 3. **リトライ**
@@ -330,6 +330,6 @@ logrotate -f /etc/logrotate.d/kotonoha
 
 ---
 
-**作成日**: 2026年1月14日
+**作成日**: 2026 年 1 月 14 日
 **バージョン**: 1.0
 **作成者**: kotonoha-bot 開発チーム

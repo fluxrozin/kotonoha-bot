@@ -122,7 +122,7 @@ erDiagram
 -- sessions テーブル
 CREATE TABLE IF NOT EXISTS sessions (
     session_key TEXT PRIMARY KEY,
-    session_type TEXT NOT NULL CHECK(session_type IN ('mention', 'thread', 'dm', 'eavesdrop')),
+    session_type TEXT NOT NULL CHECK(session_type IN ('mention', 'thread', 'eavesdrop')),
     channel_id INTEGER,
     thread_id INTEGER,
     user_id INTEGER,
@@ -367,6 +367,6 @@ PRAGMA temp_store = MEMORY;
 
 ---
 
-**作成日**: 2026年1月14日
+**作成日**: 2026 年 1 月 14 日
 **バージョン**: 1.0
 **作成者**: kotonoha-bot 開発チーム

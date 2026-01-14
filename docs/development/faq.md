@@ -2,6 +2,8 @@
 
 Kotonoha Discord Bot プロジェクトに関するよくある質問をまとめました。
 
+> **注意**: 本プロジェクトは現在 **Claude API（LiteLLM 経由）** を使用しています。Gemini API に関する FAQ は、聞き耳型機能（Phase 5）での将来実装の参考情報として残しています。詳細は [ADR-0002](../architecture/adr/0002-litellm-multi-provider-strategy.md) を参照してください。
+
 ## 目次
 
 1. [セットアップ・環境構築](#セットアップ環境構築)
@@ -25,11 +27,68 @@ Kotonoha Discord Bot プロジェクトに関するよくある質問をまと�
 2. 「New Application」をクリック
 3. アプリケーション名を入力（例: Kotonoha Bot）
 4. 左側メニューから「Bot」を選択
-5. 「Add Bot」をクリック
-6. 「TOKEN」セクションで「Copy」ボタンをクリック
-7. `.env` ファイルに `DISCORD_TOKEN=貼り付けたトークン` を追加
+5. **トークンの取得**:
+   - 「TOKEN」セクションの「Reset Token」ボタンをクリック
+   - 確認ダイアログで「Yes, do it!」をクリック
+   - 新しいトークンが表示されるので、「Copy」ボタンをクリックしてコピー
+   - **重要**: トークンは一度しか表示されないため、必ずコピーして保存してください
+   - **注意**: 既存のトークンがある場合は無効になります（新規作成の場合は問題ありません）
+6. `.env` ファイルに `DISCORD_TOKEN=コピーしたトークン` を追加
 
 **重要**: トークンは絶対に公開しないでください。Git にコミットしないよう注意してください。
+
+---
+
+### Q2: Bot の権限設定はどうすればいい？
+
+**A**: Discord Developer Portal で Bot の権限を設定する必要があります。
+
+#### 1. Privileged Gateway Intents の設定
+
+1. [Discord Developer Portal](https://discord.com/developers/applications) にアクセス
+2. アプリケーションを選択
+3. 左側メニューから「Bot」を選択
+4. 「Privileged Gateway Intents」セクションで以下を有効化:
+   - **Message Content Intent**: ✅ **必須** - メッセージ内容を読み取るために必要
+   - Presence Intent: ❌ 不要（オフのまま）
+   - Server Members Intent: ❌ 不要（オフのまま）
+
+**重要**: Message Content Intent を有効化しないと、Bot はメッセージの内容を読み取れません。
+
+#### 2. Bot Permissions の設定と招待リンクの生成
+
+**設定場所**: 「OAuth2」→「URL Generator」で設定します（「Bot」タブではありません）
+
+1. Discord Developer Portal で左側メニューから「OAuth2」→「URL Generator」を選択
+2. 「SCOPES」で以下を選択:
+   - ✅ `bot`
+   - ✅ `applications.commands`（スラッシュコマンドを使用する場合）
+3. 「BOT PERMISSIONS」で以下の権限を選択:
+
+   **必須の権限（Text Permissions）**:
+
+   - ✅ **Send Messages** - メッセージを送信
+   - ✅ **Read Message History** - メッセージ履歴を読み取る
+   - ✅ **Create Public Threads** - スレッド型でスレッドを作成（Phase 5 以降）
+   - ✅ **Send Messages in Threads** - スレッド内でメッセージを送信（Phase 5 以降）
+   - ✅ **Use Slash Commands** - スラッシュコマンドを使用（将来用）
+
+   **推奨の権限**:
+
+   - ✅ **Embed Links** - リンクを埋め込み形式で表示
+   - ✅ **Attach Files** - ファイルを添付
+   - ✅ **Add Reactions** - リアクションを追加
+
+   **不要な権限**（選択しない）:
+
+   - ❌ Administrator - 管理者権限は不要
+   - ❌ Manage Server - サーバー管理権限は不要
+   - ❌ Manage Roles - ロール管理権限は不要
+
+4. 権限を選択すると、下部の「Generated URL」に招待リンクが自動生成されます
+5. 生成された URL をコピーして、ブラウザで開いてサーバーに招待
+
+**Permissions Integer**: 権限を選択すると、自動的に数値が計算されます（例: `274877906944`）。この数値は URL に含まれます。
 
 ---
 
@@ -43,10 +102,13 @@ Kotonoha Discord Bot プロジェクトに関するよくある質問をまと�
 4. API キーをコピー
 5. `.env` ファイルに `GEMINI_API_KEY=貼り付けたAPIキー` を追加
 
-**無料枠**:
+**無料枠**（2026 年 1 月現在）:
 
-- Gemini 1.5 Flash: 1 分あたり 15 リクエスト、1 日あたり 1,500 リクエスト
-- Gemini 1.5 Pro: 1 分あたり 2 リクエスト、1 日あたり 50 リクエスト
+- `gemini-2.5-flash`: 5 回/分、20 回/日、250,000 トークン/分
+- `gemini-2.5-flash-lite`: 10 回/分、20 回/日、250,000 トークン/分
+- `gemini-3-flash`: 5 回/分、20 回/日、250,000 トークン/分
+
+**重要**: 無料枠は 1 日 20 リクエストまでに制限されています。継続的な開発やテストには有料プランへの移行を検討してください。
 
 ---
 
@@ -273,10 +335,13 @@ EAVESDROP_TRIGGER_PROBABILITY = 0.7  # 70%
 
 **A**: 無料枠の制限に達しています。
 
-**無料枠の制限**:
+**無料枠の制限**（2026 年 1 月現在）:
 
-- **Flash**: 1 分あたり 15 リクエスト、1 日あたり 1,500 リクエスト
-- **Pro**: 1 分あたり 2 リクエスト、1 日あたり 50 リクエスト
+- **Gemini 2.5 Flash**: 5 回/分、20 回/日、250,000 トークン/分
+- **Gemini 2.5 Flash Lite**: 10 回/分、20 回/日、250,000 トークン/分
+- **Gemini 3 Flash**: 5 回/分、20 回/日、250,000 トークン/分
+
+**重要**: 無料枠は 1 日 20 リクエストまでに制限されています。継続的な開発には有料プランへの移行を検討してください。
 
 **対策**:
 
@@ -290,7 +355,7 @@ EAVESDROP_TRIGGER_PROBABILITY = 0.7  # 70%
    - Google Cloud の課金を有効化
 
 3. **複数の API を使用**
-   - フォールバック機能を実装（Phase 3）
+   - フォールバック機能を実装（Phase 1 で実装済み）
 
 **現在の実装**:
 
@@ -303,28 +368,30 @@ EAVESDROP_TRIGGER_PROBABILITY = 0.7  # 70%
 
 **A**: タスクの複雑度によって自動選択されます。
 
-**Gemini 1.5 Flash（速い・安い）**:
+**Gemini 2.5 Flash / Gemini 2.5 Flash Lite（速い・無料枠）**:
 
 - メンション応答型の通常の会話
 - 聞き耳型の判定（Yes/No）
 - シンプルな質問への回答
+- **注意**: 無料枠は 1 日 20 リクエストまで
 
-**Gemini 1.5 Pro（遅い・高品質）**:
+**有料モデル（Gemini 2.5 Pro など）**:
 
 - 複雑な質問への回答
 - 長い文脈の理解
 - 高度な推論が必要な場合
+- より高いレート制限
 
 **自動選択ロジック**:
 
 ```python
 def select_model(message: str, context_length: int) -> str:
     if context_length > 1000 or is_complex_query(message):
-        return "gemini-1.5-pro"
-    return "gemini-1.5-flash"
+        return "gemini-2.5-pro"  # 有料プランが必要
+    return "gemini-2.5-flash"  # または gemini-2.5-flash-lite
 ```
 
-詳細は [ADR-0002](../architecture/adr/0002-select-gemini-api.md) を参照してください。
+詳細は [ADR-0002](../architecture/adr/0002-litellm-multi-provider-strategy.md) を参照してください。
 
 ---
 
@@ -365,7 +432,6 @@ def select_model(message: str, context_length: int) -> str:
 
 - **メンション型**: `mention:{user_id}`
 - **スレッド型**: `thread:{thread_id}`
-- **DM 型**: `dm:{user_id}`
 - **聞き耳型**: `eavesdrop:{channel_id}`
 
 **セッションに含まれるもの**:
@@ -568,7 +634,7 @@ docker start kotonoha-bot
 
 - リクエスト頻度を下げる
 - 有料プランにアップグレード
-- 複数 API のフォールバックを実装（Phase 3）
+- 複数 API のフォールバックを実装（Phase 1 で実装済み）
 
 ---
 
@@ -616,7 +682,7 @@ docker start kotonoha-bot
 
 **手順**:
 
-1. Issue 一覧を確認（注: GitHubリポジトリURLは実際の組織名に置き換えてください）
+1. Issue 一覧を確認（注: GitHub リポジトリ URL は実際の組織名に置き換えてください）
 2. `good first issue` を見つける
 3. Issue にコメントして割り当てを依頼
 4. ブランチを作成して実装
@@ -705,7 +771,7 @@ pytest --cov=kotonoha_bot --cov-report=html
 
 2. **Issue を検索**
 
-   - 既存の Issue を検索（注: GitHubリポジトリURLは実際の組織名に置き換えてください）
+   - 既存の Issue を検索（注: GitHub リポジトリ URL は実際の組織名に置き換えてください）
 
 3. **新しい Issue を作成**
 
@@ -716,6 +782,6 @@ pytest --cov=kotonoha_bot --cov-report=html
 
 ---
 
-**作成日**: 2026年1月14日
-**最終更新日**: 2026年1月14日
+**作成日**: 2026 年 1 月 14 日
+**最終更新日**: 2026 年 1 月 14 日
 **バージョン**: 1.0
