@@ -47,8 +47,16 @@ class Config:
     LOG_BACKUP_COUNT: int = int(os.getenv("LOG_BACKUP_COUNT", "5"))
 
     @classmethod
-    def validate(cls) -> None:
-        """設定の検証"""
+    def validate(cls, skip_in_test: bool = False) -> None:
+        """設定の検証
+
+        Args:
+            skip_in_test: テスト環境では True に設定して検証をスキップ
+        """
+        # テスト環境では検証をスキップ
+        if skip_in_test:
+            return
+
         if not cls.DISCORD_TOKEN:
             raise ValueError("DISCORD_TOKEN is not set")
         if not cls.LLM_MODEL:
@@ -56,7 +64,3 @@ class Config:
 
         # データディレクトリの作成
         cls.DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-
-# 設定の検証
-Config.validate()

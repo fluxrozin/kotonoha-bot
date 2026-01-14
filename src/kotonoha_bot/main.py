@@ -57,6 +57,9 @@ logger = logging.getLogger(__name__)
 
 def main():
     """メイン関数"""
+    # 設定の検証
+    Config.validate()
+
     logger.info("Starting Kotonoha Bot...")
     logger.info(f"Log level: {Config.LOG_LEVEL}")
     logger.info(f"LLM Model: {Config.LLM_MODEL}")

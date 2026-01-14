@@ -59,6 +59,7 @@ docs/**/*.md
 tests/
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
 .tox/
 .nox/
