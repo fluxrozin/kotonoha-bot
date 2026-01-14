@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 
 import discord
+from discord.ext import tasks
 
 from ..ai.litellm_provider import DEFAULT_SYSTEM_PROMPT, LiteLLMProvider
 from ..session.manager import SessionManager
@@ -20,6 +21,27 @@ class MessageHandler:
         self.bot = bot
         self.session_manager = SessionManager()
         self.ai_provider = LiteLLMProvider()
+        # 定期的なセッションクリーンアップタスクを開始
+        self.cleanup_task.start()
+
+    def cog_unload(self):
+        """クリーンアップタスクを停止"""
+        self.cleanup_task.cancel()
+
+    @tasks.loop(hours=1)  # 1時間ごとに実行
+    async def cleanup_task(self):
+        """定期的なセッションクリーンアップ"""
+        try:
+            logger.info("Running scheduled session cleanup...")
+            self.session_manager.cleanup_old_sessions()
+            logger.info("Session cleanup completed")
+        except Exception as e:
+            logger.error(f"Error during session cleanup: {e}")
+
+    @cleanup_task.before_loop
+    async def before_cleanup_task(self):
+        """クリーンアップタスク開始前の待機"""
+        await self.bot.wait_until_ready()
 
     async def handle_mention(self, message: discord.Message):
         """メンション時の処理"""

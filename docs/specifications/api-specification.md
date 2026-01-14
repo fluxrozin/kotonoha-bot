@@ -185,6 +185,13 @@ LiteLLM は各プロバイダーのエラーを統一形式で返す。
 litellm.RateLimitError: Rate limit exceeded
 ```
 
+**サーバーエラー（過負荷など）**:
+
+```python
+litellm.InternalServerError: AnthropicError - {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"}}
+# HTTP 529 エラーも InternalServerError として扱われる
+```
+
 **認証エラー**:
 
 ```python
@@ -200,6 +207,31 @@ response = litellm.completion(
     fallbacks=["anthropic/claude-3-haiku-20240307"]  # フォールバック先（本番でOpusがダウンした場合）
 )
 ```
+
+**リトライロジック**:
+
+一時的なエラー（`InternalServerError`, `RateLimitError`）に対して、指数バックオフで自動リトライを実行します。
+
+```python
+# リトライ設定（環境変数）
+LLM_MAX_RETRIES=3              # 最大リトライ回数（デフォルト: 3）
+LLM_RETRY_DELAY_BASE=1.0       # 指数バックオフのベース遅延（秒、デフォルト: 1.0）
+
+# リトライ動作
+# 1回目: 即座にリトライ
+# 2回目: 1秒待機後にリトライ
+# 3回目: 2秒待機後にリトライ
+# 4回目: 4秒待機後にリトライ（最大リトライ回数に達した場合はエラーを返す）
+```
+
+**リトライ対象のエラー**:
+
+- `litellm.InternalServerError`: サーバーエラー（HTTP 500, 529 など）
+- `litellm.RateLimitError`: レート制限超過（HTTP 429）
+
+**リトライ対象外のエラー**:
+
+- `litellm.AuthenticationError`: 認証エラー（即座に失敗）
 
 ---
 

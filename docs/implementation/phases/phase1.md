@@ -54,6 +54,9 @@ Phase 1 の実装は完了しています。以下の機能が実装されてい
 - ✅ セッション管理（メモリ + SQLite）
 - ✅ 会話履歴の保持と復元
 - ✅ 基本的なエラーハンドリング
+  - ✅ リトライロジック（指数バックオフ、最大3回）
+  - ✅ HTTP 529（Overloaded）エラー対応
+  - ✅ `InternalServerError`、`RateLimitError`の自動リトライ
 - ✅ ログ出力機能
 
 **実装されたファイル構造**:
@@ -137,6 +140,8 @@ cp .env.example .env
 - `DISCORD_TOKEN`: Discord Bot トークン
 - `LLM_MODEL`: LLM モデル（デフォルト: `anthropic/claude-3-haiku-20240307`）
 - `ANTHROPIC_API_KEY`: Anthropic API キー
+- `LLM_MAX_RETRIES`: 最大リトライ回数（デフォルト: 3）
+- `LLM_RETRY_DELAY_BASE`: 指数バックオフのベース遅延（秒、デフォルト: 1.0）
 
 ---
 
@@ -308,6 +313,11 @@ class Config:
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
     LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2048"))
     LLM_FALLBACK_MODEL: str | None = os.getenv("LLM_FALLBACK_MODEL")
+    # リトライ設定（一時的なエラーに対するリトライ）
+    LLM_MAX_RETRIES: int = int(os.getenv("LLM_MAX_RETRIES", "3"))  # 最大リトライ回数
+    LLM_RETRY_DELAY_BASE: float = float(
+        os.getenv("LLM_RETRY_DELAY_BASE", "1.0")
+    )  # 指数バックオフのベース遅延（秒）
 
     # データベース設定
     DATABASE_PATH: Path = Path(os.getenv("DATABASE_PATH", "./data/sessions.db"))
@@ -835,45 +845,79 @@ class LiteLLMProvider(AIProvider):
     def __init__(self, model: str = Config.LLM_MODEL):
         self.model = model
         self.fallback_model = Config.LLM_FALLBACK_MODEL
+        self.max_retries = Config.LLM_MAX_RETRIES
+        self.retry_delay_base = Config.LLM_RETRY_DELAY_BASE
         logger.info(f"Initialized LiteLLM Provider: {model}")
         if self.fallback_model:
             logger.info(f"Fallback model: {self.fallback_model}")
+        logger.info(f"Retry settings: max_retries={self.max_retries}, delay_base={self.retry_delay_base}s")
 
     def generate_response(
         self,
         messages: List[Message],
         system_prompt: str | None = None
     ) -> str:
-        """LiteLLM経由でLLM APIを呼び出して応答を生成"""
-        try:
-            # LiteLLM用のメッセージ形式に変換
-            llm_messages = self._convert_messages(messages, system_prompt)
+        """LiteLLM経由でLLM APIを呼び出して応答を生成
 
-            # フォールバック設定
-            fallbacks = [self.fallback_model] if self.fallback_model else None
+        一時的なエラー（InternalServerError, RateLimitError）に対して
+        指数バックオフでリトライを実行します。
+        """
+        import time
 
-            # APIリクエスト
-            response = litellm.completion(
-                model=self.model,
-                messages=llm_messages,
-                temperature=Config.LLM_TEMPERATURE,
-                max_tokens=Config.LLM_MAX_TOKENS,
-                fallbacks=fallbacks,
-            )
+        # LiteLLM用のメッセージ形式に変換
+        llm_messages = self._convert_messages(messages, system_prompt)
 
-            result = response.choices[0].message.content
-            logger.info(f"Generated response: {len(result)} chars")
-            return result
+        # フォールバック設定
+        fallbacks = [self.fallback_model] if self.fallback_model else None
 
-        except litellm.RateLimitError as e:
-            logger.error(f"Rate limit exceeded: {e}")
-            raise
-        except litellm.AuthenticationError as e:
-            logger.error(f"Authentication error: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"LiteLLM API error: {e}")
-            raise
+        last_exception = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                # APIリクエスト
+                response = litellm.completion(
+                    model=self.model,
+                    messages=llm_messages,
+                    temperature=Config.LLM_TEMPERATURE,
+                    max_tokens=Config.LLM_MAX_TOKENS,
+                    fallbacks=fallbacks,
+                )
+
+                result = response.choices[0].message.content
+                logger.info(f"Generated response: {len(result)} chars")
+                return result
+
+            except litellm.AuthenticationError as e:
+                # 認証エラーはリトライしない
+                logger.error(f"Authentication error: {e}")
+                raise
+
+            except (litellm.InternalServerError, litellm.RateLimitError) as e:
+                # 一時的なエラー: リトライ可能
+                last_exception = e
+                if attempt < self.max_retries:
+                    # 指数バックオフ: 1秒, 2秒, 4秒, ...
+                    delay = self.retry_delay_base * (2 ** attempt)
+                    logger.warning(
+                        f"API error (attempt {attempt + 1}/{self.max_retries + 1}): {e}. "
+                        f"Retrying in {delay}s..."
+                    )
+                    time.sleep(delay)
+                else:
+                    # 最大リトライ回数に達した
+                    logger.error(
+                        f"API error after {self.max_retries + 1} attempts: {e}"
+                    )
+                    raise
+
+            except Exception as e:
+                # その他の予期しないエラー
+                logger.error(f"Unexpected LiteLLM API error: {e}")
+                raise
+
+        # この行には到達しないはずだが、念のため
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("Unexpected error in generate_response")
 
     def _convert_messages(
         self,

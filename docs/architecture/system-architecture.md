@@ -188,6 +188,15 @@ sequenceDiagram
 | `LLM_TEMPERATURE`    | 温度パラメータ       | `0.7`                               | オプション |
 | `LLM_MAX_TOKENS`     | 最大トークン数       | `2048`                              | オプション |
 | `LLM_FALLBACK_MODEL` | フォールバックモデル | -                                   | オプション |
+| `LLM_MAX_RETRIES`    | 最大リトライ回数     | `3`                                 | オプション |
+| `LLM_RETRY_DELAY_BASE` | 指数バックオフのベース遅延（秒） | `1.0` | オプション |
+
+**リトライ設定について**:
+
+- `LLM_MAX_RETRIES`: 一時的なエラー（HTTP 529 Overloaded、HTTP 429 Rate Limit など）に対する最大リトライ回数
+- `LLM_RETRY_DELAY_BASE`: 指数バックオフのベース遅延時間（秒）
+  - リトライ間隔: 1回目 → 1秒、2回目 → 2秒、3回目 → 4秒
+  - 例: `LLM_RETRY_DELAY_BASE=1.0` の場合、1秒 → 2秒 → 4秒
 
 **フェーズ別推奨モデル**:
 
@@ -212,10 +221,12 @@ sequenceDiagram
 
 #### 3.2.2 データベース設定
 
-| 変数名                | 説明                     | デフォルト値            | 必須       |
-| --------------------- | ------------------------ | ----------------------- | ---------- |
-| `DATABASE_PATH`       | データベースファイルパス | `/app/data/kotonoha.db` | オプション |
-| `DATABASE_BACKUP_DIR` | バックアップディレクトリ | `/app/backups`          | オプション |
+| 変数名          | 説明                     | デフォルト値            | 必須       |
+| --------------- | ------------------------ | ----------------------- | ---------- |
+| `DATABASE_NAME` | データベースファイル名   | `sessions.db`           | オプション |
+| `DATABASE_PATH` | データベースファイルパス | `./data/DATABASE_NAME`  | オプション |
+
+**注意**: `DATABASE_PATH` が設定されていない場合、`./data/DATABASE_NAME` が使用されます。
 
 #### 3.2.3 セッション設定
 
@@ -253,12 +264,64 @@ sequenceDiagram
 | `RATE_LIMIT_PRO_MAX`           | Pro API 最大リクエスト数/分   | `2`          | オプション |
 | `RATE_LIMIT_WARNING_THRESHOLD` | 警告閾値（使用率）            | `0.8`        | オプション |
 
-#### 3.2.7 その他設定
+#### 3.2.7 ヘルスチェック設定
+
+| 変数名                | 説明                     | デフォルト値 | 必須       |
+| --------------------- | ------------------------ | ------------ | ---------- |
+| `HEALTH_CHECK_ENABLED` | ヘルスチェックの有効/無効 | `true`       | オプション |
+
+#### 3.2.8 その他設定
 
 | 変数名               | 説明                   | デフォルト値 | 必須       |
 | -------------------- | ---------------------- | ------------ | ---------- |
-| `BOT_PREFIX`         | コマンドプレフィックス | `/`          | オプション |
+| `BOT_PREFIX`         | コマンドプレフィックス | `!`          | オプション |
 | `MESSAGE_MAX_LENGTH` | メッセージ最大長       | `2000`       | オプション |
+
+#### 3.2.9 CI/CD 設定
+
+| 変数名              | 説明                           | デフォルト値 | 必須       |
+| ------------------- | ------------------------------ | ------------ | ---------- |
+| `GITHUB_REPOSITORY` | GitHub リポジトリ名            | -            | オプション |
+| `GITHUB_USERNAME`   | GitHub ユーザー名（GHCR 認証用）| -            | オプション |
+| `GITHUB_TOKEN`      | GitHub Personal Access Token   | -            | オプション |
+
+**GitHub Container Registry (GHCR) 認証について**:
+
+- `GITHUB_TOKEN`: GitHub Personal Access Token（`ghp_` で始まる）
+- GHCR からプライベートイメージをプルする場合に必要
+- 詳細は [Phase 3 実装ガイド](../implementation/phases/phase3.md) を参照
+
+#### 3.2.10 Watchtower 設定
+
+| 変数名                        | 説明                                 | デフォルト値 | 必須       |
+| ----------------------------- | ------------------------------------ | ------------ | ---------- |
+| `WATCHTOWER_CLEANUP`          | 古いイメージを自動削除               | `true`       | オプション |
+| `WATCHTOWER_POLL_INTERVAL`    | イメージ更新チェック間隔（秒）       | `300`        | オプション |
+| `WATCHTOWER_LABEL_ENABLE`     | ラベルで対象コンテナを制限           | `true`       | オプション |
+| `WATCHTOWER_NOTIFICATIONS`    | 通知方法（shoutrrr）                 | `shoutrrr`   | オプション |
+| `WATCHTOWER_NOTIFICATION_URL` | 通知先 URL（Discord Webhook など）   | -            | オプション |
+| `WATCHTOWER_SCHEDULE`         | cron 形式でのスケジュール            | -            | オプション |
+| `WATCHTOWER_ROLLING_RESTART`  | 一度に 1 コンテナずつ更新            | `false`      | オプション |
+
+**Watchtower 通知 URL の設定方法**:
+
+- **Discord Webhook**: `discord://WEBHOOK_TOKEN@WEBHOOK_ID`
+  - 詳細な手順は [デプロイメント・運用フロー](../operations/deployment-operations.md) を参照
+- **Slack**: `slack://TOKEN@WORKSPACE/CHANNEL`
+- **Email**: `smtp://USERNAME:PASSWORD@SMTP_HOST:587/?from=FROM_EMAIL&to=TO_EMAIL`
+- **Telegram**: `telegram://BOT_TOKEN@telegram?chats=CHAT_ID`
+
+**Watchtower について**:
+
+Watchtower は Docker コンテナの自動更新ツールです。GitHub Container Registry (GHCR) から新しいイメージを定期的にチェックし、更新があれば自動的にコンテナを再起動して最新版に更新します。
+
+詳細は [デプロイメント・運用フロー](../operations/deployment-operations.md) の「1.3 Watchtower について」セクションを参照してください。
+
+#### 3.2.11 Docker/NAS デプロイ設定
+
+| 変数名                  | 説明               | デフォルト値 | 必須       |
+| ----------------------- | ------------------ | ------------ | ---------- |
+| `BACKUP_RETENTION_DAYS` | バックアップ保持日数 | `7`          | オプション |
 
 ### 3.3 環境変数設定例
 

@@ -21,6 +21,11 @@ class Config:
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
     LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2048"))
     LLM_FALLBACK_MODEL: str | None = os.getenv("LLM_FALLBACK_MODEL")
+    # リトライ設定（一時的なエラーに対するリトライ）
+    LLM_MAX_RETRIES: int = int(os.getenv("LLM_MAX_RETRIES", "3"))  # 最大リトライ回数
+    LLM_RETRY_DELAY_BASE: float = float(
+        os.getenv("LLM_RETRY_DELAY_BASE", "1.0")
+    )  # 指数バックオフのベース遅延（秒）
 
     # データベース設定
     DATABASE_NAME: str = os.getenv("DATABASE_NAME", "sessions.db")

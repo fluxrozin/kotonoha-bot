@@ -479,7 +479,28 @@ jobs:
 
 #### 4.1 Watchtower とは
 
-Watchtower は、Docker コンテナを自動的に更新するツールです。GHCR から新しいイメージがプッシュされると、自動的にコンテナを更新します。
+**Watchtower とは**:
+
+Watchtower は、Docker コンテナの自動更新ツールです。GitHub Container Registry (GHCR) から新しいイメージを定期的にチェックし、更新があれば自動的にコンテナを再起動して最新版に更新します。
+
+**詳細**: <https://containrrr.dev/watchtower/>
+
+**動作の仕組み**:
+
+1. `kotonoha-bot` コンテナに `com.centurylinklabs.watchtower.enable=true` ラベルが付いている
+2. Watchtower がこのラベルを検出し、定期的にイメージをチェック（デフォルト: 5 分ごと）
+3. 新しいイメージがあれば自動的にコンテナを更新
+4. 古いイメージを削除（`WATCHTOWER_CLEANUP=true` の場合）
+
+**Docker API バージョンの問題について**:
+
+エラー `"client version 1.25 is too old. Minimum supported API version is 1.44"` が発生する場合:
+
+1. **Docker をアップグレードする（推奨）**
+2. **Watchtower を無効化する**（このサービス全体をコメントアウト）
+3. **古いバージョンの Watchtower を使用する**（例: `containrrr/watchtower:v1.5.3`）
+
+詳細は [トラブルシューティングガイド](../../operations/troubleshooting.md) を参照してください。
 
 #### 4.2 `docker-compose.yml` への Watchtower 追加
 
@@ -905,17 +926,83 @@ docker images > images_$(date +%Y%m%d_%H%M%S).txt
 
 Watchtower から Discord に更新通知を送信できます。
 
-```bash
-# .env に追加
-WATCHTOWER_NOTIFICATION_URL=discord://WEBHOOK_TOKEN@WEBHOOK_ID
-```
-
 **Discord Webhook の作成方法**:
 
-1. Discord サーバーの「設定」→「連携サービス」→「ウェブフック」を開く
-2. 「新しいウェブフック」をクリック
-3. ウェブフック URL をコピー（`https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN`）
-4. `WATCHTOWER_NOTIFICATION_URL` に設定
+1. **Discord サーバーを開く**
+
+   - 通知を受け取りたい Discord サーバーを開く
+   - サーバー管理者権限が必要です
+
+2. **サーバー設定を開く**
+
+   - サーバー名を右クリック → 「サーバーの設定」を選択
+   - または、サーバー名の横の下矢印をクリック → 「サーバーの設定」
+
+3. **連携サービスに移動**
+
+   - 左メニューから「連携サービス」を選択
+   - 「ウェブフック」タブを開く
+
+4. **新しいウェブフックを作成**
+
+   - 「新しいウェブフック」ボタンをクリック
+   - または、通知を送信したいチャンネルを右クリック → 「連携サービス」→「ウェブフック」→「新規ウェブフック」
+
+5. **ウェブフックを設定**
+
+   - **名前**: 任意の名前（例: "Watchtower"）
+   - **チャンネル**: 通知を送信するチャンネルを選択
+   - 「ウェブフック URL をコピー」をクリック
+
+6. **Webhook URL から ID とトークンを抽出**
+
+   Webhook URL の形式:
+
+   ```txt
+   https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
+   ```
+
+   例:
+
+   ```txt
+   https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ
+   ```
+
+   - `WEBHOOK_ID`: `123456789012345678`（URL の `/webhooks/` の後）
+   - `WEBHOOK_TOKEN`: `abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ`（ID の後の `/` の後）
+
+7. **`.env` ファイルに設定を追加**
+
+   ```bash
+   # Watchtower 通知設定
+   WATCHTOWER_NOTIFICATIONS=shoutrrr
+   WATCHTOWER_NOTIFICATION_URL=discord://WEBHOOK_TOKEN@WEBHOOK_ID
+   ```
+
+   **実際の例**:
+
+   ```bash
+   WATCHTOWER_NOTIFICATIONS=shoutrrr
+   WATCHTOWER_NOTIFICATION_URL=discord://abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ@123456789012345678
+   ```
+
+   **重要**:
+
+   - 形式は `discord://TOKEN@ID` です（URL とは順序が逆）
+   - `@` の前がトークン、`@` の後が ID です
+
+8. **コンテナを再起動**
+
+   ```bash
+   docker-compose restart watchtower
+   ```
+
+**動作確認**:
+
+- Watchtower のログを確認: `docker logs watchtower`
+- コンテナ更新時に Discord チャンネルに通知が表示されることを確認
+
+詳細な手順は [デプロイメント・運用フロー](../../operations/deployment-operations.md) を参照してください。
 
 #### 6.2 GitHub Actions の通知
 

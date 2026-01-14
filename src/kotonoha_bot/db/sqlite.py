@@ -25,6 +25,19 @@ class SQLiteDatabase:
         self.db_path = db_path.resolve()
         self._init_database()
 
+    def _get_connection(self) -> sqlite3.Connection:
+        """データベース接続を取得（WALモードを有効化）"""
+        conn = sqlite3.connect(
+            str(self.db_path), timeout=30.0, check_same_thread=False
+        )
+        # WALモードを有効化（長時間稼働時のファイルロック問題を回避）
+        conn.execute("PRAGMA journal_mode=WAL")
+        # 外部キー制約を有効化
+        conn.execute("PRAGMA foreign_keys=ON")
+        # バスシーサイズを増やす（パフォーマンス向上）
+        conn.execute("PRAGMA busy_timeout=30000")  # 30秒
+        return conn
+
     def _init_database(self) -> None:
         """データベースの初期化"""
         try:
@@ -41,7 +54,7 @@ class SQLiteDatabase:
                 )
 
             # データベースファイルへの接続を試行
-            with sqlite3.connect(str(self.db_path)) as conn:
+            with self._get_connection() as conn:
                 cursor = conn.cursor()
 
                 # sessionsテーブル
@@ -92,7 +105,7 @@ class SQLiteDatabase:
     def save_session(self, session: ChatSession) -> None:
         """セッションを保存"""
         try:
-            with sqlite3.connect(str(self.db_path)) as conn:
+            with self._get_connection() as conn:
                 cursor = conn.cursor()
 
                 messages_json = json.dumps([msg.to_dict() for msg in session.messages])
@@ -123,7 +136,7 @@ class SQLiteDatabase:
     def load_session(self, session_key: str) -> ChatSession | None:
         """セッションを読み込み"""
         try:
-            with sqlite3.connect(str(self.db_path)) as conn:
+            with self._get_connection() as conn:
                 cursor = conn.cursor()
 
                 cursor.execute(
@@ -161,7 +174,7 @@ class SQLiteDatabase:
     def load_all_sessions(self) -> list[ChatSession]:
         """全セッションを読み込み"""
         try:
-            with sqlite3.connect(str(self.db_path)) as conn:
+            with self._get_connection() as conn:
                 cursor = conn.cursor()
 
                 cursor.execute("""
@@ -195,7 +208,7 @@ class SQLiteDatabase:
     def delete_session(self, session_key: str) -> None:
         """セッションを削除"""
         try:
-            with sqlite3.connect(str(self.db_path)) as conn:
+            with self._get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
                     "DELETE FROM sessions WHERE session_key = ?", (session_key,)

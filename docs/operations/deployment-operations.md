@@ -70,6 +70,173 @@ graph LR
    - ログの確認
    - エラーの有無を確認
 
+### 1.3 Watchtower について
+
+**Watchtower とは**:
+
+Watchtower は、Docker コンテナの自動更新ツールです。GitHub Container Registry (GHCR) から新しいイメージを定期的にチェックし、更新があれば自動的にコンテナを再起動して最新版に更新します。
+
+**詳細**: <https://containrrr.dev/watchtower/>
+
+**動作の仕組み**:
+
+1. `kotonoha-bot` コンテナに `com.centurylinklabs.watchtower.enable=true` ラベルが付いている
+2. Watchtower がこのラベルを検出し、定期的にイメージをチェック（デフォルト: 5 分ごと）
+3. 新しいイメージがあれば自動的にコンテナを更新
+4. 古いイメージを削除（`WATCHTOWER_CLEANUP=true` の場合）
+
+**設定項目**:
+
+| 環境変数                      | 説明                               | デフォルト |
+| ----------------------------- | ---------------------------------- | ---------- |
+| `WATCHTOWER_CLEANUP`          | 古いイメージを自動削除             | `true`     |
+| `WATCHTOWER_POLL_INTERVAL`    | イメージ更新チェック間隔（秒）     | `300`      |
+| `WATCHTOWER_LABEL_ENABLE`     | ラベルで対象コンテナを制限         | `true`     |
+| `WATCHTOWER_NOTIFICATIONS`    | 通知方法（shoutrrr）               | `shoutrrr` |
+| `WATCHTOWER_NOTIFICATION_URL` | 通知先 URL（Discord Webhook など） | -          |
+| `WATCHTOWER_SCHEDULE`         | cron 形式でのスケジュール          | -          |
+| `WATCHTOWER_ROLLING_RESTART`  | 一度に 1 コンテナずつ更新          | `false`    |
+
+#### Discord Webhook 通知の設定方法
+
+Watchtower から Discord に更新通知を送信するには、Discord Webhook を作成して設定します。
+
+##### 手順 1: Discord Webhook の作成
+
+1. **Discord サーバーを開く**
+
+   - 通知を受け取りたい Discord サーバーを開く
+   - サーバー管理者権限が必要です
+
+2. **サーバー設定を開く**
+
+   - サーバー名を右クリック → 「サーバーの設定」を選択
+   - または、サーバー名の横の下矢印をクリック → 「サーバーの設定」
+
+3. **連携サービスに移動**
+
+   - 左メニューから「連携サービス」を選択
+   - 「ウェブフック」タブを開く
+
+4. **新しいウェブフックを作成**
+
+   - 「新しいウェブフック」ボタンをクリック
+   - または、通知を送信したいチャンネルを右クリック → 「連携サービス」→「ウェブフック」→「新規ウェブフック」
+
+5. **ウェブフックを設定**
+
+   - **名前**: 任意の名前（例: "Watchtower"）
+   - **チャンネル**: 通知を送信するチャンネルを選択
+   - 「ウェブフック URL をコピー」をクリック
+
+6. **ウェブフック URL を保存**
+
+   - コピーした URL は以下の形式です:
+
+     ```txt
+     https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
+     ```
+
+   - 例: `https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ`
+
+##### 手順 2: 環境変数の設定
+
+1. **`.env` ファイルを開く**
+
+   ```bash
+   # プロジェクトディレクトリで
+   nano .env
+   # または
+   vi .env
+   ```
+
+2. **Webhook URL から ID とトークンを抽出**
+
+   Webhook URL の形式:
+
+   ```txt
+   https://discord.com/api/webhooks/WEBHOOK_ID/WEBHOOK_TOKEN
+   ```
+
+   例:
+
+   ```txt
+   https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ
+   ```
+
+   - `WEBHOOK_ID`: `123456789012345678`（URL の `/webhooks/` の後）
+   - `WEBHOOK_TOKEN`: `abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ`（ID の後の `/` の後）
+
+3. **`.env` ファイルに設定を追加**
+
+   ```bash
+   # Watchtower 通知設定
+   WATCHTOWER_NOTIFICATIONS=shoutrrr
+   WATCHTOWER_NOTIFICATION_URL=discord://WEBHOOK_TOKEN@WEBHOOK_ID
+   ```
+
+   **実際の例**:
+
+   ```bash
+   WATCHTOWER_NOTIFICATIONS=shoutrrr
+   WATCHTOWER_NOTIFICATION_URL=discord://abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ@123456789012345678
+   ```
+
+   **重要**:
+
+   - 形式は `discord://TOKEN@ID` です（URL とは順序が逆）
+   - `@` の前がトークン、`@` の後が ID です
+
+4. **コンテナを再起動**
+
+   ```bash
+   docker-compose restart watchtower
+   ```
+
+##### 手順 3: 動作確認
+
+1. **Watchtower のログを確認**
+
+   ```bash
+   docker logs watchtower
+   ```
+
+2. **テスト通知を送信**（オプション）
+
+   Watchtower が正常に動作している場合、コンテナ更新時に自動的に通知が送信されます。
+   手動でテストする場合は、Watchtower のログで通知の送信状況を確認できます。
+
+3. **Discord チャンネルで確認**
+
+   - 設定したチャンネルに Watchtower からの通知が表示されることを確認
+   - 通知には以下の情報が含まれます:
+     - 更新されたコンテナ名
+     - 更新時刻
+     - イメージ情報
+
+##### 通知の例
+
+```txt
+🔄 Watchtower がコンテナを更新しました
+
+コンテナ: kotonoha-bot
+イメージ: ghcr.io/your-username/kotonoha-bot:latest
+時刻: 2026-01-15 10:30:00 UTC
+```
+
+##### トラブルシューティング
+
+- **通知が届かない場合**:
+
+  1. Webhook URL が正しいか確認
+  2. `.env` ファイルの形式が正しいか確認（`discord://TOKEN@ID`）
+  3. Watchtower のログでエラーを確認: `docker logs watchtower`
+  4. Webhook が削除されていないか確認（Discord の連携サービスで確認）
+
+- **Webhook を削除した場合**:
+  - 新しい Webhook を作成して、`.env` ファイルを更新
+  - Watchtower コンテナを再起動
+
 ---
 
 ## 2. 運用フロー

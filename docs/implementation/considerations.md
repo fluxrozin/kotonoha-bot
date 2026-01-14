@@ -136,16 +136,30 @@ stateDiagram-v2
 
 ### 3.1 API エラーの分類
 
-**Gemini API エラー:**
+**Anthropic API エラー（LiteLLM経由）:**
 
-- **429 Too Many Requests**: レート制限超過
-  - 対策: 指数バックオフでリトライ（最大 3 回）
+- **429 Too Many Requests / RateLimitError**: レート制限超過
+  - 対策: 指数バックオフでリトライ（最大 3 回、デフォルト）
+  - リトライ間隔: 1秒 → 2秒 → 4秒（指数バックオフ）
+- **529 Overloaded / InternalServerError**: API過負荷エラー
+  - 対策: 指数バックオフでリトライ（最大 3 回、デフォルト）
+  - リトライ間隔: 1秒 → 2秒 → 4秒（指数バックオフ）
+  - フォールバックモデルへの自動切り替え（設定されている場合）
 - **400 Bad Request**: 無効なリクエスト
-  - 対策: プロンプトの検証、エラーログに記録
+  - 対策: プロンプトの検証、エラーログに記録、リトライしない
 - **500 Internal Server Error**: サーバーエラー
-  - 対策: リトライ（最大 3 回）、フォールバック API に切り替え
+  - 対策: 指数バックオフでリトライ（最大 3 回）、フォールバック API に切り替え
 - **503 Service Unavailable**: サービス利用不可
-  - 対策: リトライ、ユーザーに一時的な障害を通知
+  - 対策: 指数バックオフでリトライ、ユーザーに一時的な障害を通知
+- **AuthenticationError**: 認証エラー
+  - 対策: リトライしない、エラーログに記録
+
+**リトライ設定:**
+
+- `LLM_MAX_RETRIES`: 最大リトライ回数（デフォルト: 3）
+- `LLM_RETRY_DELAY_BASE`: 指数バックオフのベース遅延（秒、デフォルト: 1.0）
+- リトライ対象: `InternalServerError`, `RateLimitError`（一時的なエラー）
+- リトライ対象外: `AuthenticationError`（認証エラーは即座に失敗）
 
 **Discord API エラー:**
 

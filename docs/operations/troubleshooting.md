@@ -469,6 +469,53 @@ ERROR: failed to solve: process "/bin/sh -c uv sync" did not complete successful
 
 ---
 
+### 問題: Watchtower で Docker API バージョンエラーが発生する
+
+**症状**:
+
+```txt
+watchtower | time="..." level=error msg="Error response from daemon: client version 1.25 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version"
+watchtower exited with code 1 (restarting)
+```
+
+**原因**:
+
+- Docker API バージョンが古い（1.25）
+- Watchtower の最新版は API 1.44 以上を要求
+- Synology NAS などの古い Docker 環境でよく発生
+
+**解決方法**:
+
+1. **Docker をアップグレードする（推奨）**
+
+   - Synology NAS の場合は、DSM を最新版にアップグレード
+   - Container Manager を最新版に更新
+
+2. **Watchtower を無効化する**
+
+   `docker-compose.yml` で Watchtower サービス全体をコメントアウト:
+
+   ```yaml
+   # watchtower:
+   #   image: containrrr/watchtower:latest
+   #   ...
+   ```
+
+   手動でコンテナを更新する場合は、Watchtower は不要です。
+
+3. **古いバージョンの Watchtower を使用する**
+
+   `docker-compose.yml` でイメージのバージョンを指定:
+
+   ```yaml
+   watchtower:
+     image: containrrr/watchtower:v1.5.3  # 古いバージョンを指定
+   ```
+
+   **注意**: 古いバージョンはセキュリティ更新が提供されない可能性があります。
+
+---
+
 ### 問題: Watchtower が新しいイメージを取得しない
 
 **症状**:

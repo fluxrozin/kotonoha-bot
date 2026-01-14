@@ -193,18 +193,28 @@ sequenceDiagram
 ```mermaid
 flowchart TD
     A[エラー発生] --> B{エラータイプ}
-    B -->|429 Rate Limit| C[待機してリトライ]
+    B -->|429 Rate Limit| C[指数バックオフでリトライ]
+    B -->|529 Overloaded| C
+    B -->|500 Server Error| C
+    B -->|503 Service Unavailable| C
     B -->|400 Bad Request| D[エラーログ出力]
-    B -->|500 Server Error| E[リトライ最大3回]
-    B -->|503 Service Unavailable| F[フォールバックAPI]
-    C --> G[リトライ]
-    E --> G
-    F --> G
+    B -->|Authentication Error| D
+    C --> E{リトライ回数<br/>最大3回}
+    E -->|未達| F[待機<br/>1秒→2秒→4秒]
+    F --> G[API呼び出し]
     G --> H{成功?}
     H -->|Yes| I[正常処理継続]
-    H -->|No| J[エラーメッセージ送信]
+    H -->|No| E
+    E -->|最大回数到達| J[エラーメッセージ送信]
     D --> J
 ```
+
+**リトライロジックの詳細**:
+
+- **リトライ対象**: `RateLimitError` (429), `InternalServerError` (500, 529), `ServiceUnavailable` (503)
+- **リトライ回数**: 最大3回（`LLM_MAX_RETRIES`で設定可能）
+- **待機時間**: 指数バックオフ（1秒 → 2秒 → 4秒）
+- **リトライ対象外**: `AuthenticationError`（認証エラーは即座に失敗）
 
 ---
 
