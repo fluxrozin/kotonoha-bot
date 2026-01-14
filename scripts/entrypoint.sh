@@ -10,6 +10,13 @@ echo "Kotonoha Bot - Starting initialization..."
 echo "Current user: $(id)"
 echo "Current working directory: $(pwd)"
 
+# rootで実行されている場合、パーミッション修正後にユーザーを切り替える
+RUN_AS_ROOT=false
+if [ "$(id -u)" -eq 0 ]; then
+    RUN_AS_ROOT=true
+    echo "Running as root - will fix permissions and switch to botuser"
+fi
+
 # 必須ディレクトリ（エラーで終了）
 REQUIRED_DIRS=(
     "/app/data"
@@ -40,22 +47,40 @@ for dir in "${REQUIRED_DIRS[@]}"; do
         echo ""
         echo "Attempting to fix permissions automatically..."
         
-        # パーミッション修正を試行（777で全員に書き込み権限を付与）
-        if chmod 777 "$dir" 2>/dev/null; then
-            echo "Successfully fixed permissions for $dir"
-            # 再度書き込み可能か確認
-            if [ -w "$dir" ]; then
-                echo "Required directory $dir is now writable ✓"
+        # パーミッション修正を試行（まず775を試し、失敗したら777を使用）
+        # rootで実行されている場合は確実に修正できる
+        if [ "$(id -u)" -eq 0 ]; then
+            # まず775（グループ書き込み）を試す（より安全）
+            chmod 775 "$dir" 2>/dev/null
+            # botuserとして書き込み可能か確認
+            if gosu botuser test -w "$dir" 2>/dev/null; then
+                echo "Successfully fixed permissions for $dir (chmod 775) ✓"
             else
-                echo "ERROR: Permission fix failed. Directory is still not writable."
-                echo "Please check the directory permissions on the host system."
-                echo "The directory should be writable by the container user (UID: $(id -u))."
-                exit 1
+                # 775でダメな場合は777（全員書き込み）を試す
+                chmod 777 "$dir"
+                if gosu botuser test -w "$dir" 2>/dev/null; then
+                    echo "Successfully fixed permissions for $dir (chmod 777) ✓"
+                else
+                    echo "WARNING: Could not verify write permission as botuser, but continuing..."
+                fi
             fi
         else
-            echo "ERROR: Failed to fix permissions automatically."
-            echo "Please check the directory permissions on the host system."
-            echo "Run on the host: chmod 775 $dir (or chmod 777 $dir)"
+            # rootでない場合、パーミッション修正はできない可能性が高い
+            echo "ERROR: Cannot fix permissions automatically (not running as root)."
+            echo "Current user: $(id)"
+            echo ""
+            echo "This container requires root privileges to automatically fix directory permissions."
+            echo "Please use one of the following methods:"
+            echo ""
+            echo "Method 1 (Recommended): Use docker-compose.yml with 'user: root'"
+            echo "  The docker-compose.yml file already has 'user: root' configured."
+            echo ""
+            echo "Method 2: Run with docker run and --user root"
+            echo "  docker run --user root ..."
+            echo ""
+            echo "Method 3: Fix permissions manually on the host"
+            echo "  chmod 775 $dir (or chmod 777 $dir)"
+            echo ""
             echo "The directory should be writable by the container user (UID: $(id -u))."
             exit 1
         fi
@@ -80,18 +105,36 @@ for dir in "${OPTIONAL_DIRS[@]}"; do
         ls -ld "$dir" || true
         echo "Attempting to fix permissions automatically..."
         
-        # パーミッション修正を試行
-        if chmod 777 "$dir" 2>/dev/null; then
-            echo "Successfully fixed permissions for $dir"
-            if [ -w "$dir" ]; then
-                echo "Optional directory $dir is now writable ✓"
+        # パーミッション修正を試行（まず775を試し、失敗したら777を使用）
+        if [ "$(id -u)" -eq 0 ]; then
+            # まず775（グループ書き込み）を試す（より安全）
+            chmod 775 "$dir" 2>/dev/null
+            # botuserとして書き込み可能か確認
+            if gosu botuser test -w "$dir" 2>/dev/null; then
+                echo "Successfully fixed permissions for $dir (chmod 775) ✓"
             else
-                echo "WARNING: Permission fix failed for optional directory $dir (this is OK if not needed)"
+                # 775でダメな場合は777（全員書き込み）を試す
+                chmod 777 "$dir"
+                if gosu botuser test -w "$dir" 2>/dev/null; then
+                    echo "Successfully fixed permissions for $dir (chmod 777) ✓"
+                else
+                    echo "WARNING: Optional directory $dir may not be writable by botuser (this is OK if not needed)"
+                fi
             fi
         else
-            echo "WARNING: Could not fix permissions for optional directory $dir"
-            echo "This is OK if you don't need file logging or backups."
-            echo "To enable, fix permissions on the host: chmod 775 $dir (or chmod 777 $dir)"
+            # rootでない場合、パーミッション修正はできない可能性が高い
+            # オプショナルディレクトリなので警告のみで続行
+            if chmod 775 "$dir" 2>/dev/null && [ -w "$dir" ]; then
+                echo "Successfully fixed permissions for $dir (chmod 775) ✓"
+            elif chmod 777 "$dir" 2>/dev/null && [ -w "$dir" ]; then
+                echo "Successfully fixed permissions for $dir (chmod 777) ✓"
+            else
+                echo "WARNING: Could not fix permissions for optional directory $dir (not running as root)"
+                echo "This is OK if you don't need file logging or backups."
+                echo "To enable, either:"
+                echo "  1. Run container as root (recommended: use docker-compose.yml with 'user: root')"
+                echo "  2. Fix permissions manually on the host: chmod 775 $dir (or chmod 777 $dir)"
+            fi
         fi
     else
         echo "Optional directory $dir is writable ✓"
@@ -101,5 +144,11 @@ done
 echo "Directory checks complete. Starting application..."
 echo ""
 
-# Python アプリケーションを実行
-exec python -m kotonoha_bot.main "$@"
+# rootで実行されている場合、botuserに切り替えてからアプリケーションを実行
+if [ "$RUN_AS_ROOT" = true ]; then
+    echo "Switching to botuser (UID 1000) and starting application..."
+    exec gosu botuser python -m kotonoha_bot.main "$@"
+else
+    # 既にbotuserで実行されている場合
+    exec python -m kotonoha_bot.main "$@"
+fi

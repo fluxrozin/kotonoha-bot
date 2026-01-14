@@ -9,6 +9,7 @@ Kotonoha Discord ボットの問題解決ガイド
 3. [データベースの問題](#3-データベースの問題)
 4. [パフォーマンスの問題](#4-パフォーマンスの問題)
 5. [デプロイメントの問題](#5-デプロイメントの問題)
+   - [ディレクトリのパーミッションエラー](#問題-ディレクトリのパーミッションエラー)
 
 ---
 
@@ -543,6 +544,171 @@ docker ps -a  # Exitedステータスで表示される
 
 ---
 
+### 問題: ディレクトリのパーミッションエラー
+
+**症状**:
+
+```txt
+ERROR: Required directory /app/data is not writable by current user (1000)
+Directory info:
+drwxr-xr-x 1 1026 users 16 Jan 14 13:38 /app/data
+```
+
+または
+
+```txt
+ERROR: Cannot fix permissions automatically (not running as root).
+```
+
+**原因**:
+
+- マウントされたボリューム（`data`、`logs`、`backups`）のディレクトリに書き込み権限がない
+- コンテナ内のユーザー（UID 1000）がディレクトリの所有者（例: UID 1026）と異なる
+- コンテナが root で起動されていない（`docker run`で`--user`オプションを使用した場合など）
+
+**解決方法**:
+
+#### 方法 1: 自動パーミッション修正（推奨）
+
+このボットは起動時に自動的にパーミッションを修正する機能を搭載しています。`docker-compose.yml`を使用する場合、自動的に root で起動され、パーミッションが修正されます。
+
+1. **`docker-compose.yml`の確認**
+
+   ```yaml
+   # docker-compose.ymlに以下が設定されていることを確認
+   user: root
+   ```
+
+2. **コンテナの再起動**
+
+   ```bash
+   docker compose down
+   docker compose up -d
+   ```
+
+3. **ログの確認**
+
+   ```bash
+   docker compose logs -f
+   ```
+
+   以下のようなメッセージが表示されれば成功です:
+
+   ```txt
+   Running as root - will fix permissions and switch to botuser
+   Successfully fixed permissions for /app/data (chmod 775) ✓
+   Switching to botuser (UID 1000) and starting application...
+   ```
+
+#### 方法 2: 手動でパーミッションを修正
+
+自動修正が機能しない場合、ホスト側で手動でパーミッションを修正します。
+
+1. **パーミッションの確認**
+
+   ```bash
+   ls -ld data logs backups
+   ```
+
+2. **パーミッションの修正**
+
+   ```bash
+   # 方法A: グループ書き込み権限を付与（推奨）
+   chmod 775 data logs backups
+
+   # 方法B: 全員に書き込み権限を付与（セキュリティ上は推奨されないが、動作確認用）
+   chmod 777 data logs backups
+   ```
+
+3. **確認**
+
+   ```bash
+   ls -ld data logs backups
+   # drwxrwxr-x または drwxrwxrwx と表示されればOK
+   ```
+
+4. **コンテナの再起動**
+
+   ```bash
+   docker compose restart
+   ```
+
+#### 方法 3: 所有者を変更（UID 1000 のユーザーが存在する場合）
+
+Synology NAS などで UID 1000 のユーザーが存在する場合:
+
+```bash
+sudo chown -R 1000:1000 data logs backups
+```
+
+#### 方法 4: `docker run`で直接起動する場合
+
+`docker run`で直接起動する場合は、`--user root`を指定してください:
+
+```bash
+docker run --user root \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/logs:/app/logs \
+  -v $(pwd)/backups:/app/backups \
+  kotonoha-bot:latest
+```
+
+**注意**: `docker-compose.yml`を使用する場合は、`user: root`が既に設定されているため、この方法は不要です。
+
+---
+
+### トラブルシューティングの詳細
+
+#### 自動パーミッション修正の仕組み
+
+1. コンテナが root で起動される（`docker-compose.yml`の`user: root`設定）
+2. `entrypoint.sh`が root で実行される
+3. 書き込み不可能なディレクトリを検出
+4. まず`chmod 775`を試行（グループ書き込み、より安全）
+5. `775`で失敗した場合、`chmod 777`を試行（全員書き込み、フォールバック）
+6. `gosu`で botuser（UID 1000）に切り替え
+7. botuser でアプリケーションを実行
+
+#### パーミッション修正が失敗する場合
+
+以下のエラーメッセージが表示される場合:
+
+```txt
+ERROR: Cannot fix permissions automatically (not running as root).
+```
+
+**対処方法**:
+
+1. **`docker-compose.yml`を使用している場合**
+
+   ```yaml
+   # docker-compose.ymlに以下が設定されていることを確認
+   user: root
+   ```
+
+2. **`docker run`を使用している場合**
+
+   ```bash
+   # --user rootを指定
+   docker run --user root ...
+   ```
+
+3. **手動でパーミッションを修正**
+
+   ```bash
+   chmod 775 data logs backups
+   ```
+
+#### 任意のユーザーで起動した場合の動作
+
+- **`docker-compose.yml`を使用**: 常に root で起動されるため、問題なく動作します
+- **`docker run --user root`**: root で起動されるため、問題なく動作します
+- **`docker run`で root 以外**: 必須ディレクトリが書き込み可能であれば動作しますが、不可能な場合はエラーメッセージで対処方法を提示します
+
+**推奨事項**: `docker-compose.yml`を使用するか、`docker run`で`--user root`を指定してください。
+
+---
+
 ## 6. よくある質問
 
 ### Q: Bot が突然応答しなくなった
@@ -611,5 +777,10 @@ cat .env | sed 's/=.*/=***/' > env_info.txt
 
 **作成日**: 2026 年 1 月 14 日
 **最終更新日**: 2026 年 1 月 14 日
-**バージョン**: 1.0
+**バージョン**: 1.1
 **作成者**: kotonoha-bot 開発チーム
+
+### 更新履歴
+
+- **v1.1** (2026-01-14): ディレクトリのパーミッションエラーのトラブルシューティングセクションを追加
+- **v1.0** (2026-01-14): 初版リリース

@@ -161,11 +161,12 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     sqlite3 \
+    gosu \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# 非rootユーザーの作成
-RUN groupadd -r botuser && useradd -r -g botuser -d /app -s /sbin/nologin botuser
+# 非rootユーザーの作成（UID/GID 1000で明示的に作成）
+RUN groupadd -r -g 1000 botuser && useradd -r -u 1000 -g botuser -d /app -s /sbin/nologin botuser
 
 # ビルドステージから必要なファイルをコピー
 COPY --from=builder /app/.venv /app/.venv
@@ -185,21 +186,159 @@ ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# ユーザー切り替え
-USER botuser
+# ユーザー切り替えはentrypoint.shで行う（rootで起動してパーミッション修正後、ユーザーを切り替える）
+# USER botuser
 
 # ヘルスチェック用ポート（オプション）
 EXPOSE 8080
 
 # ヘルスチェック
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)" || exit 1
+    CMD python -c "import sys; sys.exit(0)"
 
 # エントリーポイント
-ENTRYPOINT ["python", "-m", "kotonoha_bot.main"]
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 ```
 
-#### 1.2 `.dockerignore` の作成
+#### 1.2 `entrypoint.sh` の作成
+
+エントリーポイントスクリプトを作成します。このスクリプトは、起動時にディレクトリのパーミッションを自動的に修正し、その後非 root ユーザーに切り替えます。
+
+`scripts/entrypoint.sh`:
+
+```bash
+#!/bin/bash
+# Kotonoha Bot - エントリポイントスクリプト
+# 起動前に必要なディレクトリの権限を確認
+
+set -e
+
+echo "Kotonoha Bot - Starting initialization..."
+
+# 現在のユーザー情報を表示
+echo "Current user: $(id)"
+echo "Current working directory: $(pwd)"
+
+# rootで実行されている場合、パーミッション修正後にユーザーを切り替える
+RUN_AS_ROOT=false
+if [ "$(id -u)" -eq 0 ]; then
+    RUN_AS_ROOT=true
+    echo "Running as root - will fix permissions and switch to botuser"
+fi
+
+# 必須ディレクトリ（エラーで終了）
+REQUIRED_DIRS=(
+    "/app/data"
+)
+
+# オプショナルディレクトリ（警告のみ）
+OPTIONAL_DIRS=(
+    "/app/logs"
+    "/app/backups"
+)
+
+# 必須ディレクトリのチェック
+for dir in "${REQUIRED_DIRS[@]}"; do
+    if [ ! -d "$dir" ]; then
+        echo "Creating required directory: $dir"
+        mkdir -p "$dir" || {
+            echo "ERROR: Failed to create required directory $dir"
+            echo "Current user may not have permission to create directories."
+            exit 1
+        }
+    fi
+
+    # ディレクトリが書き込み可能か確認
+    if [ ! -w "$dir" ]; then
+        echo "WARNING: Required directory $dir is not writable by current user ($(id -u))"
+        echo "Directory info:"
+        ls -ld "$dir" || true
+        echo ""
+        echo "Attempting to fix permissions automatically..."
+
+        # パーミッション修正を試行（まず775を試し、失敗したら777を使用）
+        if [ "$(id -u)" -eq 0 ]; then
+            # まず775（グループ書き込み）を試す（より安全）
+            chmod 775 "$dir" 2>/dev/null
+            # botuserとして書き込み可能か確認
+            if gosu botuser test -w "$dir" 2>/dev/null; then
+                echo "Successfully fixed permissions for $dir (chmod 775) ✓"
+            else
+                # 775でダメな場合は777（全員書き込み）を試す
+                chmod 777 "$dir"
+                if gosu botuser test -w "$dir" 2>/dev/null; then
+                    echo "Successfully fixed permissions for $dir (chmod 777) ✓"
+                else
+                    echo "WARNING: Could not verify write permission as botuser, but continuing..."
+                fi
+            fi
+        else
+            # rootでない場合、パーミッション修正はできない可能性が高い
+            echo "ERROR: Cannot fix permissions automatically (not running as root)."
+            echo "Please use docker-compose.yml with 'user: root' or run with 'docker run --user root'"
+            exit 1
+        fi
+    else
+        echo "Required directory $dir is writable ✓"
+    fi
+done
+
+# オプショナルディレクトリのチェック（警告のみ）
+for dir in "${OPTIONAL_DIRS[@]}"; do
+    if [ ! -d "$dir" ]; then
+        echo "Creating optional directory: $dir"
+        mkdir -p "$dir" 2>/dev/null || {
+            echo "WARNING: Could not create optional directory $dir (this is OK if not needed)"
+        }
+    fi
+
+    # ディレクトリが書き込み可能か確認
+    if [ ! -w "$dir" ]; then
+        echo "WARNING: Optional directory $dir is not writable by current user ($(id -u))"
+        echo "Attempting to fix permissions automatically..."
+
+        if [ "$(id -u)" -eq 0 ]; then
+            chmod 775 "$dir" 2>/dev/null
+            if gosu botuser test -w "$dir" 2>/dev/null; then
+                echo "Successfully fixed permissions for $dir (chmod 775) ✓"
+            else
+                chmod 777 "$dir"
+                if gosu botuser test -w "$dir" 2>/dev/null; then
+                    echo "Successfully fixed permissions for $dir (chmod 777) ✓"
+                else
+                    echo "WARNING: Optional directory $dir may not be writable by botuser (this is OK if not needed)"
+                fi
+            fi
+        else
+            echo "WARNING: Could not fix permissions for optional directory $dir (not running as root)"
+            echo "This is OK if you don't need file logging or backups."
+        fi
+    else
+        echo "Optional directory $dir is writable ✓"
+    fi
+done
+
+echo "Directory checks complete. Starting application..."
+echo ""
+
+# rootで実行されている場合、botuserに切り替えてからアプリケーションを実行
+if [ "$RUN_AS_ROOT" = true ]; then
+    echo "Switching to botuser (UID 1000) and starting application..."
+    exec gosu botuser python -m kotonoha_bot.main "$@"
+else
+    # 既にbotuserで実行されている場合
+    exec python -m kotonoha_bot.main "$@"
+fi
+```
+
+**重要なポイント**:
+
+- コンテナは root で起動され、`entrypoint.sh`が自動的にパーミッションを修正します
+- まず`chmod 775`を試行し、失敗した場合のみ`chmod 777`を使用します（セキュリティを考慮）
+- パーミッション修正後、`gosu`で botuser（UID 1000）に切り替えてからアプリケーションを実行します
+- これにより、マウントされたボリュームの所有者が誰であっても動作します
+
+#### 1.3 `.dockerignore` の作成
 
 ```dockerignore
 # Git
@@ -276,7 +415,7 @@ htmlcov/
 
 **注意**: `README.md` は `pyproject.toml` のビルド時に必要なので、`docs/` 配下の Markdown ファイルのみを除外し、ルートの `README.md` は自動的にビルドコンテキストに含まれます。
 
-#### 1.3 ベースイメージの選択
+#### 1.4 ベースイメージの選択
 
 本プロジェクトでは `python:3.14-slim` をベースイメージとして使用しています。
 
@@ -285,6 +424,7 @@ htmlcov/
 #### Step 1 完了チェックリスト
 
 - [ ] `Dockerfile` が作成されている
+- [ ] `scripts/entrypoint.sh` が作成されている
 - [ ] `.dockerignore` が作成されている
 - [ ] ローカルで Docker イメージがビルドできる
 - [ ] ベースイメージの選択理由を理解している
@@ -296,41 +436,67 @@ htmlcov/
 #### 2.1 `docker-compose.yml` の作成
 
 ```yaml
-version: "3.8"
+# Kotonoha Discord Bot - Docker Compose
+# NAS (Synology) デプロイ用設定
 
 services:
   kotonoha-bot:
-    image: ghcr.io/your-username/kotonoha-bot:latest
+    # ローカルビルドの場合
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # GHCR からプルする場合（CI/CD 設定後に有効化）
+    # image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest
+
     container_name: kotonoha-bot
     restart: unless-stopped
+
+    # rootで起動してパーミッション修正後にユーザーを切り替える
+    # entrypoint.shが自動的にパーミッションを修正し、botuserに切り替えます
+    user: root
 
     # 環境変数ファイル
     env_file:
       - .env
 
     # ボリュームマウント（データの永続化）
+    # 注意: 初回起動前に、ホスト側でディレクトリを作成してください
+    # docker compose up する前に以下を実行:
+    #   mkdir -p data logs backups
+    #
+    # パーミッションについて:
+    # コンテナはrootで起動され、entrypoint.shが自動的にパーミッションを修正します。
+    # 通常は手動でのパーミッション設定は不要ですが、自動修正が失敗する場合は
+    # 以下のいずれかを実行してください:
+    #   方法1: chmod 775 data logs backups
+    #   方法2: sudo chown -R 1000:1000 data logs backups
     volumes:
-      # データベース
+      # データベース（必須）
       - ./data:/app/data
-      # ログ
+      # ログ（オプション - LOG_FILE が設定されている場合のみ必要）
       - ./logs:/app/logs
-      # バックアップ
+      # バックアップ（オプション）
       - ./backups:/app/backups
 
     # ネットワーク設定
-    network_mode: bridge
+    networks:
+      - kotonoha-network
 
-    # リソース制限（オプション）
-    # 注意: CPU制限はNASのカーネルがCPU CFSをサポートしていない場合、エラーになります
-    # CPU制限が必要な場合は、Container ManagerのGUIから設定してください
-    deploy:
-      resources:
-        limits:
-          # cpus: "1.0"  # NAS環境ではコメントアウト（CPU CFS未サポートの場合）
-          memory: 512M
-        reservations:
-          # cpus: "0.5"  # NAS環境ではコメントアウト（CPU CFS未サポートの場合）
-          memory: 256M
+    # ヘルスチェック用ポート（オプション）
+    # ports:
+    #   - "8080:8080"
+
+    # リソース制限
+    # 注意: CPU CFS未サポートのNAS環境では、deployセクション全体をコメントアウトしてください
+    # リソース制限が必要な場合は、Container ManagerのGUIから設定してください
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: "1.0"
+    #       memory: 512M
+    #     reservations:
+    #       cpus: "0.25"
+    #       memory: 128M
 
     # ヘルスチェック
     healthcheck:
@@ -338,7 +504,18 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 15s
+
+    # ログ設定
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  kotonoha-network:
+    driver: bridge
 ```
 
 #### 2.2 `.env` ファイルの準備
@@ -475,7 +652,25 @@ nano .env  # または vi .env
 
 ##### 4.3.2 ディレクトリの作成と権限設定
 
-データ保存用のディレクトリを作成し、適切な権限を設定します。
+データ保存用のディレクトリを作成し、ファイルの権限を設定します。
+
+##### 方法 1: セットアップスクリプトを使用（推奨）
+
+```bash
+# NAS 上で実行
+cd /volume1/docker/kotonoha-bot
+
+# セットアップスクリプトを実行
+./scripts/setup.sh
+```
+
+このスクリプトは以下を自動的に実行します:
+
+- データ保存用ディレクトリの作成（`data`、`logs`、`backups`）
+- ファイルの権限設定（`docker-compose.yml`、`.env`など）
+- スクリプトの実行権限設定
+
+##### 方法 2: 手動で設定
 
 ```bash
 # NAS 上で実行
@@ -484,17 +679,32 @@ cd /volume1/docker/kotonoha-bot
 # データ保存用ディレクトリの作成
 mkdir -p data logs backups
 
-# ディレクトリの権限設定
-chmod 755 /volume1/docker/kotonoha-bot
-chmod 755 data logs backups
-
 # ファイルの権限設定
 chmod 644 docker-compose.yml Dockerfile pyproject.toml uv.lock README.md
 chmod 600 .env  # 機密情報を含むため、所有者のみ読み書き可能
 
-# スクリプトの実行権限設定
+# スクリプトの実行権限設定（Dockerfileで設定されますが、念のため）
 chmod +x scripts/*.sh 2>/dev/null || true
 ```
+
+**パーミッションについて**:
+
+- **ホスト側のファイル**: セットアップスクリプトまたは手動で設定が必要です
+- **ディレクトリ（data、logs、backups）**: コンテナ起動時に`entrypoint.sh`が自動的にパーミッションを修正します（手動設定は通常不要）
+
+**パーミッションについて**:
+
+- **自動修正機能**: コンテナは`user: root`で起動され、`entrypoint.sh`が自動的にディレクトリのパーミッションを修正します
+- **手動設定が不要**: 通常は手動で`chmod`を実行する必要はありません
+- **自動修正が失敗する場合**: 以下のいずれかを実行してください:
+
+  ```bash
+  # 方法1: パーミッションを変更（推奨）
+  chmod 775 data logs backups
+
+  # 方法2: 所有者を変更（UID 1000のユーザーが存在する場合）
+  sudo chown -R 1000:1000 data logs backups
+  ```
 
 **注意**: `.env` ファイルには機密情報（Discord Token、API キーなど）が含まれるため、権限を `600`（所有者のみ読み書き可能）に設定することが重要です。
 
@@ -716,7 +926,7 @@ logging.basicConfig(
 #### Step 8 完了チェックリスト
 
 - [ ] ログローテーションが設定されている
-- [ ] ログファイルが適切に管理されている
+- [x] ログファイルが適切に管理されている
 
 ---
 
@@ -724,12 +934,27 @@ logging.basicConfig(
 
 #### 9.1 非 root ユーザーでの実行
 
-`Dockerfile` で既に設定済み:
+`Dockerfile` で botuser（UID 1000）を作成し、`entrypoint.sh` で root から botuser に切り替えます:
 
 ```dockerfile
-RUN useradd -m -u 1000 botuser
-USER botuser
+# 非rootユーザーの作成（UID/GID 1000で明示的に作成）
+RUN groupadd -r -g 1000 botuser && useradd -r -u 1000 -g botuser -d /app -s /sbin/nologin botuser
+
+# ユーザー切り替えはentrypoint.shで行う（rootで起動してパーミッション修正後、ユーザーを切り替える）
+# USER botuser
 ```
+
+**動作の流れ**:
+
+1. コンテナが`user: root`で起動される（`docker-compose.yml`で設定）
+2. `entrypoint.sh`が root で実行される
+3. 書き込み不可能なディレクトリを検出
+4. まず`chmod 775`を試行（グループ書き込み、より安全）
+5. `775`で失敗した場合、`chmod 777`を試行（全員書き込み、フォールバック）
+6. `gosu`で botuser（UID 1000）に切り替え
+7. botuser でアプリケーションを実行
+
+これにより、マウントされたボリュームの所有者が誰であっても自動的に動作します。
 
 #### 9.2 環境変数の保護
 
@@ -973,6 +1198,84 @@ USER botuser
 
 ---
 
+### 問題 6: ディレクトリのパーミッションエラー
+
+**症状**:
+
+```txt
+ERROR: Required directory /app/data is not writable by current user (1000)
+Directory info:
+drwxr-xr-x 1 1026 users 16 Jan 14 13:38 /app/data
+```
+
+または
+
+```txt
+ERROR: Cannot fix permissions automatically (not running as root).
+```
+
+**原因**:
+
+- マウントされたボリューム（`data`、`logs`、`backups`）のディレクトリに書き込み権限がない
+- コンテナ内のユーザー（UID 1000）がディレクトリの所有者（例: UID 1026）と異なる
+- コンテナが root で起動されていない（`docker run`で`--user`オプションを使用した場合など）
+
+**解決方法**:
+
+#### 方法 1: 自動パーミッション修正（推奨）
+
+このボットは起動時に自動的にパーミッションを修正する機能を搭載しています。`docker-compose.yml`を使用する場合、自動的に root で起動され、パーミッションが修正されます。
+
+1. **`docker-compose.yml`の確認**
+
+   ```yaml
+   # docker-compose.ymlに以下が設定されていることを確認
+   user: root
+   ```
+
+2. **コンテナの再起動**
+
+   ```bash
+   docker compose down
+   docker compose up -d
+   ```
+
+3. **ログの確認**
+
+   ```bash
+   docker compose logs -f
+   ```
+
+   以下のようなメッセージが表示されれば成功です:
+
+   ```txt
+   Running as root - will fix permissions and switch to botuser
+   Successfully fixed permissions for /app/data (chmod 775) ✓
+   Switching to botuser (UID 1000) and starting application...
+   ```
+
+#### 方法 2: 手動でパーミッションを修正
+
+自動修正が機能しない場合、ホスト側で手動でパーミッションを修正します。
+
+```bash
+# 方法A: グループ書き込み権限を付与（推奨）
+chmod 775 data logs backups
+
+# 方法B: 全員に書き込み権限を付与（セキュリティ上は推奨されないが、動作確認用）
+chmod 777 data logs backups
+```
+
+#### 方法 3: 所有者を変更（UID 1000 のユーザーが存在する場合）
+
+```bash
+sudo chown -R 1000:1000 data logs backups
+```
+
+**詳細なトラブルシューティング方法については、[トラブルシューティングガイド](../../operations/troubleshooting.md#問題-ディレクトリのパーミッションエラー)を参照してください。**
+
+---
+
 ## 次のフェーズへ
 
 ### Phase 3 の準備
@@ -1010,8 +1313,13 @@ Phase 2 が完了したら、以下を準備して Phase 3 に移行します:
 ---
 
 **作成日**: 2026 年 1 月
-**最終更新日**: 2026 年 1 月
+**最終更新日**: 2026 年 1 月 14 日
 **対象フェーズ**: Phase 2（NAS デプロイ）
 **前提条件**: Phase 1 完了済み ✅
 **想定期間**: 1-2 週間
-**バージョン**: 1.1
+**バージョン**: 1.2
+
+### 更新履歴
+
+- **v1.2** (2026-01-14): 自動パーミッション修正機能の追加、entrypoint.sh の実装、docker-compose.yml の更新
+- **v1.1** (2026-01): 初版リリース

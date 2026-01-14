@@ -35,6 +35,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     sqlite3 \
+    gosu \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -59,15 +60,15 @@ ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# ユーザー切り替え
-USER botuser
+# ユーザー切り替えはentrypoint.shで行う（rootで起動してパーミッション修正後、ユーザーを切り替える）
+# USER botuser
 
 # ヘルスチェック用ポート（オプション）
 EXPOSE 8080
 
 # ヘルスチェック
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)" || exit 1
+    CMD python -c "import sys; sys.exit(0)"
 
 # エントリーポイント
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]

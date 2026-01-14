@@ -13,21 +13,25 @@ services:
     container_name: kotonoha-bot
     restart: unless-stopped
 
+    # rootで起動してパーミッション修正後にユーザーを切り替える
+    # entrypoint.shが自動的にパーミッションを修正し、botuserに切り替えます
+    user: root
+
     # 環境変数ファイル
     env_file:
       - .env
 
     # ボリュームマウント（データの永続化）
-    # 注意: 初回起動前に、ホスト側でディレクトリを作成し、適切な権限を設定してください
+    # 注意: 初回起動前に、ホスト側でディレクトリを作成してください
     # docker compose up する前に以下を実行:
     #   mkdir -p data logs backups
     #
-    # 権限設定方法（いずれか一方を選択）:
-    # 方法1: パーミッションを変更（推奨 - Synology NAS環境など）
-    #   chmod 775 data logs backups
-    # 方法2: 所有者を変更（UID 1000のユーザーが存在する場合）
-    #   sudo chown -R 1000:1000 data logs backups
-    # これにより、コンテナ内の botuser (UID 1000) が書き込めるようになります
+    # パーミッションについて:
+    # コンテナはrootで起動され、entrypoint.shが自動的にパーミッションを修正します。
+    # 通常は手動でのパーミッション設定は不要ですが、自動修正が失敗する場合は
+    # 以下のいずれかを実行してください:
+    #   方法1: chmod 775 data logs backups
+    #   方法2: sudo chown -R 1000:1000 data logs backups
     volumes:
       # データベース（必須）
       - ./data:/app/data
