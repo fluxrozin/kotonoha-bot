@@ -27,9 +27,7 @@ class SQLiteDatabase:
 
     def _get_connection(self) -> sqlite3.Connection:
         """データベース接続を取得（WALモードを有効化）"""
-        conn = sqlite3.connect(
-            str(self.db_path), timeout=30.0, check_same_thread=False
-        )
+        conn = sqlite3.connect(str(self.db_path), timeout=30.0, check_same_thread=False)
         # WALモードを有効化（長時間稼働時のファイルロック問題を回避）
         conn.execute("PRAGMA journal_mode=WAL")
         # 外部キー制約を有効化
