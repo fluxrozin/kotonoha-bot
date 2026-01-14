@@ -36,12 +36,14 @@ graph TB
 
     subgraph "外部サービス"
         Discord[Discord API]
-        GeminiFlash[Gemini 1.5 Flash]
-        GeminiPro[Gemini 1.5 Pro]
+        LiteLLM[LiteLLM]
+        Gemini[Gemini API<br/>開発用]
+        Claude[Claude API<br/>本番用]
 
         Container <-->|WebSocket/HTTP| Discord
-        Container -->|API Call| GeminiFlash
-        Container -->|API Call| GeminiPro
+        Container -->|API Call| LiteLLM
+        LiteLLM -->|開発| Gemini
+        LiteLLM -->|本番| Claude
     end
 ```
 
@@ -71,10 +73,14 @@ graph TB
     end
 
     subgraph "AI Services"
-        GeminiFlash[Gemini 1.5 Flash<br/>Fast Inference]
-        GeminiPro[Gemini 1.5 Pro<br/>Advanced Tasks]
-        AIService --> GeminiFlash
-        AIService --> GeminiPro
+        LiteLLM[LiteLLM<br/>統一インターフェース]
+        Gemini[Gemini 1.5 Flash<br/>開発用]
+        ClaudeSonnet[Claude Sonnet 4.5<br/>調整用]
+        ClaudeOpus[Claude Opus 4.5<br/>本番用]
+        AIService --> LiteLLM
+        LiteLLM --> Gemini
+        LiteLLM --> ClaudeSonnet
+        LiteLLM --> ClaudeOpus
     end
 ```
 
@@ -111,28 +117,30 @@ sequenceDiagram
 
 | カテゴリ               | 技術                      | バージョン | 用途                    |
 | ---------------------- | ------------------------- | ---------- | ----------------------- |
-| **言語**               | Python                    | 3.14       | アプリケーション開発    |
-| **パッケージ管理**     | uv                        | latest     | 依存関係管理            |
-| **フレームワーク**     | discord.py                | latest     | Discord Bot 開発        |
-| **AI SDK**             | google-generativeai       | latest     | Gemini API クライアント |
-| **データベース**       | SQLite                    | 3.x        | 会話履歴の永続化        |
-| **コンテナ**           | Docker                    | latest     | コンテナ化              |
-| **CI/CD**              | GitHub Actions            | -          | 自動ビルド・デプロイ    |
-| **コンテナレジストリ** | GitHub Container Registry | -          | イメージ保存            |
-| **自動更新**           | Watchtower                | latest     | コンテナ自動更新        |
-| **OS**                 | Ubuntu (WSL2)             | 22.04+     | 開発環境                |
-| **本番 OS**            | DSM (Synology)            | latest     | 本番環境                |
+| **言語**               | Python                    | 3.14       | アプリケーション開発           |
+| **パッケージ管理**     | uv                        | latest     | 依存関係管理                   |
+| **フレームワーク**     | discord.py                | latest     | Discord Bot 開発               |
+| **AI 統合**            | LiteLLM                   | latest     | マルチ LLM プロバイダー統合    |
+| **AI（開発）**         | Gemini API                | 1.5        | 開発・テスト用（無料枠）       |
+| **AI（本番）**         | Claude API                | 4.5        | 本番用（Opus 4.5）             |
+| **データベース**       | SQLite                    | 3.x        | 会話履歴の永続化               |
+| **コンテナ**           | Docker                    | latest     | コンテナ化                     |
+| **CI/CD**              | GitHub Actions            | -          | 自動ビルド・デプロイ           |
+| **コンテナレジストリ** | GitHub Container Registry | -          | イメージ保存                   |
+| **自動更新**           | Watchtower                | latest     | コンテナ自動更新               |
+| **OS**                 | Ubuntu (WSL2)             | 22.04+     | 開発環境                       |
+| **本番 OS**            | DSM (Synology)            | latest     | 本番環境                       |
 
 ### 2.2 主要ライブラリ
 
-| ライブラリ          | バージョン | 用途                     |
-| ------------------- | ---------- | ------------------------ |
-| discord.py          | latest     | Discord API クライアント |
-| google-generativeai | latest     | Gemini API クライアント  |
-| aiosqlite           | latest     | 非同期 SQLite 操作       |
-| python-dotenv       | latest     | 環境変数管理             |
-| pytest              | latest     | テストフレームワーク     |
-| pytest-asyncio      | latest     | 非同期テスト             |
+| ライブラリ     | バージョン | 用途                                |
+| -------------- | ---------- | ----------------------------------- |
+| discord.py     | latest     | Discord API クライアント            |
+| litellm        | latest     | マルチ LLM プロバイダー統合         |
+| aiosqlite      | latest     | 非同期 SQLite 操作                  |
+| python-dotenv  | latest     | 環境変数管理                        |
+| pytest         | latest     | テストフレームワーク                |
+| pytest-asyncio | latest     | 非同期テスト                        |
 
 ### 2.3 ハードウェア要件
 
@@ -147,21 +155,36 @@ sequenceDiagram
 
 ### 3.1 必須環境変数
 
-| 変数名           | 説明                   | 例                                         | 必須 |
-| ---------------- | ---------------------- | ------------------------------------------ | ---- |
-| `DISCORD_TOKEN`  | Discord Bot トークン   | `MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.XXXXXX.XXXXXX` | 必須 |
-| `GEMINI_API_KEY` | Google Gemini API キー | `AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`      | 必須 |
+| 変数名          | 説明                 | 例                                         | 必須 |
+| --------------- | -------------------- | ------------------------------------------ | ---- |
+| `DISCORD_TOKEN` | Discord Bot トークン | `MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.XXXXXX.XXXXXX` | 必須 |
+| `LLM_MODEL`     | LLM モデル名         | `gemini/gemini-1.5-flash`                  | 必須 |
+
+**プロバイダー別 API キー**（使用するプロバイダーに応じて設定）:
+
+| 変数名            | 説明                   | 例                                    | 必須                   |
+| ----------------- | ---------------------- | ------------------------------------- | ---------------------- |
+| `GEMINI_API_KEY`  | Google Gemini API キー | `AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` | 開発環境で必須         |
+| `ANTHROPIC_API_KEY` | Anthropic API キー   | `sk-ant-XXXXXXXXXXXXXXXXXXXXXXXX`     | 調整・本番環境で必須   |
 
 ### 3.2 オプション環境変数
 
-#### 3.2.1 Gemini API 設定
+#### 3.2.1 LLM 設定
 
-| 変数名               | 説明           | デフォルト値       | 必須       |
-| -------------------- | -------------- | ------------------ | ---------- |
-| `GEMINI_FLASH_MODEL` | Flash モデル名 | `gemini-1.5-flash` | オプション |
-| `GEMINI_PRO_MODEL`   | Pro モデル名   | `gemini-1.5-pro`   | オプション |
-| `GEMINI_TEMPERATURE` | 温度パラメータ | `0.7`              | オプション |
-| `GEMINI_MAX_TOKENS`  | 最大トークン数 | `2048`             | オプション |
+| 変数名            | 説明                     | デフォルト値              | 必須       |
+| ----------------- | ------------------------ | ------------------------- | ---------- |
+| `LLM_MODEL`       | 使用する LLM モデル      | `gemini/gemini-1.5-flash` | 必須       |
+| `LLM_TEMPERATURE` | 温度パラメータ           | `0.7`                     | オプション |
+| `LLM_MAX_TOKENS`  | 最大トークン数           | `2048`                    | オプション |
+| `LLM_FALLBACK_MODEL` | フォールバックモデル  | -                         | オプション |
+
+**フェーズ別推奨モデル**:
+
+| フェーズ   | `LLM_MODEL` の値                       | 説明                       |
+| ---------- | -------------------------------------- | -------------------------- |
+| 開発       | `gemini/gemini-1.5-flash`              | 無料枠での開発・テスト     |
+| 調整       | `anthropic/claude-sonnet-4-5-20250514` | 品質調整・プロンプト最適化 |
+| 本番       | `anthropic/claude-opus-4-5-20250514`   | 最高品質の本番運用         |
 
 #### 3.2.2 データベース設定
 
@@ -217,17 +240,19 @@ sequenceDiagram
 ### 3.3 環境変数設定例
 
 ```bash
-# .env ファイル例
+# .env ファイル例（開発環境）
 
 # Discord
 DISCORD_TOKEN=your_discord_bot_token_here
 
-# Gemini API
+# LLM 設定（LiteLLM）
+LLM_MODEL=gemini/gemini-1.5-flash
+LLM_TEMPERATURE=0.7
+LLM_MAX_TOKENS=2048
+
+# API キー（使用するプロバイダーに応じて設定）
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_FLASH_MODEL=gemini-1.5-flash
-GEMINI_PRO_MODEL=gemini-1.5-pro
-GEMINI_TEMPERATURE=0.7
-GEMINI_MAX_TOKENS=2048
+# ANTHROPIC_API_KEY=your_anthropic_api_key_here  # 調整・本番環境用
 
 # Database
 DATABASE_PATH=/app/data/kotonoha.db
@@ -252,10 +277,50 @@ LOG_FILE=/app/logs/kotonoha.log
 LOG_MAX_SIZE=10
 LOG_BACKUP_COUNT=5
 
-# Rate Limiting
-RATE_LIMIT_FLASH_MAX=15
-RATE_LIMIT_PRO_MAX=2
-RATE_LIMIT_WARNING_THRESHOLD=0.8
+# Other
+BOT_PREFIX=/
+MESSAGE_MAX_LENGTH=2000
+HEALTH_CHECK_PORT=8080
+```
+
+```bash
+# .env ファイル例（本番環境）
+
+# Discord
+DISCORD_TOKEN=your_discord_bot_token_here
+
+# LLM 設定（LiteLLM）- 本番は Claude Opus 4.5
+LLM_MODEL=anthropic/claude-opus-4-5-20250514
+LLM_TEMPERATURE=0.7
+LLM_MAX_TOKENS=2048
+LLM_FALLBACK_MODEL=gemini/gemini-1.5-flash  # フォールバック用
+
+# API キー
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+GEMINI_API_KEY=your_gemini_api_key_here  # フォールバック用
+
+# Database
+DATABASE_PATH=/app/data/kotonoha.db
+DATABASE_BACKUP_DIR=/app/backups
+
+# Session
+SESSION_TIMEOUT_ACTIVE=300
+SESSION_TIMEOUT_IDLE=1800
+SESSION_MAX_MEMORY=100
+SESSION_HISTORY_LIMIT=50
+
+# Eavesdrop
+EAVESDROP_ENABLED=true
+EAVESDROP_APPROACH=llm
+EAVESDROP_LOG_SIZE=10
+EAVESDROP_KEYWORD_PROBABILITY=0.5
+EAVESDROP_RANDOM_PROBABILITY=0.03
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FILE=/app/logs/kotonoha.log
+LOG_MAX_SIZE=10
+LOG_BACKUP_COUNT=5
 
 # Other
 BOT_PREFIX=/
@@ -309,7 +374,9 @@ services:
     restart: unless-stopped
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - LLM_MODEL=${LLM_MODEL}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - DATABASE_PATH=/app/data/kotonoha.db
       - LOG_FILE=/app/logs/kotonoha.log
     volumes:
@@ -395,7 +462,7 @@ kotonoha-bot/
 │       ├── ai/
 │       │   ├── __init__.py
 │       │   ├── base.py           # 抽象化インターフェース
-│       │   └── gemini.py         # Gemini API実装
+│       │   └── litellm_provider.py  # LiteLLM統合実装
 │       ├── database/
 │       │   ├── __init__.py
 │       │   └── sqlite.py         # SQLite管理

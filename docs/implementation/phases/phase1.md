@@ -18,12 +18,12 @@ Kotonoha Discord Bot の Phase 1（基盤実装）の詳細な実装計画書
 
 ### MVP（Minimum Viable Product）
 
-**目標**: Discord 上でメンションされた時に Gemini API を使って応答できる最小限の Bot
+**目標**: Discord 上でメンションされた時に LiteLLM 経由で LLM API を使って応答できる最小限の Bot
 
 **達成すべきこと**:
 
 - Bot が Discord サーバーに接続できる
-- メンション時に Gemini API で応答を生成できる
+- メンション時に LiteLLM 経由で LLM API（開発: Gemini、本番: Claude）を使って応答を生成できる
 - 基本的な会話履歴をメモリで管理できる
 - SQLite にセッションを保存できる
 - Bot の再起動時にセッションを復元できる
@@ -50,10 +50,11 @@ Kotonoha Discord Bot の Phase 1（基盤実装）の詳細な実装計画書
      - Read Message History
      - Use Slash Commands（将来用）
 
-2. **Gemini API キー**
+2. **LLM API キー**
 
-   - [Google AI Studio](https://aistudio.google.com/app/apikey) で API キーを取得
-   - 無料枠: Flash 15 回/分（1,500 回/日）、Pro 2 回/分（50 回/日）
+   - **開発環境**: [Google AI Studio](https://aistudio.google.com/app/apikey) で Gemini API キーを取得
+     - 無料枠: Flash 15 回/分（1,500 回/日）、Pro 2 回/分（50 回/日）
+   - **本番環境**: [Anthropic Console](https://console.anthropic.com/) で Claude API キーを取得
 
 3. **開発環境**
    - Python 3.14
@@ -69,8 +70,13 @@ Kotonoha Discord Bot の Phase 1（基盤実装）の詳細な実装計画書
 # Discord Bot Token
 DISCORD_TOKEN=your_discord_bot_token_here
 
-# Gemini API Key
-GEMINI_API_KEY=your_gemini_api_key_here
+# LLM 設定（LiteLLM）
+LLM_MODEL=gemini/gemini-1.5-flash  # 開発用
+# LLM_MODEL=anthropic/claude-opus-4-5-20250514  # 本番用
+
+# API キー（使用するプロバイダーに応じて設定）
+GEMINI_API_KEY=your_gemini_api_key_here  # 開発用
+# ANTHROPIC_API_KEY=your_anthropic_api_key_here  # 本番用
 
 # Bot Settings
 BOT_PREFIX=!
@@ -109,7 +115,7 @@ kotonoha-bot/
 │       ├── ai/             # AI関連
 │       │   ├── __init__.py
 │       │   ├── provider.py # AI Provider抽象クラス
-│       │   └── gemini.py   # Gemini実装
+│       │   └── litellm_provider.py  # LiteLLM統合実装
 │       │
 │       ├── session/        # セッション管理
 │       │   ├── __init__.py
@@ -197,7 +203,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv init
 
 # 依存関係のインストール
-uv add discord.py python-dotenv google-generativeai
+uv add discord.py python-dotenv litellm
 ```
 
 ##### Option B: pip を使用
@@ -207,7 +213,7 @@ uv add discord.py python-dotenv google-generativeai
 ```txt
 discord.py==2.3.2
 python-dotenv==1.0.0
-google-generativeai==0.3.2
+litellm>=1.0.0
 ```
 
 ```bash
@@ -253,10 +259,11 @@ class Config:
     DISCORD_TOKEN: str = os.getenv("DISCORD_TOKEN", "")
     BOT_PREFIX: str = os.getenv("BOT_PREFIX", "!")
 
-    # Gemini API設定
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    GEMINI_MODEL_FLASH: str = "gemini-1.5-flash"
-    GEMINI_MODEL_PRO: str = "gemini-1.5-pro"
+    # LLM設定（LiteLLM）
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "gemini/gemini-1.5-flash")
+    LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
+    LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2048"))
+    LLM_FALLBACK_MODEL: str | None = os.getenv("LLM_FALLBACK_MODEL")
 
     # データベース設定
     DATABASE_PATH: Path = Path(os.getenv("DATABASE_PATH", "./data/sessions.db"))
@@ -273,8 +280,8 @@ class Config:
         """設定の検証"""
         if not cls.DISCORD_TOKEN:
             raise ValueError("DISCORD_TOKEN is not set")
-        if not cls.GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY is not set")
+        if not cls.LLM_MODEL:
+            raise ValueError("LLM_MODEL is not set")
 
         # データディレクトリの作成
         cls.DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -724,7 +731,7 @@ class SessionManager:
 
 ---
 
-### Step 6: Gemini API の実装 (1 時間 30 分)
+### Step 6: LiteLLM 統合の実装 (1 時間 30 分)
 
 #### 6.1 `src/kotonoha_bot/ai/provider.py` の作成
 
@@ -757,11 +764,11 @@ class AIProvider(ABC):
         pass
 ```
 
-#### 6.2 `src/kotonoha_bot/ai/gemini.py` の作成
+#### 6.2 `src/kotonoha_bot/ai/litellm_provider.py` の作成
 
 ```python
-"""Gemini API実装"""
-import google.generativeai as genai
+"""LiteLLM統合実装"""
+import litellm
 from typing import List
 import logging
 
@@ -771,42 +778,57 @@ from ..config import Config
 
 logger = logging.getLogger(__name__)
 
-# Gemini APIの設定
-genai.configure(api_key=Config.GEMINI_API_KEY)
 
+class LiteLLMProvider(AIProvider):
+    """LiteLLM統合プロバイダー
 
-class GeminiProvider(AIProvider):
-    """Gemini API Provider"""
+    LiteLLMを使用して複数のLLMプロバイダーを統一インターフェースで利用。
+    - 開発: gemini/gemini-1.5-flash
+    - 調整: anthropic/claude-sonnet-4-5-20250514
+    - 本番: anthropic/claude-opus-4-5-20250514
+    """
 
-    def __init__(self, model_name: str = Config.GEMINI_MODEL_FLASH):
-        self.model_name = model_name
-        self.model = genai.GenerativeModel(model_name)
-        logger.info(f"Initialized Gemini Provider: {model_name}")
+    def __init__(self, model: str = Config.LLM_MODEL):
+        self.model = model
+        self.fallback_model = Config.LLM_FALLBACK_MODEL
+        logger.info(f"Initialized LiteLLM Provider: {model}")
+        if self.fallback_model:
+            logger.info(f"Fallback model: {self.fallback_model}")
 
     def generate_response(
         self,
         messages: List[Message],
         system_prompt: str | None = None
     ) -> str:
-        """Gemini APIで応答を生成"""
+        """LiteLLM経由でLLM APIを呼び出して応答を生成"""
         try:
-            # Gemini用のメッセージ形式に変換
-            contents = self._convert_messages(messages, system_prompt)
+            # LiteLLM用のメッセージ形式に変換
+            llm_messages = self._convert_messages(messages, system_prompt)
+
+            # フォールバック設定
+            fallbacks = [self.fallback_model] if self.fallback_model else None
 
             # APIリクエスト
-            response = self.model.generate_content(
-                contents,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=0.7,
-                    max_output_tokens=2048,
-                )
+            response = litellm.completion(
+                model=self.model,
+                messages=llm_messages,
+                temperature=Config.LLM_TEMPERATURE,
+                max_tokens=Config.LLM_MAX_TOKENS,
+                fallbacks=fallbacks,
             )
 
-            logger.info(f"Generated response: {len(response.text)} chars")
-            return response.text
+            result = response.choices[0].message.content
+            logger.info(f"Generated response: {len(result)} chars")
+            return result
 
+        except litellm.RateLimitError as e:
+            logger.error(f"Rate limit exceeded: {e}")
+            raise
+        except litellm.AuthenticationError as e:
+            logger.error(f"Authentication error: {e}")
+            raise
         except Exception as e:
-            logger.error(f"Gemini API error: {e}")
+            logger.error(f"LiteLLM API error: {e}")
             raise
 
     def _convert_messages(
@@ -814,29 +836,25 @@ class GeminiProvider(AIProvider):
         messages: List[Message],
         system_prompt: str | None
     ) -> List[dict]:
-        """Gemini用のメッセージ形式に変換"""
-        contents = []
+        """LiteLLM用のメッセージ形式に変換"""
+        llm_messages = []
 
         # システムプロンプトを最初に追加
         if system_prompt:
-            contents.append({
-                "role": "user",
-                "parts": [{"text": system_prompt}]
-            })
-            contents.append({
-                "role": "model",
-                "parts": [{"text": "承知しました。"}]
+            llm_messages.append({
+                "role": "system",
+                "content": system_prompt
             })
 
         # 会話履歴を追加
         for message in messages:
-            role = "user" if message.role == MessageRole.USER else "model"
-            contents.append({
+            role = "user" if message.role == MessageRole.USER else "assistant"
+            llm_messages.append({
                 "role": role,
-                "parts": [{"text": message.content}]
+                "content": message.content
             })
 
-        return contents
+        return llm_messages
 
 
 # デフォルトのシステムプロンプト
@@ -865,9 +883,10 @@ DEFAULT_SYSTEM_PROMPT = """あなたは「コトノハ」という名前の、�
 #### Step 6 完了チェックリスト
 
 - [ ] `AIProvider` 抽象クラスが実装されている
-- [ ] `GeminiProvider` が実装されている
-- [ ] Gemini API で応答を生成できる
+- [ ] `LiteLLMProvider` が実装されている
+- [ ] LiteLLM 経由で LLM API を呼び出せる
 - [ ] システムプロンプトが適用される
+- [ ] フォールバック機能が動作する
 
 ---
 
@@ -929,7 +948,7 @@ import logging
 from .client import KotonohaBot
 from ..session.manager import SessionManager
 from ..session.models import MessageRole
-from ..ai.gemini import GeminiProvider, DEFAULT_SYSTEM_PROMPT
+from ..ai.litellm_provider import LiteLLMProvider, DEFAULT_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -940,7 +959,7 @@ class MessageHandler:
     def __init__(self, bot: KotonohaBot):
         self.bot = bot
         self.session_manager = SessionManager()
-        self.ai_provider = GeminiProvider()
+        self.ai_provider = LiteLLMProvider()
 
     async def handle_mention(self, message: discord.Message):
         """メンション時の処理"""
@@ -1307,19 +1326,26 @@ discord.errors.LoginFailure: Improper token has been passed.
 
 ---
 
-### 問題 2: Gemini API でエラーが発生
+### 問題 2: LLM API でエラーが発生
 
 **症状**:
 
 ```txt
-google.api_core.exceptions.ResourceExhausted: 429 Quota exceeded
+litellm.RateLimitError: Rate limit exceeded
+```
+
+または
+
+```txt
+litellm.AuthenticationError: Invalid API key
 ```
 
 **解決方法**:
 
-1. レート制限（Flash: 15 回/分、1,500 回/日）を超えていないか確認
-2. 1 分待ってから再試行
-3. エラー時のリトライロジックを追加（Phase 2 で実装予定）
+1. API キーが正しく設定されているか確認（`GEMINI_API_KEY` または `ANTHROPIC_API_KEY`）
+2. レート制限を超えていないか確認（Gemini Flash: 15 回/分、1,500 回/日）
+3. 1 分待ってから再試行
+4. フォールバックモデルを設定する（`LLM_FALLBACK_MODEL`）
 
 ---
 

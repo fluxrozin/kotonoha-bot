@@ -113,25 +113,32 @@
 
 ---
 
-### 1.6 `ai/gemini.py` - Gemini API 実装
+### 1.6 `ai/litellm_provider.py` - LiteLLM 統合実装
 
-**責務**: Gemini API の実装
+**責務**: LiteLLM を使用したマルチプロバイダー LLM 統合
 
 **主要クラス**:
 
-- `GeminiProvider`: Gemini API プロバイダー
+- `LiteLLMProvider`: LiteLLM 統合プロバイダー
 
 **主要メソッド**:
 
 - `generate_response(messages, system_prompt)`: 応答を生成
 - `judge_should_respond(messages)`: 発言すべきか判定
-- `_call_api(model, prompt, **kwargs)`: API を呼び出し
+- `_call_api(messages, **kwargs)`: LiteLLM 経由で API を呼び出し
 - `_parse_response(response)`: レスポンスをパース
+- `_handle_fallback(error)`: フォールバック処理
+
+**対応プロバイダー**:
+
+- **開発**: `gemini/gemini-1.5-flash`（Google Gemini API）
+- **調整**: `anthropic/claude-sonnet-4-5-20250514`（Claude API）
+- **本番**: `anthropic/claude-opus-4-5-20250514`（Claude API）
 
 **依存関係**:
 
 - `ai.base`
-- `google.generativeai`
+- `litellm`
 
 ---
 

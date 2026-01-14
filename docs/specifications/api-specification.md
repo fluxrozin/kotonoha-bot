@@ -93,86 +93,103 @@
 
 ---
 
-## 2. Gemini API インターフェース
+## 2. LLM API インターフェース（LiteLLM 経由）
 
-### 2.1 チャット完了 API
+LiteLLM を使用して、複数の LLM プロバイダーを統一インターフェースで利用する。
 
-**エンドポイント**: `POST https://generativeai.googleapis.com/v1beta/models/{model}:generateContent`
+### 2.1 LiteLLM 統一インターフェース
 
-**認証**: API Key（`X-Goog-Api-Key` ヘッダー）
+**使用方法**: LiteLLM の `completion()` 関数を使用
 
-**リクエスト**:
+```python
+import litellm
 
-```json
-{
-  "contents": [
-    {
-      "role": "user",
-      "parts": [
-        {
-          "text": "ユーザーメッセージ"
-        }
-      ]
-    }
-  ],
-  "generationConfig": {
-    "temperature": 0.7,
-    "maxOutputTokens": 2048
-  }
-}
+response = litellm.completion(
+    model="gemini/gemini-1.5-flash",  # または anthropic/claude-opus-4-5-20250514
+    messages=[
+        {"role": "system", "content": "システムプロンプト"},
+        {"role": "user", "content": "ユーザーメッセージ"}
+    ],
+    temperature=0.7,
+    max_tokens=2048
+)
 ```
 
 **レスポンス**:
 
-```json
+```python
 {
-  "candidates": [
-    {
-      "content": {
-        "parts": [
-          {
-            "text": "AI応答"
-          }
-        ],
-        "role": "model"
-      },
-      "finishReason": "STOP"
+    "choices": [
+        {
+            "message": {
+                "role": "assistant",
+                "content": "AI応答"
+            },
+            "finish_reason": "stop"
+        }
+    ],
+    "usage": {
+        "prompt_tokens": 100,
+        "completion_tokens": 50,
+        "total_tokens": 150
     }
-  ]
 }
 ```
 
-### 2.2 モデル一覧
+### 2.2 対応プロバイダーとモデル
 
-| モデル名           | 用途               | レート制限                 |
-| ------------------ | ------------------ | -------------------------- |
-| `gemini-1.5-flash` | 高速応答、判定処理 | 15 回/分（1,500 回/日）    |
-| `gemini-1.5-pro`   | 高度なタスク       | 2 回/分（50 回/日）        |
+| フェーズ | プロバイダー | モデル名                               | 用途                   |
+| -------- | ------------ | -------------------------------------- | ---------------------- |
+| 開発     | Google       | `gemini/gemini-1.5-flash`              | 無料枠での開発・テスト |
+| 調整     | Anthropic    | `anthropic/claude-sonnet-4-5-20250514` | 品質調整・最適化       |
+| 本番     | Anthropic    | `anthropic/claude-opus-4-5-20250514`   | 最高品質の本番運用     |
 
-### 2.3 エラーレスポンス
+### 2.3 Gemini API（開発用）
 
-**429 Too Many Requests**:
+**エンドポイント**: `POST https://generativeai.googleapis.com/v1beta/models/{model}:generateContent`
 
-```json
-{
-  "error": {
-    "code": 429,
-    "message": "Resource has been exhausted",
-    "status": "RESOURCE_EXHAUSTED"
-  }
-}
+**認証**: 環境変数 `GEMINI_API_KEY`
+
+**レート制限**:
+
+- Flash: 15 回/分（1,500 回/日）
+- Pro: 2 回/分（50 回/日）
+
+### 2.4 Claude API（本番用）
+
+**エンドポイント**: `POST https://api.anthropic.com/v1/messages`
+
+**認証**: 環境変数 `ANTHROPIC_API_KEY`
+
+**モデル**:
+
+- Claude Sonnet 4.5: `claude-sonnet-4-5-20250514`
+- Claude Opus 4.5: `claude-opus-4-5-20250514`
+
+### 2.5 エラーハンドリング
+
+LiteLLM は各プロバイダーのエラーを統一形式で返す。
+
+**レート制限エラー**:
+
+```python
+litellm.RateLimitError: Rate limit exceeded
 ```
 
-**400 Bad Request**:
+**認証エラー**:
 
-```json
-{
-  "error": {
-    "code": 400,
-    "message": "Invalid request",
-    "status": "INVALID_ARGUMENT"
-  }
-}
+```python
+litellm.AuthenticationError: Invalid API key
+```
+
+**フォールバック設定**:
+
+```python
+response = litellm.completion(
+    model="anthropic/claude-opus-4-5-20250514",
+    messages=messages,
+    fallbacks=["gemini/gemini-1.5-flash"]  # フォールバック先
+)
 ```
 
 ---

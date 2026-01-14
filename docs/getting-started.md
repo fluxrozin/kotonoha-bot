@@ -8,7 +8,9 @@
 - **Python**: 3.14
 - **uv**: パッケージマネージャー
 - **Discord Bot Token**: [Discord Developer Portal](https://discord.com/developers/applications) から取得
-- **Gemini API Key**: [Google AI Studio](https://makersuite.google.com/app/apikey) から取得
+- **LLM API Key**:
+  - 開発環境: [Google AI Studio](https://aistudio.google.com/app/apikey) から Gemini API Key を取得
+  - 本番環境: [Anthropic Console](https://console.anthropic.com/) から Claude API Key を取得
 
 ## 5 分でセットアップ
 
@@ -28,7 +30,12 @@ cp .env.example .env
 
 # エディタで開いて以下を設定
 # DISCORD_TOKEN=your_discord_bot_token_here
-# GEMINI_API_KEY=your_gemini_api_key_here
+# LLM_MODEL=gemini/gemini-1.5-flash  # 開発用
+# GEMINI_API_KEY=your_gemini_api_key_here  # 開発用
+
+# 本番環境の場合:
+# LLM_MODEL=anthropic/claude-opus-4-5-20250514
+# ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
 ### 3. 依存関係のインストール
@@ -115,7 +122,11 @@ kotonoha-bot/
 
 ### Q: AI が応答しない
 
-**A**: `GEMINI_API_KEY` が正しく設定されているか、無料枠の制限に達していないか確認してください。
+**A**: 以下を確認してください:
+
+- `LLM_MODEL` が正しく設定されているか
+- 使用するプロバイダーの API キーが設定されているか（`GEMINI_API_KEY` または `ANTHROPIC_API_KEY`）
+- 無料枠の制限に達していないか（開発用 Gemini の場合）
 
 ### Q: データベースエラーが発生する
 
