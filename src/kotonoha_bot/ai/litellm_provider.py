@@ -117,6 +117,50 @@ class LiteLLMProvider(AIProvider):
                 if not result:
                     raise ValueError("Empty response content")
 
+                # finish_reasonをチェックしてログに出力
+                finish_reason = getattr(choice, "finish_reason", None)
+                if finish_reason:
+                    logger.info(f"Response finish_reason: {finish_reason}")
+                    # 途中で停止した可能性がある場合に警告
+                    if finish_reason in ["length", "max_tokens"]:
+                        logger.warning(
+                            f"Response may be truncated: finish_reason={finish_reason}, "
+                            f"max_tokens={Config.LLM_MAX_TOKENS}, response_length={len(result)} chars"
+                        )
+                    elif finish_reason == "stop_sequence":
+                        logger.warning(
+                            f"Response stopped at stop sequence: finish_reason={finish_reason}"
+                        )
+                else:
+                    # Anthropic APIの場合はstop_reasonをチェック
+                    stop_reason = getattr(choice, "stop_reason", None)
+                    if stop_reason:
+                        logger.info(f"Response stop_reason: {stop_reason}")
+                        # Anthropic APIでは"end_turn"は正常な終了だが、念のためログに出力
+                        if stop_reason not in ["end_turn", "stop_sequence"]:
+                            logger.warning(
+                                f"Unexpected stop_reason: {stop_reason}"
+                            )
+
+                # 使用トークン数をログに出力
+                if hasattr(response, "usage"):
+                    usage = response.usage
+                    input_tokens = getattr(usage, "prompt_tokens", None) or getattr(usage, "input_tokens", None)
+                    output_tokens = getattr(usage, "completion_tokens", None) or getattr(usage, "output_tokens", None)
+                    if input_tokens is not None or output_tokens is not None:
+                        logger.info(
+                            f"Token usage: input={input_tokens}, output={output_tokens}, "
+                            f"max_tokens={Config.LLM_MAX_TOKENS}"
+                        )
+                        # 出力トークン数がmax_tokensに近い場合は警告
+                        if output_tokens and Config.LLM_MAX_TOKENS:
+                            usage_ratio = output_tokens / Config.LLM_MAX_TOKENS
+                            if usage_ratio > 0.9:
+                                logger.warning(
+                                    f"Output tokens ({output_tokens}) are close to max_tokens "
+                                    f"({Config.LLM_MAX_TOKENS}), response may be truncated"
+                                )
+
                 logger.info(f"Generated response: {len(result)} chars")
                 return result
 

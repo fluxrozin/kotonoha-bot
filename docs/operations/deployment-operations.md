@@ -105,7 +105,7 @@ Watchtower は、Docker コンテナの自動更新ツールです。GitHub Cont
 **ローカル開発環境での使用**:
 
 - ローカル開発環境では、`.env` ファイルで `WATCHTOWER_NOTIFICATION_URL` の行をコメントアウトしてください
-- コメントアウトすることで、環境変数が未定義となり、Watchtowerは通知を送信しません
+- コメントアウトすることで、環境変数が未定義となり、Watchtower は通知を送信しません
 - 本番環境では、コメントアウトを解除して `WATCHTOWER_NOTIFICATION_URL` に Discord Webhook URL などを設定してください
 - Container Manager（Synology NAS）でも、環境変数で制御できるため、GUI から簡単に設定できます
 
@@ -260,6 +260,255 @@ Watchtower から Discord に更新通知を送信するには、Discord Webhook
 - **Webhook を削除した場合**:
   - 新しい Webhook を作成して、`.env` ファイルを更新
   - Watchtower コンテナを再起動
+
+---
+
+#### GHCR 認証の設定方法
+
+Watchtower が GHCR からプライベートイメージをプルする場合、または手動で `docker pull` を実行する場合、GHCR への認証が必要です。
+
+**重要**: パブリックイメージを使用する場合は、この手順は不要です。
+
+##### GHCR 認証: 手順 1 - GitHub Personal Access Token の作成
+
+1. **GitHub にログイン**
+
+   - <https://github.com> にアクセスしてログイン
+
+2. **Settings を開く**
+
+   - 右上のプロフィールアイコンをクリック
+   - 「Settings」を選択
+
+3. **Developer settings を開く**
+
+   - 左側のメニューで一番下の「Developer settings」をクリック
+
+4. **Personal access tokens を開く**
+
+   - 左側のメニューで「Personal access tokens」→「Tokens (classic)」を選択
+
+5. **新しいトークンを生成**
+
+   - 「Generate new token」→「Generate new token (classic)」をクリック
+   - 認証情報の入力が求められる場合があります
+
+6. **トークンの設定**
+
+   - **Note（メモ）**: `GHCR Docker Login` など、用途がわかる名前を入力
+   - **Expiration（有効期限）**: 適切な期間を選択（例: 90 日、1 年、または無期限）
+   - **Select scopes（スコープ選択）**: 以下のスコープにチェックを入れる
+     - ✅ `write:packages` - GitHub Packages への書き込み
+     - ✅ `read:packages` - GitHub Packages の読み取り
+
+7. **トークンを生成**
+
+   - 一番下の「Generate token」ボタンをクリック
+
+8. **トークンをコピーして保存**
+   - **重要**: トークンはこの画面で一度だけ表示されます
+   - 表示されたトークン（`ghp_` で始まる文字列）をコピーして安全な場所に保存
+   - この画面を閉じると、もう一度表示することはできません
+
+**トークンの形式**:
+
+- `ghp_` で始まる長い文字列（例: `ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`）
+
+**注意**:
+
+- トークンは機密情報です。他人に共有しないでください
+- トークンを失くした場合は、新しいトークンを生成する必要があります
+- 古いトークンは「Tokens (classic)」の一覧から削除できます
+
+##### GHCR 認証: 手順 2 - NAS 上での SSH アクセスの有効化
+
+**Synology NAS について**:
+
+- Synology NAS には **Container Manager**（旧 Docker）が標準搭載されています（DSM 7.0 以降）
+- SSH でログインすれば、コマンドラインから `docker` コマンドが使えます
+- Container Manager の GUI からも操作可能です
+
+**SSH アクセスの有効化**（まだ有効化していない場合）:
+
+1. DSM の「コントロールパネル」→「ターミナルと SNMP」を開く
+2. 「SSH サービスを有効にする」にチェック
+3. ポート番号を確認（デフォルト: 22）
+
+##### GHCR 認証: 手順 3 - `.env` ファイルの準備
+
+**重要**: `.env` ファイルは Git リポジトリに含まれていません。初回セットアップ時は、`.env.example` から `.env` ファイルを作成する必要があります。
+
+**初回セットアップ（`.env` ファイルが存在しない場合）**:
+
+```bash
+# SSH で NAS にログイン
+ssh admin@nas-ip-address
+
+# プロジェクトディレクトリに移動
+cd /volume1/docker/kotonoha-bot
+
+# .env.example から .env ファイルを作成
+cp .env.example .env
+
+# .env ファイルを編集して GitHub トークンとユーザー名を設定
+# エディタで開く（nano または vi）
+nano .env
+# または
+vi .env
+
+# 以下の行のコメントを外して、実際の値を設定:
+# GITHUB_USERNAME=your-github-username
+# GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# ファイルの権限を設定（機密情報を含むため）
+chmod 600 .env
+```
+
+**既に `.env` ファイルが存在する場合**:
+
+`.env` ファイルは一度作成すれば、Git で管理されていないため、リポジトリを更新しても上書きされません。ただし、`.env.example` が更新された場合（新しい環境変数が追加された場合）は、手動で `.env` に追加する必要があります。
+
+**`.env` ファイルの確認と更新**:
+
+```bash
+# .env ファイルを編集
+nano .env
+
+# 以下の行が存在し、正しい値が設定されているか確認:
+# GITHUB_USERNAME=your-github-username
+# GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**`.env.example` が更新された場合の対処法**:
+
+`.env.example` に新しい環境変数が追加された場合、`.env` ファイルに手動で追加する必要があります。
+
+```bash
+# .env.example と .env を比較して、新しい変数を確認
+diff .env.example .env
+
+# または、.env.example にのみ存在する変数を確認
+comm -13 <(sort .env | grep -v '^#' | grep -v '^$' | cut -d= -f1) <(sort .env.example | grep -v '^#' | grep -v '^$' | cut -d= -f1)
+
+# 新しい変数を .env に追加（例: GITHUB_TOKEN が追加された場合）
+# nano .env で手動で追加
+```
+
+**注意**:
+
+- `.env` ファイルは機密情報を含むため、完全な自動化は推奨されません
+- 新しい環境変数が追加された場合は、手動で確認して追加してください
+- 既存の値は上書きされないため、安全に `git pull` でリポジトリを更新できます
+
+##### GHCR 認証: 手順 4 - GHCR へのログイン
+
+`.env` ファイルの設定が完了したら、SSH で NAS にログインして認証します：
+
+```bash
+# SSH で NAS にログイン
+ssh admin@nas-ip-address
+
+# プロジェクトディレクトリに移動
+cd /volume1/docker/kotonoha-bot
+
+# .env ファイルから必要な変数のみ個別に設定してログイン
+GITHUB_USERNAME=$(grep '^GITHUB_USERNAME=' .env | sed 's/#.*$//' | cut -d= -f2 | sed 's/[[:space:]]*$//')
+GITHUB_TOKEN=$(grep '^GITHUB_TOKEN=' .env | sed 's/#.*$//' | cut -d= -f2 | sed 's/[[:space:]]*$//')
+echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+
+# 認証情報は ~/.docker/config.json に保存される
+# 確認する場合:
+cat ~/.docker/config.json
+```
+
+**ログイン成功時の警告について**:
+
+`WARNING! Your password will be stored unencrypted...` という警告が表示される場合がありますが、これは正常です。Synology NAS 上では、認証情報は `~/.docker/config.json` に保存され、Watchtower が自動的に使用します。
+
+この警告を無視しても問題ありませんが、より安全に管理したい場合は、credential helper を設定することもできます（オプション）。
+
+**重要**: `.env` ファイルには機密情報が含まれるため、権限を `600`（所有者のみ読み書き可能）に設定してください：
+
+```bash
+chmod 600 .env
+```
+
+**認証の確認**:
+
+ログインが成功したら、以下のコマンドで認証が正しく設定されているか確認できます：
+
+```bash
+# GHCR からイメージをプルできるかテスト（オプション）
+docker pull ghcr.io/your-username/kotonoha-bot:latest
+
+# または、認証情報を確認
+cat ~/.docker/config.json | grep -A 5 "ghcr.io"
+```
+
+##### GHCR 認証: 手順 5 - `docker-compose.yml` の設定
+
+GHCR 認証が完了したら、`docker-compose.yml` で `~/.docker/config.json` のマウントを有効化します。
+
+**`docker-compose.yml` の確認**:
+
+```yaml
+watchtower:
+  image: containrrr/watchtower:latest
+  container_name: watchtower
+  restart: unless-stopped
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    # GHCR認証用の設定ファイル（GHCRからプライベートイメージをプルする場合に必要）
+    # ファイルが存在しない場合はこの行をコメントアウトしてください
+    # ファイルを作成する方法: docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_TOKEN
+    # 詳細は docs/operations/deployment-operations.md を参照
+    - ~/.docker/config.json:/config.json:ro # コメントアウトを解除
+```
+
+**注意**:
+
+- `~/.docker/config.json` が存在しない場合は、この行をコメントアウトしてください
+- ファイルが存在する場合のみ、コメントアウトを解除してください
+- ファイルの場所は、SSH でログインしたユーザーのホームディレクトリです（例: `/home/admin/.docker/config.json`）
+
+##### GHCR 認証: 手順 6 - Watchtower の再起動
+
+設定を反映するために、Watchtower コンテナを再起動します：
+
+```bash
+docker-compose restart watchtower
+```
+
+##### GHCR 認証: 動作確認
+
+1. **Watchtower のログを確認**:
+
+   ```bash
+   docker logs watchtower
+   ```
+
+2. **認証エラーがないか確認**:
+
+   - ログに `unauthorized` や `authentication required` などのエラーが表示されないことを確認
+
+3. **イメージのプルをテスト**:
+
+   ```bash
+   docker pull ghcr.io/your-username/kotonoha-bot:latest
+   ```
+
+##### GHCR 認証: トラブルシューティング
+
+- **認証エラーが発生する場合**:
+
+  1. `.env` ファイルの `GITHUB_USERNAME` と `GITHUB_TOKEN` が正しく設定されているか確認
+  2. `docker login ghcr.io` を再実行
+  3. `~/.docker/config.json` が存在するか確認: `ls -la ~/.docker/config.json`
+  4. ファイルの権限を確認: `chmod 600 ~/.docker/config.json`
+
+- **`~/.docker/config.json` が存在しないエラー**:
+
+  詳細は [トラブルシューティングガイド](./troubleshooting.md#問題-watchtower-で-dockerconfigjson-が存在しないエラーが発生する) を参照してください。
 
 ---
 
