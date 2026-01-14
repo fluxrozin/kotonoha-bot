@@ -83,7 +83,7 @@ def main():
     health_server.start()
 
     # シグナルハンドラー（Ctrl+C対応）
-    def signal_handler(sig, frame):
+    def signal_handler(_sig, _frame):
         logger.info("Shutting down...")
         health_server.stop()
         handler.session_manager.save_all_sessions()

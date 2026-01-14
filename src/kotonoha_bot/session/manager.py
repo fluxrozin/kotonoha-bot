@@ -1,11 +1,10 @@
 """セッション管理"""
-from typing import Dict, Optional
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 
-from .models import ChatSession, MessageRole, SessionType
-from ..db.sqlite import SQLiteDatabase
 from ..config import Config
+from ..db.sqlite import SQLiteDatabase
+from .models import ChatSession, MessageRole, SessionType
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +16,7 @@ class SessionManager:
     """
 
     def __init__(self):
-        self.sessions: Dict[str, ChatSession] = {}
+        self.sessions: dict[str, ChatSession] = {}
         self.db = SQLiteDatabase()
         self._load_active_sessions()
 
@@ -38,7 +37,7 @@ class SessionManager:
         except Exception as e:
             logger.error(f"Failed to load sessions: {e}")
 
-    def get_session(self, session_key: str) -> Optional[ChatSession]:
+    def get_session(self, session_key: str) -> ChatSession | None:
         """セッションを取得
 
         メモリ内にあればそれを返し、なければSQLiteから復元を試みる。

@@ -1,12 +1,11 @@
 """SQLiteデータベース操作"""
-import sqlite3
 import json
 import os
+import sqlite3
 from pathlib import Path
-from typing import List, Optional
 
-from ..session.models import ChatSession
 from ..config import Config
+from ..session.models import ChatSession
 
 
 class DatabaseError(Exception):
@@ -30,7 +29,7 @@ class SQLiteDatabase:
             # データベースファイルの親ディレクトリが存在することを確認
             parent_dir = self.db_path.parent
             parent_dir.mkdir(parents=True, exist_ok=True)
-            
+
             # ディレクトリの書き込み権限を確認
             if not os.access(parent_dir, os.W_OK):
                 raise DatabaseError(
@@ -38,7 +37,7 @@ class SQLiteDatabase:
                     f"Please check directory permissions. Current user: {os.getuid()}, "
                     f"Directory owner: {parent_dir.stat().st_uid if parent_dir.exists() else 'N/A'}"
                 )
-            
+
             # データベースファイルへの接続を試行
             with sqlite3.connect(str(self.db_path)) as conn:
                 cursor = conn.cursor()
@@ -74,7 +73,7 @@ class SQLiteDatabase:
                 f"Permission denied when accessing database: {self.db_path}\n"
                 f"Error: {e}\n"
                 f"Please check file and directory permissions."
-            )
+            ) from e
         except sqlite3.OperationalError as e:
             raise DatabaseError(
                 f"Failed to open database file: {self.db_path}\n"
@@ -82,12 +81,12 @@ class SQLiteDatabase:
                 f"Parent directory: {self.db_path.parent}\n"
                 f"Parent directory exists: {self.db_path.parent.exists()}\n"
                 f"Parent directory writable: {os.access(self.db_path.parent, os.W_OK) if self.db_path.parent.exists() else False}"
-            )
+            ) from e
         except Exception as e:
             raise DatabaseError(
                 f"Unexpected error initializing database: {self.db_path}\n"
                 f"Error: {e}"
-            )
+            ) from e
 
     def save_session(self, session: ChatSession) -> None:
         """セッションを保存"""
@@ -115,9 +114,9 @@ class SQLiteDatabase:
 
                 conn.commit()
         except sqlite3.Error as e:
-            raise DatabaseError(f"Failed to save session: {e}")
+            raise DatabaseError(f"Failed to save session: {e}") from e
 
-    def load_session(self, session_key: str) -> Optional[ChatSession]:
+    def load_session(self, session_key: str) -> ChatSession | None:
         """セッションを読み込み"""
         try:
             with sqlite3.connect(str(self.db_path)) as conn:
@@ -148,9 +147,9 @@ class SQLiteDatabase:
                     "user_id": row[7],
                 })
         except sqlite3.Error as e:
-            raise DatabaseError(f"Failed to load session: {e}")
+            raise DatabaseError(f"Failed to load session: {e}") from e
 
-    def load_all_sessions(self) -> List[ChatSession]:
+    def load_all_sessions(self) -> list[ChatSession]:
         """全セッションを読み込み"""
         try:
             with sqlite3.connect(str(self.db_path)) as conn:
@@ -180,7 +179,7 @@ class SQLiteDatabase:
 
                 return sessions
         except sqlite3.Error as e:
-            raise DatabaseError(f"Failed to load sessions: {e}")
+            raise DatabaseError(f"Failed to load sessions: {e}") from e
 
     def delete_session(self, session_key: str) -> None:
         """セッションを削除"""
@@ -190,4 +189,4 @@ class SQLiteDatabase:
                 cursor.execute("DELETE FROM sessions WHERE session_key = ?", (session_key,))
                 conn.commit()
         except sqlite3.Error as e:
-            raise DatabaseError(f"Failed to delete session: {e}")
+            raise DatabaseError(f"Failed to delete session: {e}") from e

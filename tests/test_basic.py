@@ -1,8 +1,7 @@
 """基本的なテスト"""
-import pytest
 from datetime import datetime
 
-from src.kotonoha_bot.session.models import Message, MessageRole, ChatSession
+from src.kotonoha_bot.session.models import ChatSession, Message, MessageRole
 
 
 def test_message_creation():

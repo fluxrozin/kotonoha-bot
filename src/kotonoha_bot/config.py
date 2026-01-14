@@ -1,6 +1,7 @@
 """設定管理モジュール"""
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # .envファイルの読み込み

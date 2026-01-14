@@ -2,9 +2,9 @@
 
 import json
 import logging
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
-from typing import Callable
 
 from .config import Config
 

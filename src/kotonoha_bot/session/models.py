@@ -1,8 +1,8 @@
 """セッション管理のデータモデル"""
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Literal
 from enum import Enum
+from typing import Literal
 
 
 class MessageRole(str, Enum):
@@ -28,7 +28,7 @@ class Message:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Message":
+    def from_dict(cls, data: dict) -> Message:
         """辞書から作成"""
         return cls(
             role=MessageRole(data["role"]),
@@ -45,7 +45,7 @@ class ChatSession:
     """チャットセッション"""
     session_key: str
     session_type: SessionType
-    messages: List[Message] = field(default_factory=list)
+    messages: list[Message] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)
     last_active_at: datetime = field(default_factory=datetime.now)
 
@@ -60,7 +60,7 @@ class ChatSession:
         self.messages.append(message)
         self.last_active_at = datetime.now()
 
-    def get_conversation_history(self, limit: int | None = None) -> List[Message]:
+    def get_conversation_history(self, limit: int | None = None) -> list[Message]:
         """会話履歴を取得"""
         if limit:
             return self.messages[-limit:]
@@ -80,7 +80,7 @@ class ChatSession:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ChatSession":
+    def from_dict(cls, data: dict) -> ChatSession:
         """辞書から作成"""
         messages = [Message.from_dict(msg) for msg in data["messages"]]
         return cls(

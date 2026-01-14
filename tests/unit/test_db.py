@@ -1,8 +1,5 @@
 """データベースのテスト"""
-import pytest
-from kotonoha_bot.db.sqlite import SQLiteDatabase
-from kotonoha_bot.session.models import ChatSession, MessageRole, Message
-from datetime import datetime
+from kotonoha_bot.session.models import ChatSession, MessageRole
 
 
 def test_save_and_load_session(db):

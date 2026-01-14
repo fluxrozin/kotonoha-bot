@@ -1,7 +1,6 @@
 """LiteLLM統合実装"""
 
 import logging
-from typing import List
 
 import litellm
 
@@ -29,7 +28,7 @@ class LiteLLMProvider(AIProvider):
             logger.info(f"Fallback model: {self.fallback_model}")
 
     def generate_response(
-        self, messages: List[Message], system_prompt: str | None = None
+        self, messages: list[Message], system_prompt: str | None = None
     ) -> str:
         """LiteLLM経由でLLM APIを呼び出して応答を生成"""
         try:
@@ -63,8 +62,8 @@ class LiteLLMProvider(AIProvider):
             raise
 
     def _convert_messages(
-        self, messages: List[Message], system_prompt: str | None
-    ) -> List[dict]:
+        self, messages: list[Message], system_prompt: str | None
+    ) -> list[dict]:
         """LiteLLM用のメッセージ形式に変換"""
         llm_messages = []
 

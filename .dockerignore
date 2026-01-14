@@ -68,6 +68,7 @@ htmlcov/
 *.tmp
 *.temp
 .cache/
+.ruff_cache/
 
 # GitHub
 .github/

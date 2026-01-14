@@ -1,5 +1,4 @@
 """セッション管理のテスト"""
-import pytest
 from kotonoha_bot.session.models import MessageRole
 
 
@@ -50,7 +49,7 @@ def test_save_session(session_manager, temp_db_path):
 
     new_db = SQLiteDatabase(db_path=temp_db_path)
     loaded_session = new_db.load_session("test:123")
-    
+
     assert loaded_session is not None
     assert loaded_session.session_key == "test:123"
     assert len(loaded_session.messages) == 1
