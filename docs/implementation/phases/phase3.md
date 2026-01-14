@@ -640,8 +640,9 @@ ssh admin@nas-ip-address
 cd /volume1/docker/kotonoha-bot
 
 # 方法1: .env ファイルから環境変数を読み込んでログイン（推奨）
-# .env ファイルを読み込む（コメント行と空行を除外）
-export $(grep -v '^#' .env | grep -v '^$' | xargs)
+# .env ファイルを読み込む（コメント行、空行、行内コメントを除外）
+# 変数名で始まる行のみを抽出し、# 以降のコメントを削除して export
+eval $(grep '^[A-Z_].*=' .env | sed 's/#.*$//' | sed 's/[[:space:]]*$//' | sed 's/^/export /')
 
 # 環境変数が正しく設定されたか確認（オプション）
 # echo $GITHUB_USERNAME
@@ -650,11 +651,10 @@ export $(grep -v '^#' .env | grep -v '^$' | xargs)
 # 環境変数を使用してログイン
 echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
 
-# 注意: 上記の方法が動作しない場合（特殊文字が含まれている場合）は、
-# 以下の方法を試してください:
-# set -a
-# source .env 2>/dev/null || . .env
-# set +a
+# 注意: 上記の方法が動作しない場合（eval が使えない場合）は、
+# 以下の方法を試してください（必要な変数のみ個別に設定）:
+# GITHUB_USERNAME=$(grep '^GITHUB_USERNAME=' .env | sed 's/#.*$//' | cut -d= -f2 | sed 's/[[:space:]]*$//')
+# GITHUB_TOKEN=$(grep '^GITHUB_TOKEN=' .env | sed 's/#.*$//' | cut -d= -f2 | sed 's/[[:space:]]*$//')
 # echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
 
 # 方法2: トークンを直接指定（.env を使わない場合）
@@ -670,10 +670,28 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
 cat ~/.docker/config.json
 ```
 
+**ログイン成功時の警告について**:
+
+`WARNING! Your password will be stored unencrypted...` という警告が表示される場合がありますが、これは正常です。Synology NAS 上では、認証情報は `~/.docker/config.json` に保存され、Watchtower が自動的に使用します。
+
+この警告を無視しても問題ありませんが、より安全に管理したい場合は、credential helper を設定することもできます（オプション）。
+
 **重要**: `.env` ファイルには機密情報が含まれるため、権限を `600`（所有者のみ読み書き可能）に設定してください：
 
 ```bash
 chmod 600 .env
+```
+
+**認証の確認**:
+
+ログインが成功したら、以下のコマンドで認証が正しく設定されているか確認できます：
+
+```bash
+# GHCR からイメージをプルできるかテスト（オプション）
+docker pull ghcr.io/your-username/kotonoha-bot:latest
+
+# または、認証情報を確認
+cat ~/.docker/config.json | grep -A 5 "ghcr.io"
 ```
 
 **重要**:
@@ -759,6 +777,97 @@ GitHub Personal Access Token は、GitHub の Web サイトで作成する必要
 - [ ] GHCR 認証が設定されている
 - [ ] Watchtower が正常に動作する
 - [ ] イメージ更新時に自動でコンテナが更新される
+
+**自動更新の確認方法（エビデンス取得）**:
+
+Watchtower が自動でコンテナを更新したことを確認するには、以下の方法があります：
+
+**1. Watchtower のログを確認**:
+
+```bash
+# Watchtower の最新ログを確認
+docker logs watchtower --tail 100
+
+# リアルタイムでログを監視
+docker logs -f watchtower
+
+# 更新が検出された場合、以下のようなログが表示されます:
+# time="2026-01-15T02:30:00Z" level=info msg="Found new image: ghcr.io/your-username/kotonoha-bot:latest"
+# time="2026-01-15T02:30:01Z" level=info msg="Stopping /kotonoha-bot (abc123def456) with SIGTERM"
+# time="2026-01-15T02:30:05Z" level=info msg="Creating /kotonoha-bot"
+# time="2026-01-15T02:30:06Z" level=info msg="Started /kotonoha-bot"
+```
+
+**2. コンテナの作成日時を確認**:
+
+```bash
+# コンテナの詳細情報を確認（Created フィールドで作成日時を確認）
+docker inspect kotonoha-bot | grep -A 5 "Created"
+
+# または、より見やすい形式で表示
+docker ps -a --format "table {{.Names}}\t{{.Image}}\t{{.CreatedAt}}"
+```
+
+**3. イメージの更新日時を確認**:
+
+```bash
+# ローカルのイメージ情報を確認
+docker images ghcr.io/your-username/kotonoha-bot
+
+# イメージの詳細情報（Created フィールド）
+docker inspect ghcr.io/your-username/kotonoha-bot:latest | grep -A 5 "Created"
+```
+
+**4. コンテナの再起動履歴を確認**:
+
+```bash
+# コンテナの再起動回数を確認
+docker inspect kotonoha-bot | grep -A 2 "RestartCount"
+
+# コンテナのイベントログを確認
+docker events --filter container=kotonoha-bot --since 24h
+```
+
+**5. 通知が設定されている場合**:
+
+Discord Webhook などの通知が設定されている場合、更新時に通知が送信されます。
+
+**6. 手動で更新をトリガーしてテスト**:
+
+```bash
+# Watchtower に手動で更新チェックを実行させる（--run-once オプション）
+docker exec watchtower watchtower --run-once
+
+# または、Watchtower コンテナを再起動して即座にチェック
+docker restart watchtower
+```
+
+**7. 更新前後の比較**:
+
+```bash
+# 更新前のイメージ ID を記録
+BEFORE_IMAGE=$(docker inspect kotonoha-bot | grep -A 5 "Image" | grep "sha256" | head -1)
+
+# 更新を待つ（WATCHTOWER_POLL_INTERVAL 秒後）
+
+# 更新後のイメージ ID を確認
+AFTER_IMAGE=$(docker inspect kotonoha-bot | grep -A 5 "Image" | grep "sha256" | head -1)
+
+# 比較
+echo "Before: $BEFORE_IMAGE"
+echo "After: $AFTER_IMAGE"
+```
+
+**エビデンスの保存**:
+
+```bash
+# Watchtower のログをファイルに保存
+docker logs watchtower > watchtower_$(date +%Y%m%d_%H%M%S).log
+
+# コンテナとイメージの状態を保存
+docker ps -a > containers_$(date +%Y%m%d_%H%M%S).txt
+docker images > images_$(date +%Y%m%d_%H%M%S).txt
+```
 
 ---
 
