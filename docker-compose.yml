@@ -18,12 +18,17 @@ services:
       - .env
 
     # ボリュームマウント（データの永続化）
+    # 注意: 初回起動前に、ホスト側でディレクトリを作成し、適切な権限を設定してください
+    # docker compose up する前に以下を実行:
+    #   mkdir -p data logs backups
+    #   sudo chown -R 1000:1000 data logs backups
+    # これにより、コンテナ内の botuser (UID 1000) が書き込めるようになります
     volumes:
-      # データベース
+      # データベース（必須）
       - ./data:/app/data
-      # ログ
+      # ログ（オプション - LOG_FILE が設定されている場合のみ必要）
       - ./logs:/app/logs
-      # バックアップ
+      # バックアップ（オプション）
       - ./backups:/app/backups
 
     # ネットワーク設定

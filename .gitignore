@@ -8,6 +8,7 @@ env/
 venv/
 ENV/
 .venv/
+.pytest_cache/
 
 # Environment variables
 .env
@@ -17,17 +18,25 @@ ENV/
 *.db
 *.sqlite
 *.sqlite3
-data/
+data/*
+!data/.gitkeep
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+.claude/
+.crossnote/
 
 # Logs
-logs/
+logs/*
+!logs/.gitkeep
 *.log
+
+# Backups
+backups/*
+!backups/.gitkeep
 
 # OS
 .DS_Store

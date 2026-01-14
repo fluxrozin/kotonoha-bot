@@ -1,6 +1,7 @@
 """SQLiteデータベース操作"""
 import sqlite3
 import json
+import os
 from pathlib import Path
 from typing import List, Optional
 
@@ -17,45 +18,81 @@ class SQLiteDatabase:
     """SQLiteデータベース"""
 
     def __init__(self, db_path: Path = Config.DATABASE_PATH):
-        self.db_path = db_path
+        # パスを絶対パスに解決
+        if not db_path.is_absolute():
+            db_path = Path.cwd() / db_path
+        self.db_path = db_path.resolve()
         self._init_database()
 
     def _init_database(self) -> None:
         """データベースの初期化"""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-
-            # sessionsテーブル
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS sessions (
-                    session_key TEXT PRIMARY KEY,
-                    session_type TEXT NOT NULL,
-                    messages TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    last_active_at TEXT NOT NULL,
-                    channel_id INTEGER,
-                    thread_id INTEGER,
-                    user_id INTEGER
+        try:
+            # データベースファイルの親ディレクトリが存在することを確認
+            parent_dir = self.db_path.parent
+            parent_dir.mkdir(parents=True, exist_ok=True)
+            
+            # ディレクトリの書き込み権限を確認
+            if not os.access(parent_dir, os.W_OK):
+                raise DatabaseError(
+                    f"Cannot write to database directory: {parent_dir}\n"
+                    f"Please check directory permissions. Current user: {os.getuid()}, "
+                    f"Directory owner: {parent_dir.stat().st_uid if parent_dir.exists() else 'N/A'}"
                 )
-            """)
+            
+            # データベースファイルへの接続を試行
+            with sqlite3.connect(str(self.db_path)) as conn:
+                cursor = conn.cursor()
 
-            # インデックス
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_last_active_at
-                ON sessions(last_active_at)
-            """)
+                # sessionsテーブル
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS sessions (
+                        session_key TEXT PRIMARY KEY,
+                        session_type TEXT NOT NULL,
+                        messages TEXT NOT NULL,
+                        created_at TEXT NOT NULL,
+                        last_active_at TEXT NOT NULL,
+                        channel_id INTEGER,
+                        thread_id INTEGER,
+                        user_id INTEGER
+                    )
+                """)
 
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_session_type
-                ON sessions(session_type)
-            """)
+                # インデックス
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_last_active_at
+                    ON sessions(last_active_at)
+                """)
 
-            conn.commit()
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_session_type
+                    ON sessions(session_type)
+                """)
+
+                conn.commit()
+        except PermissionError as e:
+            raise DatabaseError(
+                f"Permission denied when accessing database: {self.db_path}\n"
+                f"Error: {e}\n"
+                f"Please check file and directory permissions."
+            )
+        except sqlite3.OperationalError as e:
+            raise DatabaseError(
+                f"Failed to open database file: {self.db_path}\n"
+                f"Error: {e}\n"
+                f"Parent directory: {self.db_path.parent}\n"
+                f"Parent directory exists: {self.db_path.parent.exists()}\n"
+                f"Parent directory writable: {os.access(self.db_path.parent, os.W_OK) if self.db_path.parent.exists() else False}"
+            )
+        except Exception as e:
+            raise DatabaseError(
+                f"Unexpected error initializing database: {self.db_path}\n"
+                f"Error: {e}"
+            )
 
     def save_session(self, session: ChatSession) -> None:
         """セッションを保存"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with sqlite3.connect(str(self.db_path)) as conn:
                 cursor = conn.cursor()
 
                 messages_json = json.dumps([msg.to_dict() for msg in session.messages])
@@ -83,7 +120,7 @@ class SQLiteDatabase:
     def load_session(self, session_key: str) -> Optional[ChatSession]:
         """セッションを読み込み"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with sqlite3.connect(str(self.db_path)) as conn:
                 cursor = conn.cursor()
 
                 cursor.execute("""
@@ -116,7 +153,7 @@ class SQLiteDatabase:
     def load_all_sessions(self) -> List[ChatSession]:
         """全セッションを読み込み"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with sqlite3.connect(str(self.db_path)) as conn:
                 cursor = conn.cursor()
 
                 cursor.execute("""
@@ -148,7 +185,7 @@ class SQLiteDatabase:
     def delete_session(self, session_key: str) -> None:
         """セッションを削除"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with sqlite3.connect(str(self.db_path)) as conn:
                 cursor = conn.cursor()
                 cursor.execute("DELETE FROM sessions WHERE session_key = ?", (session_key,))
                 conn.commit()

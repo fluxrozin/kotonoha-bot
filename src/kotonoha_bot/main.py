@@ -1,9 +1,10 @@
 """メインエントリーポイント"""
+
 import logging
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
 import signal
 import sys
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 from .bot.client import KotonohaBot
 from .bot.handlers import setup_handlers
@@ -19,19 +20,28 @@ def setup_logging() -> None:
 
     # ファイルログが設定されている場合
     if Config.LOG_FILE:
-        log_path = Path(Config.LOG_FILE)
-        log_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            log_path = Path(Config.LOG_FILE)
+            log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        file_handler = RotatingFileHandler(
-            log_path,
-            maxBytes=Config.LOG_MAX_SIZE * 1024 * 1024,  # MB to bytes
-            backupCount=Config.LOG_BACKUP_COUNT,
-            encoding="utf-8",
-        )
-        file_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
-        handlers.append(file_handler)
+            file_handler = RotatingFileHandler(
+                log_path,
+                maxBytes=Config.LOG_MAX_SIZE * 1024 * 1024,  # MB to bytes
+                backupCount=Config.LOG_BACKUP_COUNT,
+                encoding="utf-8",
+            )
+            file_handler.setFormatter(
+                logging.Formatter(
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                )
+            )
+            handlers.append(file_handler)
+        except (OSError, PermissionError) as e:
+            # ログファイルの作成に失敗した場合は警告を出して続行
+            logging.warning(
+                f"Could not set up file logging to {Config.LOG_FILE}: {e}. "
+                "Continuing with console logging only."
+            )
 
     logging.basicConfig(
         level=getattr(logging, Config.LOG_LEVEL),

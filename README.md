@@ -126,6 +126,29 @@ kotonoha-bot/
 
 詳細は [実装ロードマップ](./docs/implementation/roadmap.md) を参照してください。
 
+#### Docker デプロイ
+
+```bash
+# 初回セットアップ
+mkdir -p data logs backups
+sudo chown -R 1000:1000 data logs backups
+
+# 環境変数の設定
+cp .env.example .env
+# .env を編集して必要な値を設定
+
+# コンテナのビルドと起動
+docker compose build
+docker compose up -d
+
+# ログの確認
+docker compose logs -f
+```
+
+**重要**: 初回起動前に、ホスト側でディレクトリを作成し、適切な権限を設定してください。Docker が存在しないディレクトリを自動作成すると、`root:root` 所有になり、コンテナ内の `botuser` (UID 1000) が書き込めなくなります。
+
+詳細は [Phase 2 実装ガイド](./docs/implementation/phases/phase2.md) を参照してください。
+
 ## 開発
 
 ### 開発環境のセットアップ
