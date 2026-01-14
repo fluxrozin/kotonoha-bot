@@ -21,6 +21,11 @@ services:
     # 注意: 初回起動前に、ホスト側でディレクトリを作成し、適切な権限を設定してください
     # docker compose up する前に以下を実行:
     #   mkdir -p data logs backups
+    #
+    # 権限設定方法（いずれか一方を選択）:
+    # 方法1: パーミッションを変更（推奨 - Synology NAS環境など）
+    #   chmod 775 data logs backups
+    # 方法2: 所有者を変更（UID 1000のユーザーが存在する場合）
     #   sudo chown -R 1000:1000 data logs backups
     # これにより、コンテナ内の botuser (UID 1000) が書き込めるようになります
     volumes:

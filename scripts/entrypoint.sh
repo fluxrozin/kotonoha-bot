@@ -34,13 +34,31 @@ for dir in "${REQUIRED_DIRS[@]}"; do
     
     # ディレクトリが書き込み可能か確認
     if [ ! -w "$dir" ]; then
-        echo "ERROR: Required directory $dir is not writable by current user ($(id -u))"
+        echo "WARNING: Required directory $dir is not writable by current user ($(id -u))"
         echo "Directory info:"
         ls -ld "$dir" || true
         echo ""
-        echo "Please check the directory permissions on the host system."
-        echo "The directory should be writable by the container user (UID: $(id -u))."
-        exit 1
+        echo "Attempting to fix permissions automatically..."
+        
+        # パーミッション修正を試行（777で全員に書き込み権限を付与）
+        if chmod 777 "$dir" 2>/dev/null; then
+            echo "Successfully fixed permissions for $dir"
+            # 再度書き込み可能か確認
+            if [ -w "$dir" ]; then
+                echo "Required directory $dir is now writable ✓"
+            else
+                echo "ERROR: Permission fix failed. Directory is still not writable."
+                echo "Please check the directory permissions on the host system."
+                echo "The directory should be writable by the container user (UID: $(id -u))."
+                exit 1
+            fi
+        else
+            echo "ERROR: Failed to fix permissions automatically."
+            echo "Please check the directory permissions on the host system."
+            echo "Run on the host: chmod 775 $dir (or chmod 777 $dir)"
+            echo "The directory should be writable by the container user (UID: $(id -u))."
+            exit 1
+        fi
     else
         echo "Required directory $dir is writable ✓"
     fi
@@ -60,8 +78,21 @@ for dir in "${OPTIONAL_DIRS[@]}"; do
         echo "WARNING: Optional directory $dir is not writable by current user ($(id -u))"
         echo "Directory info:"
         ls -ld "$dir" || true
-        echo "This is OK if you don't need file logging or backups."
-        echo "To enable, fix permissions on the host: chmod 755 $dir"
+        echo "Attempting to fix permissions automatically..."
+        
+        # パーミッション修正を試行
+        if chmod 777 "$dir" 2>/dev/null; then
+            echo "Successfully fixed permissions for $dir"
+            if [ -w "$dir" ]; then
+                echo "Optional directory $dir is now writable ✓"
+            else
+                echo "WARNING: Permission fix failed for optional directory $dir (this is OK if not needed)"
+            fi
+        else
+            echo "WARNING: Could not fix permissions for optional directory $dir"
+            echo "This is OK if you don't need file logging or backups."
+            echo "To enable, fix permissions on the host: chmod 775 $dir (or chmod 777 $dir)"
+        fi
     else
         echo "Optional directory $dir is writable ✓"
     fi
