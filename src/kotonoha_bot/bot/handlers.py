@@ -93,8 +93,18 @@ def setup_handlers(bot: KotonohaBot):
     @bot.event
     async def on_message(message: discord.Message):
         """メッセージ受信時"""
-        await handler.handle_mention(message)
-        # コマンド処理も継続
+        # Bot自身のメッセージは無視
+        if message.author.bot:
+            await bot.process_commands(message)
+            return
+
+        # メンション処理（メンションされている場合のみ）
+        if bot.user in message.mentions:
+            await handler.handle_mention(message)
+            # メンション処理後はコマンド処理をスキップ（重複応答を防ぐ）
+            return
+
+        # コマンド処理（メンションでない場合のみ）
         await bot.process_commands(message)
 
     logger.info("Event handlers registered")

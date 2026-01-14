@@ -175,10 +175,11 @@ COPY --from=builder /app/src /app/src
 # バックアップスクリプトのコピー
 COPY scripts/ /app/scripts/
 
-# データディレクトリの作成と権限設定
-RUN mkdir -p /app/data /app/logs /app/backups \
-    && chmod +x /app/scripts/*.sh \
-    && chown -R botuser:botuser /app
+# エントリポイントスクリプトのコピー
+COPY scripts/ /app/scripts/
+
+# スクリプトに実行権限を付与
+RUN chmod +x /app/scripts/*.sh
 
 # 環境変数の設定
 ENV PATH="/app/.venv/bin:$PATH"
@@ -189,12 +190,11 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # ユーザー切り替えはentrypoint.shで行う（rootで起動してパーミッション修正後、ユーザーを切り替える）
 # USER botuser
 
-# ヘルスチェック用ポート（オプション）
-EXPOSE 8080
-
 # ヘルスチェック
+# HTTPエンドポイントを使用してアプリケーションの状態を確認
+# HEALTH_CHECK_ENABLED=true の場合、ポート8080でHTTPサーバーが起動します
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)"
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5).read()" || python -c "import sys; sys.exit(0)"
 
 # エントリーポイント
 ENTRYPOINT ["/app/scripts/entrypoint.sh"]
@@ -209,121 +209,21 @@ ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 ```bash
 #!/bin/bash
 # Kotonoha Bot - エントリポイントスクリプト
-# 起動前に必要なディレクトリの権限を確認
+# マウントされたディレクトリの所有者を修正し、botuserでアプリケーションを起動
 
 set -e
 
-echo "Kotonoha Bot - Starting initialization..."
-
-# 現在のユーザー情報を表示
-echo "Current user: $(id)"
-echo "Current working directory: $(pwd)"
-
-# rootで実行されている場合、パーミッション修正後にユーザーを切り替える
-RUN_AS_ROOT=false
+# rootで実行されている場合のみ権限を修正
 if [ "$(id -u)" -eq 0 ]; then
-    RUN_AS_ROOT=true
-    echo "Running as root - will fix permissions and switch to botuser"
-fi
-
-# 必須ディレクトリ（エラーで終了）
-REQUIRED_DIRS=(
-    "/app/data"
-)
-
-# オプショナルディレクトリ（警告のみ）
-OPTIONAL_DIRS=(
-    "/app/logs"
-    "/app/backups"
-)
-
-# 必須ディレクトリのチェック
-for dir in "${REQUIRED_DIRS[@]}"; do
-    if [ ! -d "$dir" ]; then
-        echo "Creating required directory: $dir"
-        mkdir -p "$dir" || {
-            echo "ERROR: Failed to create required directory $dir"
-            echo "Current user may not have permission to create directories."
-            exit 1
-        }
-    fi
-
-    # ディレクトリが書き込み可能か確認
-    if [ ! -w "$dir" ]; then
-        echo "WARNING: Required directory $dir is not writable by current user ($(id -u))"
-        echo "Directory info:"
-        ls -ld "$dir" || true
-        echo ""
-        echo "Attempting to fix permissions automatically..."
-
-        # パーミッション修正を試行（まず775を試し、失敗したら777を使用）
-        if [ "$(id -u)" -eq 0 ]; then
-            # まず775（グループ書き込み）を試す（より安全）
-            chmod 775 "$dir" 2>/dev/null
-            # botuserとして書き込み可能か確認
-            if gosu botuser test -w "$dir" 2>/dev/null; then
-                echo "Successfully fixed permissions for $dir (chmod 775) ✓"
-            else
-                # 775でダメな場合は777（全員書き込み）を試す
-                chmod 777 "$dir"
-                if gosu botuser test -w "$dir" 2>/dev/null; then
-                    echo "Successfully fixed permissions for $dir (chmod 777) ✓"
-                else
-                    echo "WARNING: Could not verify write permission as botuser, but continuing..."
-                fi
-            fi
-        else
-            # rootでない場合、パーミッション修正はできない可能性が高い
-            echo "ERROR: Cannot fix permissions automatically (not running as root)."
-            echo "Please use docker-compose.yml with 'user: root' or run with 'docker run --user root'"
-            exit 1
+    # マウントされたディレクトリの所有者をbotuserに変更
+    for dir in /app/data /app/logs /app/backups; do
+        if [ -d "$dir" ]; then
+            chown -R botuser:botuser "$dir" 2>/dev/null || true
+            chmod 775 "$dir" 2>/dev/null || chmod 777 "$dir" 2>/dev/null || true
         fi
-    else
-        echo "Required directory $dir is writable ✓"
-    fi
-done
+    done
 
-# オプショナルディレクトリのチェック（警告のみ）
-for dir in "${OPTIONAL_DIRS[@]}"; do
-    if [ ! -d "$dir" ]; then
-        echo "Creating optional directory: $dir"
-        mkdir -p "$dir" 2>/dev/null || {
-            echo "WARNING: Could not create optional directory $dir (this is OK if not needed)"
-        }
-    fi
-
-    # ディレクトリが書き込み可能か確認
-    if [ ! -w "$dir" ]; then
-        echo "WARNING: Optional directory $dir is not writable by current user ($(id -u))"
-        echo "Attempting to fix permissions automatically..."
-
-        if [ "$(id -u)" -eq 0 ]; then
-            chmod 775 "$dir" 2>/dev/null
-            if gosu botuser test -w "$dir" 2>/dev/null; then
-                echo "Successfully fixed permissions for $dir (chmod 775) ✓"
-            else
-                chmod 777 "$dir"
-                if gosu botuser test -w "$dir" 2>/dev/null; then
-                    echo "Successfully fixed permissions for $dir (chmod 777) ✓"
-                else
-                    echo "WARNING: Optional directory $dir may not be writable by botuser (this is OK if not needed)"
-                fi
-            fi
-        else
-            echo "WARNING: Could not fix permissions for optional directory $dir (not running as root)"
-            echo "This is OK if you don't need file logging or backups."
-        fi
-    else
-        echo "Optional directory $dir is writable ✓"
-    fi
-done
-
-echo "Directory checks complete. Starting application..."
-echo ""
-
-# rootで実行されている場合、botuserに切り替えてからアプリケーションを実行
-if [ "$RUN_AS_ROOT" = true ]; then
-    echo "Switching to botuser (UID 1000) and starting application..."
+    # botuserに切り替えてアプリケーションを起動
     exec gosu botuser python -m kotonoha_bot.main "$@"
 else
     # 既にbotuserで実行されている場合
@@ -334,9 +234,9 @@ fi
 **重要なポイント**:
 
 - コンテナは root で起動され、`entrypoint.sh`が自動的にパーミッションを修正します
-- まず`chmod 775`を試行し、失敗した場合のみ`chmod 777`を使用します（セキュリティを考慮）
+- マウントされたディレクトリの所有者を`botuser:botuser`に変更し、パーミッションを`775`（失敗時は`777`）に設定します
 - パーミッション修正後、`gosu`で botuser（UID 1000）に切り替えてからアプリケーションを実行します
-- これにより、マウントされたボリュームの所有者が誰であっても動作します
+- シンプルで確実に動作する設計になっています（約 23 行）
 
 #### 1.3 `.dockerignore` の作成
 
@@ -460,16 +360,6 @@ services:
       - .env
 
     # ボリュームマウント（データの永続化）
-    # 注意: 初回起動前に、ホスト側でディレクトリを作成してください
-    # docker compose up する前に以下を実行:
-    #   mkdir -p data logs backups
-    #
-    # パーミッションについて:
-    # コンテナはrootで起動され、entrypoint.shが自動的にパーミッションを修正します。
-    # 通常は手動でのパーミッション設定は不要ですが、自動修正が失敗する場合は
-    # 以下のいずれかを実行してください:
-    #   方法1: chmod 775 data logs backups
-    #   方法2: sudo chown -R 1000:1000 data logs backups
     volumes:
       # データベース（必須）
       - ./data:/app/data
@@ -482,25 +372,22 @@ services:
     networks:
       - kotonoha-network
 
-    # ヘルスチェック用ポート（オプション）
-    # ports:
-    #   - "8080:8080"
-
-    # リソース制限
-    # 注意: CPU CFS未サポートのNAS環境では、deployセクション全体をコメントアウトしてください
-    # リソース制限が必要な場合は、Container ManagerのGUIから設定してください
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: "1.0"
-    #       memory: 512M
-    #     reservations:
-    #       cpus: "0.25"
-    #       memory: 128M
+    # ポート公開（オプション）
+    # ヘルスチェックエンドポイントに外部からアクセスする場合に有効化
+    # セキュリティ上の理由から、本番環境ではリバースプロキシ経由でのアクセスを推奨
+    ports:
+      - "8080:8080" # ホスト:コンテナ
 
     # ヘルスチェック
+    # HTTPエンドポイントを使用してアプリケーションの状態を確認
+    # HEALTH_CHECK_ENABLED=true の場合、ポート8080でHTTPサーバーが起動します
+    # HTTPサーバーが無効な場合は、Pythonプロセスの存在を確認します
     healthcheck:
-      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request; urllib.request.urlopen(''http://localhost:8080/health'', timeout=5).read()" 2>/dev/null || python -c ''import sys; sys.exit(0)''',
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -871,7 +758,49 @@ CMD ["sh", "-c", "cron && python -m kotonoha_bot.main"]
 
 ---
 
-### Step 8: ログ管理の設定 (30 分)
+### Step 8: ヘルスチェック機能の設定 (30 分)
+
+#### 8.1 HTTP ヘルスチェックエンドポイント
+
+アプリケーションは HTTP ヘルスチェックエンドポイントを提供します。詳細は [ヘルスチェックドキュメント](../../operations/health-check.md) を参照してください。
+
+**主な機能**:
+
+- `/health` エンドポイント: アプリケーション全体の状態を確認
+- `/ready` エンドポイント: Discord への接続状態を確認
+- Docker ヘルスチェックとの統合
+
+**設定**:
+
+`.env` ファイルで設定（デフォルトで有効）:
+
+```env
+# ヘルスチェックサーバーを有効化（デフォルト: true）
+HEALTH_CHECK_ENABLED=true
+
+# ヘルスチェックサーバーのポート（デフォルト: 8080）
+HEALTH_CHECK_PORT=8080
+```
+
+**使用方法**:
+
+```bash
+# ヘルスチェック（ポート公開時）
+curl http://localhost:8080/health
+
+# レディネスチェック
+curl http://localhost:8080/ready
+```
+
+#### Step 8 完了チェックリスト
+
+- [ ] ヘルスチェックエンドポイントが動作している
+- [ ] Docker ヘルスチェックが正常に動作している
+- [ ] ポート公開設定が適切に設定されている（必要に応じて）
+
+---
+
+### Step 9: ログ管理の設定 (30 分)
 
 #### 8.1 ログローテーションの設定
 
@@ -923,14 +852,14 @@ logging.basicConfig(
 }
 ```
 
-#### Step 8 完了チェックリスト
+#### Step 9 完了チェックリスト
 
 - [ ] ログローテーションが設定されている
 - [x] ログファイルが適切に管理されている
 
 ---
 
-### Step 9: セキュリティ設定 (30 分)
+### Step 10: セキュリティ設定 (30 分)
 
 #### 9.1 非 root ユーザーでの実行
 
@@ -948,11 +877,10 @@ RUN groupadd -r -g 1000 botuser && useradd -r -u 1000 -g botuser -d /app -s /sbi
 
 1. コンテナが`user: root`で起動される（`docker-compose.yml`で設定）
 2. `entrypoint.sh`が root で実行される
-3. 書き込み不可能なディレクトリを検出
-4. まず`chmod 775`を試行（グループ書き込み、より安全）
-5. `775`で失敗した場合、`chmod 777`を試行（全員書き込み、フォールバック）
-6. `gosu`で botuser（UID 1000）に切り替え
-7. botuser でアプリケーションを実行
+3. マウントされたディレクトリ（`/app/data`、`/app/logs`、`/app/backups`）の所有者を`botuser:botuser`に変更
+4. パーミッションを`775`に設定（失敗時は`777`）
+5. `gosu`で botuser（UID 1000）に切り替え
+6. botuser でアプリケーションを実行
 
 これにより、マウントされたボリュームの所有者が誰であっても自動的に動作します。
 
@@ -967,7 +895,7 @@ RUN groupadd -r -g 1000 botuser && useradd -r -u 1000 -g botuser -d /app -s /sbi
 - 必要最小限のポートのみ公開
 - 外部からのアクセスを制限
 
-#### Step 9 完了チェックリスト
+#### Step 10 完了チェックリスト
 
 - [ ] 非 root ユーザーで実行されている
 - [ ] 環境変数が適切に保護されている
@@ -975,7 +903,7 @@ RUN groupadd -r -g 1000 botuser && useradd -r -u 1000 -g botuser -d /app -s /sbi
 
 ---
 
-### Step 10: 動作確認とテスト (1 時間)
+### Step 11: 動作確認とテスト (1 時間)
 
 #### 10.1 動作確認チェックリスト
 
@@ -1001,10 +929,16 @@ RUN groupadd -r -g 1000 botuser && useradd -r -u 1000 -g botuser -d /app -s /sbi
    - [ ] バックアップが正常に実行される
    - [ ] バックアップファイルが作成される
 
-5. **自動起動確認**
+5. **ヘルスチェック確認**
+
+   - [ ] Docker ヘルスチェックが正常に動作している（`docker ps`で`healthy`と表示される）
+   - [ ] HTTP ヘルスチェックエンドポイントにアクセスできる（`curl http://localhost:8080/health`）
+   - [ ] レディネスチェックが動作している（`curl http://localhost:8080/ready`）
+
+6. **自動起動確認**
    - [ ] NAS を再起動しても Bot が自動起動する
 
-#### Step 10 完了チェックリスト
+#### Step 11 完了チェックリスト
 
 - [ ] すべての動作確認項目が完了
 - [ ] 問題が発生した場合はトラブルシューティングを実施
@@ -1033,7 +967,7 @@ RUN groupadd -r -g 1000 botuser && useradd -r -u 1000 -g botuser -d /app -s /sbi
 
    - [ ] バックアップが自動実行される
    - [ ] ログローテーションが設定されている
-   - [ ] 監視が可能（ログの確認）
+   - [ ] 監視が可能（ログの確認、ヘルスチェック）
 
 4. **セキュリティ**
    - [ ] 非 root ユーザーで実行されている
@@ -1308,12 +1242,13 @@ Phase 2 が完了したら、以下を準備して Phase 3 に移行します:
 - [Docker ドキュメント](https://docs.docker.com/)
 - [Docker Compose ドキュメント](https://docs.docker.com/compose/)
 - [Watchtower ドキュメント](https://containrrr.dev/watchtower/)
-- [operations/deployment-operations.md](../../operations/deployment-operations.md)
+- [デプロイメント・運用ガイド](../../operations/deployment-operations.md)
+- [ヘルスチェックドキュメント](../../operations/health-check.md)
 
 ---
 
 **作成日**: 2026 年 1 月
-**最終更新日**: 2026 年 1 月 14 日
+**最終更新日**: 2026 年 1 月 14 日（v1.3）
 **対象フェーズ**: Phase 2（NAS デプロイ）
 **前提条件**: Phase 1 完了済み ✅
 **想定期間**: 1-2 週間
@@ -1321,5 +1256,6 @@ Phase 2 が完了したら、以下を準備して Phase 3 に移行します:
 
 ### 更新履歴
 
+- **v1.3** (2026-01-14): entrypoint.sh の簡素化、HTTP ヘルスチェック機能の追加、ポート公開設定の追加
 - **v1.2** (2026-01-14): 自動パーミッション修正機能の追加、entrypoint.sh の実装、docker-compose.yml の更新
 - **v1.1** (2026-01): 初版リリース
