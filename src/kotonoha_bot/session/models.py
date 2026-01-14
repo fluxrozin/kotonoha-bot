@@ -1,4 +1,5 @@
 """セッション管理のデータモデル"""
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -7,6 +8,7 @@ from typing import Literal
 
 class MessageRole(str, Enum):
     """メッセージの役割"""
+
     USER = "user"
     ASSISTANT = "assistant"
     SYSTEM = "system"
@@ -15,6 +17,7 @@ class MessageRole(str, Enum):
 @dataclass
 class Message:
     """メッセージ"""
+
     role: MessageRole
     content: str
     timestamp: datetime = field(default_factory=datetime.now)
@@ -43,6 +46,7 @@ SessionType = Literal["mention", "thread", "eavesdrop"]
 @dataclass
 class ChatSession:
     """チャットセッション"""
+
     session_key: str
     session_type: SessionType
     messages: list[Message] = field(default_factory=list)

@@ -1,4 +1,5 @@
 """データベースのテスト"""
+
 from kotonoha_bot.session.models import ChatSession, MessageRole
 
 

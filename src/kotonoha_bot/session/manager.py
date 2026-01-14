@@ -1,4 +1,5 @@
 """セッション管理"""
+
 import logging
 from datetime import datetime, timedelta
 
@@ -56,16 +57,11 @@ class SessionManager:
         return None
 
     def create_session(
-        self,
-        session_key: str,
-        session_type: SessionType,
-        **kwargs
+        self, session_key: str, session_type: SessionType, **kwargs
     ) -> ChatSession:
         """新しいセッションを作成"""
         session = ChatSession(
-            session_key=session_key,
-            session_type=session_type,
-            **kwargs
+            session_key=session_key, session_type=session_type, **kwargs
         )
 
         self.sessions[session_key] = session
@@ -74,12 +70,7 @@ class SessionManager:
 
         return session
 
-    def add_message(
-        self,
-        session_key: str,
-        role: MessageRole,
-        content: str
-    ) -> None:
+    def add_message(self, session_key: str, role: MessageRole, content: str) -> None:
         """セッションにメッセージを追加"""
         session = self.get_session(session_key)
         if not session:

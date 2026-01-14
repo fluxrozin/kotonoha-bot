@@ -1,4 +1,5 @@
 """AI Provider抽象クラス"""
+
 from abc import ABC, abstractmethod
 
 from ..session.models import Message
@@ -9,9 +10,7 @@ class AIProvider(ABC):
 
     @abstractmethod
     def generate_response(
-        self,
-        messages: list[Message],
-        system_prompt: str | None = None
+        self, messages: list[Message], system_prompt: str | None = None
     ) -> str:
         """応答を生成
 

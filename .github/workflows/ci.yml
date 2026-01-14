@@ -49,7 +49,7 @@ jobs:
         run: uv sync --frozen
 
       - name: Run ty
-        run: uv run ty src/
+        run: uv run ty check src/
 
   test:
     name: Tests

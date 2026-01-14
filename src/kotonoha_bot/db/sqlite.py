@@ -1,4 +1,5 @@
 """SQLiteデータベース操作"""
+
 import json
 import os
 import sqlite3
@@ -10,6 +11,7 @@ from ..session.models import ChatSession
 
 class DatabaseError(Exception):
     """データベースエラー"""
+
     pass
 
 
@@ -84,8 +86,7 @@ class SQLiteDatabase:
             ) from e
         except Exception as e:
             raise DatabaseError(
-                f"Unexpected error initializing database: {self.db_path}\n"
-                f"Error: {e}"
+                f"Unexpected error initializing database: {self.db_path}\nError: {e}"
             ) from e
 
     def save_session(self, session: ChatSession) -> None:
@@ -96,21 +97,24 @@ class SQLiteDatabase:
 
                 messages_json = json.dumps([msg.to_dict() for msg in session.messages])
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT OR REPLACE INTO sessions
                     (session_key, session_type, messages, created_at, last_active_at,
                      channel_id, thread_id, user_id)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    session.session_key,
-                    session.session_type,
-                    messages_json,
-                    session.created_at.isoformat(),
-                    session.last_active_at.isoformat(),
-                    session.channel_id,
-                    session.thread_id,
-                    session.user_id,
-                ))
+                """,
+                    (
+                        session.session_key,
+                        session.session_type,
+                        messages_json,
+                        session.created_at.isoformat(),
+                        session.last_active_at.isoformat(),
+                        session.channel_id,
+                        session.thread_id,
+                        session.user_id,
+                    ),
+                )
 
                 conn.commit()
         except sqlite3.Error as e:
@@ -122,12 +126,15 @@ class SQLiteDatabase:
             with sqlite3.connect(str(self.db_path)) as conn:
                 cursor = conn.cursor()
 
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT session_key, session_type, messages, created_at,
                            last_active_at, channel_id, thread_id, user_id
                     FROM sessions
                     WHERE session_key = ?
-                """, (session_key,))
+                """,
+                    (session_key,),
+                )
 
                 row = cursor.fetchone()
 
@@ -136,16 +143,18 @@ class SQLiteDatabase:
 
                 messages = json.loads(row[2])
 
-                return ChatSession.from_dict({
-                    "session_key": row[0],
-                    "session_type": row[1],
-                    "messages": messages,
-                    "created_at": row[3],
-                    "last_active_at": row[4],
-                    "channel_id": row[5],
-                    "thread_id": row[6],
-                    "user_id": row[7],
-                })
+                return ChatSession.from_dict(
+                    {
+                        "session_key": row[0],
+                        "session_type": row[1],
+                        "messages": messages,
+                        "created_at": row[3],
+                        "last_active_at": row[4],
+                        "channel_id": row[5],
+                        "thread_id": row[6],
+                        "user_id": row[7],
+                    }
+                )
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to load session: {e}") from e
 
@@ -165,16 +174,18 @@ class SQLiteDatabase:
                 sessions = []
                 for row in cursor.fetchall():
                     messages = json.loads(row[2])
-                    session = ChatSession.from_dict({
-                        "session_key": row[0],
-                        "session_type": row[1],
-                        "messages": messages,
-                        "created_at": row[3],
-                        "last_active_at": row[4],
-                        "channel_id": row[5],
-                        "thread_id": row[6],
-                        "user_id": row[7],
-                    })
+                    session = ChatSession.from_dict(
+                        {
+                            "session_key": row[0],
+                            "session_type": row[1],
+                            "messages": messages,
+                            "created_at": row[3],
+                            "last_active_at": row[4],
+                            "channel_id": row[5],
+                            "thread_id": row[6],
+                            "user_id": row[7],
+                        }
+                    )
                     sessions.append(session)
 
                 return sessions
@@ -186,7 +197,9 @@ class SQLiteDatabase:
         try:
             with sqlite3.connect(str(self.db_path)) as conn:
                 cursor = conn.cursor()
-                cursor.execute("DELETE FROM sessions WHERE session_key = ?", (session_key,))
+                cursor.execute(
+                    "DELETE FROM sessions WHERE session_key = ?", (session_key,)
+                )
                 conn.commit()
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to delete session: {e}") from e

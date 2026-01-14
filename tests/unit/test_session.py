@@ -1,4 +1,5 @@
 """セッション管理のテスト"""
+
 from kotonoha_bot.session.models import MessageRole
 
 

@@ -1,4 +1,5 @@
 """設定管理モジュール"""
+
 import os
 from pathlib import Path
 
@@ -33,8 +34,12 @@ class Config:
     SESSION_TIMEOUT_HOURS: int = 24  # セッションのタイムアウト（時間）
 
     # ヘルスチェック設定
-    HEALTH_CHECK_ENABLED: bool = os.getenv("HEALTH_CHECK_ENABLED", "true").lower() == "true"
-    HEALTH_CHECK_PORT: int = 8080  # 固定ポート（docker-compose.yml と一致させる必要があります）
+    HEALTH_CHECK_ENABLED: bool = (
+        os.getenv("HEALTH_CHECK_ENABLED", "true").lower() == "true"
+    )
+    HEALTH_CHECK_PORT: int = (
+        8080  # 固定ポート（docker-compose.yml と一致させる必要があります）
+    )
 
     # ログファイル設定
     LOG_FILE: str | None = os.getenv("LOG_FILE")

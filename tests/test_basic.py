@@ -1,4 +1,5 @@
 """基本的なテスト"""
+
 from datetime import datetime
 
 from src.kotonoha_bot.session.models import ChatSession, Message, MessageRole
