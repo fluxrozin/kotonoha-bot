@@ -386,18 +386,32 @@ htmlcov/
 
 #### 2.1 `docker-compose.yml` の作成
 
+**ビルドとイメージの設定**:
+
+`docker-compose.yml` では、`build` と `image` を両方指定することで、ローカルビルドと CI/CD の両方に対応できます。
+
+**動作**:
+
+- **ローカルビルド**: `docker compose build` を実行すると、ローカルでビルドし、`image` で指定した名前（タグ）が付けられます
+- **GHCR からプル**: `docker compose pull` を実行すると、GHCR からイメージをプルします（または Watchtower が自動更新）
+- **優先順位**: `docker compose up` を実行すると、ローカルに `image` で指定した名前のイメージがあれば使用し、なければ `build` でビルドします
+
+**ベストプラクティス**:
+
+- 開発環境: `build` と `image` を両方指定して、ローカルでビルドしたイメージに GHCR と同じ名前を付ける
+- 本番環境: 同じ設定で、Watchtower が GHCR から自動更新する
+
 ```yaml
 # Kotonoha Discord Bot - Docker Compose
 # NAS (Synology) デプロイ用設定
 
 services:
   kotonoha-bot:
-    # ローカルビルドの場合
+    # ローカルビルドとCI/CDの両方を有効化
     build:
       context: .
       dockerfile: Dockerfile
-    # GHCR からプルする場合（CI/CD 設定後に有効化）
-    # image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest
+    image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest
 
     container_name: kotonoha-bot
     restart: unless-stopped
@@ -426,8 +440,9 @@ services:
     # ポート公開（オプション）
     # ヘルスチェックエンドポイントに外部からアクセスする場合に有効化
     # セキュリティ上の理由から、本番環境ではリバースプロキシ経由でのアクセスを推奨
+    # ローカルホストのみに制限する場合: "127.0.0.1:8081:8080"
     ports:
-      - "8080:8080" # ホスト:コンテナ
+      - "127.0.0.1:8081:8080" # ホスト:コンテナ（ローカルホストのみ）
 
     # ヘルスチェック
     # HTTPエンドポイントを使用してアプリケーションの状態を確認

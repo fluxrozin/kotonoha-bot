@@ -1,10 +1,13 @@
 # Kotonoha Discord Bot - Docker Compose (with Watchtower)
 services:
   kotonoha-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest
     container_name: kotonoha-bot
     restart: unless-stopped
-    user: root  # entrypoint.sh がパーミッション修正後に botuser に切り替え
+    user: root
 
     env_file:
       - .env
@@ -18,7 +21,7 @@ services:
       - kotonoha-network
 
     ports:
-      - "127.0.0.1:8081:8080"  # ヘルスチェック用（ローカルホストのみ）
+      - "127.0.0.1:8081:8080"
 
     healthcheck:
       test:
@@ -52,7 +55,11 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ~/.docker/config.json:/config.json:ro
+      # GHCR認証用の設定ファイル（GHCRからプライベートイメージをプルする場合に必要）
+      # ファイルが存在しない場合はこの行をコメントアウトしてください
+      # ファイルを作成する方法: docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_TOKEN
+      # 詳細は docs/implementation/phases/phase3.md を参照
+      # - ~/.docker/config.json:/config.json:ro
     env_file:
       - .env
     environment:
@@ -60,6 +67,8 @@ services:
       - WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-300}
       - WATCHTOWER_LABEL_ENABLE=${WATCHTOWER_LABEL_ENABLE:-true}
       - WATCHTOWER_NOTIFICATIONS=${WATCHTOWER_NOTIFICATIONS:-shoutrrr}
+      # 通知URL: .env ファイルでコメントアウトすると未定義となり、通知は送信されません
+      # 本番環境では、.env で WATCHTOWER_NOTIFICATION_URL を設定してください
       - WATCHTOWER_NOTIFICATION_URL=${WATCHTOWER_NOTIFICATION_URL:-}
     networks:
       - kotonoha-network

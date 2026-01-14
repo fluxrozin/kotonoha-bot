@@ -469,6 +469,117 @@ ERROR: failed to solve: process "/bin/sh -c uv sync" did not complete successful
 
 ---
 
+### 問題: Watchtower で `~/.docker/config.json` が存在しないエラーが発生する
+
+**症状**:
+
+```txt
+Error response from daemon: Bind mount failed: '/.docker/config.json' does not exist
+watchtower exited with code 1
+```
+
+**原因**:
+
+- `~/.docker/config.json` ファイルが存在しない
+- このファイルは GHCR 認証用で、プライベートイメージをプルする場合に必要
+- ファイルが存在しない場合、ボリュームマウントに失敗する
+
+**`~/.docker/config.json` について**:
+
+**どこにある**:
+
+- パス: `~/.docker/config.json`（ホームディレクトリの `.docker` フォルダ内）
+- 例: `/home/admin/.docker/config.json`（SSH でログインしたユーザーのホームディレクトリ）
+- Synology NAS の場合: `/root/.docker/config.json` または `/home/admin/.docker/config.json`
+
+**どう作る**:
+
+`docker login` コマンドを実行すると、自動的に作成されます：
+
+```bash
+# 方法1: 環境変数を使用（推奨）
+echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+
+# 方法2: 直接指定
+docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_TOKEN
+
+# 方法3: 対話的に入力
+docker login ghcr.io
+# Username: YOUR_GITHUB_USERNAME
+# Password: YOUR_GITHUB_TOKEN
+```
+
+**どう入手**:
+
+- **自動作成**: `docker login` コマンドを実行すると自動的に作成されます（推奨）
+- **手動作成**: 以下の内容でファイルを作成することも可能ですが、通常は不要です
+
+   ```bash
+   # ディレクトリを作成（存在しない場合）
+   mkdir -p ~/.docker
+   
+   # ファイルを作成（通常は docker login で自動作成されるため、この方法は推奨されません）
+   cat > ~/.docker/config.json << EOF
+   {
+     "auths": {
+       "ghcr.io": {
+         "auth": "$(echo -n 'YOUR_GITHUB_USERNAME:YOUR_GITHUB_TOKEN' | base64)"
+       }
+     }
+   }
+   EOF
+   ```
+
+**解決方法**:
+
+1. **GHCR 認証が必要な場合（プライベートイメージを使用）**:
+
+   SSH で NAS にログインして、GHCR にログインします：
+
+   ```bash
+   # SSH で NAS にログイン
+   ssh admin@nas-ip-address
+   
+   # プロジェクトディレクトリに移動
+   cd /volume1/docker/kotonoha-bot
+   
+   # .env ファイルから環境変数を読み込む
+   eval $(grep '^[A-Z_].*=' .env | sed 's/#.*$//' | sed 's/[[:space:]]*$//' | sed 's/^/export /')
+   
+   # GHCR にログイン（認証情報が ~/.docker/config.json に自動的に保存される）
+   echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+   
+   # ファイルが作成されたか確認
+   cat ~/.docker/config.json
+   
+   # ファイルの場所を確認
+   ls -la ~/.docker/config.json
+   ```
+
+   ログインが成功すると、`~/.docker/config.json` が自動的に作成されます。
+
+   その後、`docker-compose.yml` でコメントアウトを解除：
+
+   ```yaml
+   volumes:
+     - /var/run/docker.sock:/var/run/docker.sock
+     - ~/.docker/config.json:/config.json:ro  # コメントアウトを解除
+   ```
+
+   詳細は [Phase 3 実装ガイド](../implementation/phases/phase3.md) の「4.3 GHCR 認証の設定」を参照してください。
+
+2. **GHCR 認証が不要な場合（パブリックイメージを使用）**:
+
+   `docker-compose.yml` で `~/.docker/config.json` のマウント行をコメントアウトします：
+
+   ```yaml
+   volumes:
+     - /var/run/docker.sock:/var/run/docker.sock
+     # - ~/.docker/config.json:/config.json:ro  # コメントアウト
+   ```
+
+---
+
 ### 問題: Watchtower で Docker API バージョンエラーが発生する
 
 **症状**:

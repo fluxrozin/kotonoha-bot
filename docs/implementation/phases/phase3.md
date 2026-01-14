@@ -660,31 +660,10 @@ ssh admin@nas-ip-address
 # プロジェクトディレクトリに移動
 cd /volume1/docker/kotonoha-bot
 
-# 方法1: .env ファイルから環境変数を読み込んでログイン（推奨）
-# .env ファイルを読み込む（コメント行、空行、行内コメントを除外）
-# 変数名で始まる行のみを抽出し、# 以降のコメントを削除して export
-eval $(grep '^[A-Z_].*=' .env | sed 's/#.*$//' | sed 's/[[:space:]]*$//' | sed 's/^/export /')
-
-# 環境変数が正しく設定されたか確認（オプション）
-# echo $GITHUB_USERNAME
-# echo $GITHUB_TOKEN
-
-# 環境変数を使用してログイン
+# .env ファイルから必要な変数のみ個別に設定してログイン
+GITHUB_USERNAME=$(grep '^GITHUB_USERNAME=' .env | sed 's/#.*$//' | cut -d= -f2 | sed 's/[[:space:]]*$//')
+GITHUB_TOKEN=$(grep '^GITHUB_TOKEN=' .env | sed 's/#.*$//' | cut -d= -f2 | sed 's/[[:space:]]*$//')
 echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
-
-# 注意: 上記の方法が動作しない場合（eval が使えない場合）は、
-# 以下の方法を試してください（必要な変数のみ個別に設定）:
-# GITHUB_USERNAME=$(grep '^GITHUB_USERNAME=' .env | sed 's/#.*$//' | cut -d= -f2 | sed 's/[[:space:]]*$//')
-# GITHUB_TOKEN=$(grep '^GITHUB_TOKEN=' .env | sed 's/#.*$//' | cut -d= -f2 | sed 's/[[:space:]]*$//')
-# echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
-
-# 方法2: トークンを直接指定（.env を使わない場合）
-# docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_TOKEN
-
-# 方法3: 対話的に入力（セキュリティ上推奨されませんが、一時的なテストには便利）
-# docker login ghcr.io
-# Username: YOUR_GITHUB_USERNAME
-# Password: YOUR_GITHUB_TOKEN（トークンを貼り付け）
 
 # 認証情報は ~/.docker/config.json に保存される
 # 確認する場合:

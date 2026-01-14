@@ -21,8 +21,7 @@ class MessageHandler:
         self.bot = bot
         self.session_manager = SessionManager()
         self.ai_provider = LiteLLMProvider()
-        # 定期的なセッションクリーンアップタスクを開始
-        self.cleanup_task.start()
+        # タスクは on_ready イベントで開始する（イベントループが必要なため）
 
     def cog_unload(self):
         """クリーンアップタスクを停止"""
@@ -126,6 +125,15 @@ class MessageHandler:
 def setup_handlers(bot: KotonohaBot):
     """イベントハンドラーをセットアップ"""
     handler = MessageHandler(bot)
+
+    @bot.event
+    async def on_ready():
+        """Bot起動完了時"""
+        logger.info(f"Bot is ready! Logged in as {bot.user}")
+        # イベントループが実行されている状態でタスクを開始
+        if not handler.cleanup_task.is_running():
+            handler.cleanup_task.start()
+            logger.info("Cleanup task started")
 
     @bot.event
     async def on_message(message: discord.Message):

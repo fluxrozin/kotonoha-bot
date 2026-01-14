@@ -33,9 +33,26 @@ graph LR
 
 3. **Docker Compose 設定**
 
-   ```yaml
-   # docker-compose.yml を作成
-   ```
+   `docker-compose.yml` の設定について:
+
+   **ビルドとイメージの設定**:
+
+   - `build` と `image` を両方指定することで、ローカルビルドと CI/CD の両方に対応できます
+   - ローカルでビルドする場合: `docker compose build` でビルド
+   - GHCR からプルする場合: `docker compose pull` でプル（または Watchtower が自動更新）
+   - ローカルでビルドしたイメージに `image` で指定した名前（タグ）が付けられます
+
+   **ユーザー設定**:
+
+   - `user: root` でコンテナを起動し、`entrypoint.sh` がパーミッション修正後に `botuser` に切り替えます
+   - これにより、ボリュームマウントされたディレクトリのパーミッション問題を自動的に解決します
+
+   **ポート設定**:
+
+   - `127.0.0.1:8081:8080` でヘルスチェック用のポートを公開（ローカルホストのみ）
+   - セキュリティ上の理由から、外部から直接アクセスできないように制限されています
+
+   詳細は [Phase 2 実装ガイド](../implementation/phases/phase2.md) を参照してください。
 
 4. **コンテナ起動**
 
@@ -84,6 +101,13 @@ Watchtower は、Docker コンテナの自動更新ツールです。GitHub Cont
 2. Watchtower がこのラベルを検出し、定期的にイメージをチェック（デフォルト: 5 分ごと）
 3. 新しいイメージがあれば自動的にコンテナを更新
 4. 古いイメージを削除（`WATCHTOWER_CLEANUP=true` の場合）
+
+**ローカル開発環境での使用**:
+
+- ローカル開発環境では、`.env` ファイルで `WATCHTOWER_NOTIFICATION_URL` の行をコメントアウトしてください
+- コメントアウトすることで、環境変数が未定義となり、Watchtowerは通知を送信しません
+- 本番環境では、コメントアウトを解除して `WATCHTOWER_NOTIFICATION_URL` に Discord Webhook URL などを設定してください
+- Container Manager（Synology NAS）でも、環境変数で制御できるため、GUI から簡単に設定できます
 
 **設定項目**:
 
