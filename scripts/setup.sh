@@ -60,7 +60,7 @@ if [ -d scripts ]; then
         echo "[OK] Set execution permissions for: scripts/*.sh"
     else
         echo "[WARN] Some scripts not found or could not set permissions"
-    fi
+fi
 fi
 
 SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
