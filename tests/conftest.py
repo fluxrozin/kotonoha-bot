@@ -1,0 +1,37 @@
+"""pytest フィクスチャ"""
+import pytest
+import tempfile
+from pathlib import Path
+
+from kotonoha_bot.session.manager import SessionManager
+from kotonoha_bot.db.sqlite import SQLiteDatabase
+
+
+@pytest.fixture
+def temp_db_path():
+    """一時的なデータベースパス"""
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = Path(f.name)
+    yield db_path
+    db_path.unlink(missing_ok=True)
+
+
+@pytest.fixture
+def db(temp_db_path):
+    """SQLite データベースのフィクスチャ"""
+    return SQLiteDatabase(db_path=temp_db_path)
+
+
+@pytest.fixture
+def session_manager(temp_db_path):
+    """SessionManager のフィクスチャ"""
+    # 一時的なデータベースを使用
+    # SessionManager の初期化前にデータベースパスを設定する必要があるため、
+    # 一時的なデータベースインスタンスを作成してから SessionManager に渡す
+    temp_db = SQLiteDatabase(db_path=temp_db_path)
+    manager = SessionManager()
+    # データベースインスタンスを置き換え
+    manager.db = temp_db
+    # セッション辞書をクリア（_load_active_sessions で読み込まれたセッションを削除）
+    manager.sessions = {}
+    return manager

@@ -1,11 +1,7 @@
-# Kotonoha Discord Bot - Docker Compose
+# Kotonoha Discord Bot - Docker Compose (with Watchtower)
 services:
   kotonoha-bot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    # image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest  # CI/CD 使用時
-
+    image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest
     container_name: kotonoha-bot
     restart: unless-stopped
     user: root  # entrypoint.sh がパーミッション修正後に botuser に切り替え
@@ -25,7 +21,13 @@ services:
       - "127.0.0.1:8081:8080"  # ヘルスチェック用（ローカルホストのみ）
 
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5).read()"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5).read()",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -41,6 +43,24 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.docker/config.json:/config.json:ro
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=300
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_NOTIFICATIONS=shoutrrr
+      - WATCHTOWER_NOTIFICATION_URL=${WATCHTOWER_NOTIFICATION_URL:-}
+    networks:
+      - kotonoha-network
 
 networks:
   kotonoha-network:
