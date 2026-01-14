@@ -65,11 +65,14 @@ Phase 2 の次のフェーズとして、CI/CD パイプラインと運用に必
 
 ### 必要な認証情報
 
-- GitHub Personal Access Token（GHCR 用、オプション）
+- GitHub Personal Access Token（GHCR 用、NAS 上で `docker login` する場合に必要）
 - Discord Token（シークレット、テスト用）
 - Anthropic API Key（シークレット、テスト用）
 
-**注意**: `GITHUB_TOKEN` は GitHub Actions で自動的に提供されるため、通常は設定不要です。
+**注意**:
+
+- **GitHub Actions 内**: `GITHUB_TOKEN` は GitHub Actions で自動的に提供されるため、GitHub Actions のワークフロー内では設定不要です。
+- **NAS 上**: NAS 上で GHCR からイメージをプルする場合は、Personal Access Token を手動で作成して `docker login` する必要があります（[詳細はこちら](#43-ghcr-認証の設定nas-上)）。
 
 ---
 
@@ -547,23 +550,196 @@ networks:
 
 #### 4.3 GHCR 認証の設定（NAS 上）
 
-NAS 上で GHCR にログインします。
+**Synology NAS について**:
+
+- Synology NAS には **Container Manager**（旧 Docker）が標準搭載されています（DSM 7.0 以降）
+- SSH でログインすれば、コマンドラインから `docker` コマンドが使えます
+- Container Manager の GUI からも操作可能です
+
+**SSH アクセスの有効化**（まだ有効化していない場合）:
+
+1. DSM の「コントロールパネル」→「ターミナルと SNMP」を開く
+2. 「SSH サービスを有効にする」にチェック
+3. ポート番号を確認（デフォルト: 22）
+
+**NAS 上で GHCR にログイン**:
+
+**重要**: `.env` ファイルは Git リポジトリに含まれていません。初回セットアップ時は、`.env.example` から `.env` ファイルを作成する必要があります。
+
+**初回セットアップ（`.env` ファイルが存在しない場合）**:
 
 ```bash
-# NAS 上で実行
-# GitHub Personal Access Token を使用して GHCR にログイン
-echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+# SSH で NAS にログイン
+ssh admin@nas-ip-address
 
-# または、docker config.json を直接編集
-# ~/.docker/config.json に認証情報が保存される
+# プロジェクトディレクトリに移動
+cd /volume1/docker/kotonoha-bot
+
+# .env.example から .env ファイルを作成
+cp .env.example .env
+
+# .env ファイルを編集して GitHub トークンとユーザー名を設定
+# エディタで開く（nano または vi）
+nano .env
+# または
+vi .env
+
+# 以下の行のコメントを外して、実際の値を設定:
+# GITHUB_USERNAME=your-github-username
+# GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# ファイルの権限を設定（機密情報を含むため）
+chmod 600 .env
 ```
+
+**既に `.env` ファイルが存在する場合**:
+
+`.env` ファイルは一度作成すれば、Git で管理されていないため、リポジトリを更新しても上書きされません。ただし、`.env.example` が更新された場合（新しい環境変数が追加された場合）は、手動で `.env` に追加する必要があります。
+
+**`.env` ファイルの確認と更新**:
+
+```bash
+# .env ファイルを編集
+nano .env
+
+# 以下の行が存在し、正しい値が設定されているか確認:
+# GITHUB_USERNAME=your-github-username
+# GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**`.env.example` が更新された場合の対処法**:
+
+`.env.example` に新しい環境変数が追加された場合、`.env` ファイルに手動で追加する必要があります。
+
+```bash
+# .env.example と .env を比較して、新しい変数を確認
+diff .env.example .env
+
+# または、.env.example にのみ存在する変数を確認
+comm -13 <(sort .env | grep -v '^#' | grep -v '^$' | cut -d= -f1) <(sort .env.example | grep -v '^#' | grep -v '^$' | cut -d= -f1)
+
+# 新しい変数を .env に追加（例: GITHUB_TOKEN が追加された場合）
+# nano .env で手動で追加
+```
+
+**注意**:
+
+- `.env` ファイルは機密情報を含むため、完全な自動化は推奨されません
+- 新しい環境変数が追加された場合は、手動で確認して追加してください
+- 既存の値は上書きされないため、安全に `git pull` でリポジトリを更新できます
+
+**GHCR にログイン**:
+
+`.env` ファイルの設定が完了したら、SSH で NAS にログインして認証します：
+
+```bash
+# SSH で NAS にログイン
+ssh admin@nas-ip-address
+
+# プロジェクトディレクトリに移動
+cd /volume1/docker/kotonoha-bot
+
+# 方法1: .env ファイルから環境変数を読み込んでログイン（推奨）
+# .env ファイルを読み込む（コメント行と空行を除外）
+export $(grep -v '^#' .env | grep -v '^$' | xargs)
+
+# 環境変数が正しく設定されたか確認（オプション）
+# echo $GITHUB_USERNAME
+# echo $GITHUB_TOKEN
+
+# 環境変数を使用してログイン
+echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+
+# 注意: 上記の方法が動作しない場合（特殊文字が含まれている場合）は、
+# 以下の方法を試してください:
+# set -a
+# source .env 2>/dev/null || . .env
+# set +a
+# echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+
+# 方法2: トークンを直接指定（.env を使わない場合）
+# docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_TOKEN
+
+# 方法3: 対話的に入力（セキュリティ上推奨されませんが、一時的なテストには便利）
+# docker login ghcr.io
+# Username: YOUR_GITHUB_USERNAME
+# Password: YOUR_GITHUB_TOKEN（トークンを貼り付け）
+
+# 認証情報は ~/.docker/config.json に保存される
+# 確認する場合:
+cat ~/.docker/config.json
+```
+
+**重要**: `.env` ファイルには機密情報が含まれるため、権限を `600`（所有者のみ読み書き可能）に設定してください：
+
+```bash
+chmod 600 .env
+```
+
+**重要**:
+
+- `YOUR_GITHUB_USERNAME` を実際の GitHub ユーザー名に置き換えてください
+- `YOUR_GITHUB_TOKEN` を実際の Personal Access Token に置き換えてください
+- トークンは再表示されないため、安全に保存してください
+
+**注意**:
+
+- `docker login` コマンドは SSH 経由で実行する必要があります
+- Container Manager の GUI からは直接認証設定ができないため、SSH での操作が必要です
+- 認証情報は `~/.docker/config.json` に保存され、Watchtower が自動的に使用します
 
 **GitHub Personal Access Token の作成方法**:
 
-1. GitHub の「Settings」→「Developer settings」→「Personal access tokens」→「Tokens (classic)」を開く
-2. 「Generate new token (classic)」をクリック
-3. スコープで `write:packages` と `read:packages` を選択
-4. トークンを生成して保存（再表示されないため注意）
+GitHub Personal Access Token は、GitHub の Web サイトで作成する必要があります。既存のトークンはありません。以下の手順で作成してください：
+
+1. **GitHub にログイン**
+
+   - <https://github.com> にアクセスしてログイン
+
+2. **Settings を開く**
+
+   - 右上のプロフィールアイコンをクリック
+   - 「Settings」を選択
+
+3. **Developer settings を開く**
+
+   - 左側のメニューで一番下の「Developer settings」をクリック
+
+4. **Personal access tokens を開く**
+
+   - 左側のメニューで「Personal access tokens」→「Tokens (classic)」を選択
+
+5. **新しいトークンを生成**
+
+   - 「Generate new token」→「Generate new token (classic)」をクリック
+   - 認証情報の入力が求められる場合があります
+
+6. **トークンの設定**
+
+   - **Note（メモ）**: `GHCR Docker Login` など、用途がわかる名前を入力
+   - **Expiration（有効期限）**: 適切な期間を選択（例: 90 日、1 年、または無期限）
+   - **Select scopes（スコープ選択）**: 以下のスコープにチェックを入れる
+     - ✅ `write:packages` - GitHub Packages への書き込み
+     - ✅ `read:packages` - GitHub Packages の読み取り
+
+7. **トークンを生成**
+
+   - 一番下の「Generate token」ボタンをクリック
+
+8. **トークンをコピーして保存**
+   - **重要**: トークンはこの画面で一度だけ表示されます
+   - 表示されたトークン（`ghp_` で始まる文字列）をコピーして安全な場所に保存
+   - この画面を閉じると、もう一度表示することはできません
+
+**トークンの形式**:
+
+- `ghp_` で始まる長い文字列（例: `ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`）
+
+**注意**:
+
+- トークンは機密情報です。他人に共有しないでください
+- トークンを失くした場合は、新しいトークンを生成する必要があります
+- 古いトークンは「Tokens (classic)」の一覧から削除できます
 
 #### 4.4 Watchtower の環境変数
 
@@ -595,7 +771,10 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
 | `DISCORD_TOKEN`     | Discord Bot トークン | テスト用（オプション） |
 | `ANTHROPIC_API_KEY` | Anthropic API キー   | テスト用（オプション） |
 
-**注意**: `GITHUB_TOKEN` は自動的に提供されるため、設定不要です。
+**注意**:
+
+- **GitHub Actions 内での使用**: `GITHUB_TOKEN` は GitHub Actions で自動的に提供されるシークレットです。GitHub Actions のワークフロー内では設定不要です。
+- **NAS 上での使用**: NAS 上で `docker login ghcr.io` を実行する場合は、[Personal Access Token を手動で作成](#43-ghcr-認証の設定nas-上)する必要があります。
 
 #### 5.2 シークレットの設定方法
 
