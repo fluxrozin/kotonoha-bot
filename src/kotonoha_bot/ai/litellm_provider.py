@@ -1,11 +1,13 @@
 """LiteLLM統合実装"""
-import litellm
-from typing import List
-import logging
 
-from .provider import AIProvider
-from ..session.models import Message, MessageRole
+import logging
+from typing import List
+
+import litellm
+
 from ..config import Config
+from ..session.models import Message, MessageRole
+from .provider import AIProvider
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +29,7 @@ class LiteLLMProvider(AIProvider):
             logger.info(f"Fallback model: {self.fallback_model}")
 
     def generate_response(
-        self,
-        messages: List[Message],
-        system_prompt: str | None = None
+        self, messages: List[Message], system_prompt: str | None = None
     ) -> str:
         """LiteLLM経由でLLM APIを呼び出して応答を生成"""
         try:
@@ -63,27 +63,19 @@ class LiteLLMProvider(AIProvider):
             raise
 
     def _convert_messages(
-        self,
-        messages: List[Message],
-        system_prompt: str | None
+        self, messages: List[Message], system_prompt: str | None
     ) -> List[dict]:
         """LiteLLM用のメッセージ形式に変換"""
         llm_messages = []
 
         # システムプロンプトを最初に追加
         if system_prompt:
-            llm_messages.append({
-                "role": "system",
-                "content": system_prompt
-            })
+            llm_messages.append({"role": "system", "content": system_prompt})
 
         # 会話履歴を追加
         for message in messages:
             role = "user" if message.role == MessageRole.USER else "assistant"
-            llm_messages.append({
-                "role": role,
-                "content": message.content
-            })
+            llm_messages.append({"role": role, "content": message.content})
 
         return llm_messages
 

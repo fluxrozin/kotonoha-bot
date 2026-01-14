@@ -1,11 +1,14 @@
 """Discord イベントハンドラー"""
-import discord
-import logging
 
-from .client import KotonohaBot
+import logging
+from datetime import datetime
+
+import discord
+
+from ..ai.litellm_provider import DEFAULT_SYSTEM_PROMPT, LiteLLMProvider
 from ..session.manager import SessionManager
 from ..session.models import MessageRole
-from ..ai.litellm_provider import LiteLLMProvider, DEFAULT_SYSTEM_PROMPT
+from .client import KotonohaBot
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +62,22 @@ class MessageHandler:
                     content=user_message,
                 )
 
+                # 現在の日付情報を含むシステムプロンプトを生成
+                now = datetime.now()
+                weekday_names = ["月", "火", "水", "木", "金", "土", "日"]
+                current_date_info = (
+                    f"\n\n【現在の日付情報】\n"
+                    f"現在の日時: {now.strftime('%Y年%m月%d日 %H:%M:%S')}\n"
+                    f"今日の曜日: {weekday_names[now.weekday()]}曜日\n"
+                    f"日付や曜日に関する質問には、この情報を基に具体的に回答してください。"
+                    f"プレースホルダー（[明日の曜日]など）は使用せず、実際の日付や曜日を回答してください。"
+                )
+                system_prompt = DEFAULT_SYSTEM_PROMPT + current_date_info
+
                 # AI応答を生成
                 response_text = self.ai_provider.generate_response(
                     messages=session.get_conversation_history(),
-                    system_prompt=DEFAULT_SYSTEM_PROMPT,
+                    system_prompt=system_prompt,
                 )
 
                 # アシスタントメッセージを追加

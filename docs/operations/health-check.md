@@ -129,8 +129,7 @@ docker inspect --format='{{json .State.Health}}' kotonoha-bot | jq '.Log'
 # ヘルスチェックサーバーを有効化（デフォルト: true）
 HEALTH_CHECK_ENABLED=true
 
-# ヘルスチェックサーバーのポート（デフォルト: 8080）
-HEALTH_CHECK_PORT=8080
+# 注意: ポート番号は固定（8080）です。変更する場合は docker-compose.yml も手動で更新してください。
 ```
 
 ### エンドポイント
@@ -305,11 +304,7 @@ HEALTH_CHECK_ENABLED=false
 
 HTTP ヘルスチェックサーバーのポートを変更する場合：
 
-```env
-HEALTH_CHECK_PORT=9000
-```
-
-`docker-compose.yml` のポートマッピングも更新する必要があります：
+**注意**: ポート番号は固定（8080）です。変更する場合は `docker-compose.yml` の以下の箇所を手動で更新してください：
 
 ```yaml
 ports:
@@ -352,7 +347,7 @@ abc123def456   kotonoha-bot:latest   Up 5 minutes (unhealthy)
 2. **ポートが使用できない**
 
    - ポート 8080 が他のプロセスで使用されていないか確認
-   - `HEALTH_CHECK_PORT` を変更
+   - ポートを変更する場合は `docker-compose.yml` を手動で更新してください
 
 3. **アプリケーションがクラッシュしている**
    - ログを確認: `docker logs kotonoha-bot`

@@ -172,9 +172,6 @@ RUN groupadd -r -g 1000 botuser && useradd -r -u 1000 -g botuser -d /app -s /sbi
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/src /app/src
 
-# バックアップスクリプトのコピー
-COPY scripts/ /app/scripts/
-
 # エントリポイントスクリプトのコピー
 COPY scripts/ /app/scripts/
 
@@ -777,9 +774,6 @@ CMD ["sh", "-c", "cron && python -m kotonoha_bot.main"]
 ```env
 # ヘルスチェックサーバーを有効化（デフォルト: true）
 HEALTH_CHECK_ENABLED=true
-
-# ヘルスチェックサーバーのポート（デフォルト: 8080）
-HEALTH_CHECK_PORT=8080
 ```
 
 **使用方法**:
@@ -802,39 +796,75 @@ curl http://localhost:8080/ready
 
 ### Step 9: ログ管理の設定 (30 分)
 
-#### 8.1 ログローテーションの設定
+#### 9.1 ログローテーションの設定
 
 ##### 方法 1: Python の logging.handlers.RotatingFileHandler を使用
 
-`src/kotonoha_bot/main.py` を更新:
+`src/kotonoha_bot/main.py` に実装済み:
 
 ```python
-import logging
-from logging.handlers import RotatingFileHandler
-
-# ログファイルの設定
-log_file = Path("./logs/kotonoha.log")
-log_file.parent.mkdir(parents=True, exist_ok=True)
-
-# ローテーションハンドラー
-file_handler = RotatingFileHandler(
-    log_file,
-    maxBytes=10 * 1024 * 1024,  # 10MB
-    backupCount=5
-)
-file_handler.setLevel(logging.INFO)
-file_handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-)
-
-logging.basicConfig(
-    level=getattr(logging, Config.LOG_LEVEL),
-    handlers=[
+def setup_logging() -> None:
+    """ログ設定のセットアップ"""
+    handlers: list[logging.Handler] = [
         logging.StreamHandler(sys.stdout),
-        file_handler,
     ]
-)
+
+    # ファイルログが設定されている場合
+    if Config.LOG_FILE:
+        try:
+            log_path = Path(Config.LOG_FILE)
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+
+            file_handler = RotatingFileHandler(
+                log_path,
+                maxBytes=Config.LOG_MAX_SIZE * 1024 * 1024,  # MB to bytes
+                backupCount=Config.LOG_BACKUP_COUNT,
+                encoding="utf-8",
+            )
+            file_handler.setFormatter(
+                logging.Formatter(
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                )
+            )
+            handlers.append(file_handler)
+        except (OSError, PermissionError) as e:
+            # ログファイルの作成に失敗した場合は警告を出して続行
+            logging.warning(
+                f"Could not set up file logging to {Config.LOG_FILE}: {e}. "
+                "Continuing with console logging only."
+            )
+
+    logging.basicConfig(
+        level=getattr(logging, Config.LOG_LEVEL),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=handlers,
+    )
 ```
+
+**環境変数での設定**:
+
+`.env` ファイルで設定可能:
+
+```env
+LOG_LEVEL=INFO
+LOG_FILE=./logs/kotonoha.log
+LOG_MAX_SIZE=10  # MB
+LOG_BACKUP_COUNT=5
+```
+
+**ログ設定の動作**:
+
+- `LOG_FILE` が設定されていない場合（コメントアウトされている場合）:
+
+  - ファイルログは作成されません
+  - ログはコンソール（stdout）のみに出力されます
+  - Docker 環境では `docker logs` で確認可能ですが、ホスト側のログファイルには保存されません
+
+- `LOG_FILE` が設定されている場合:
+  - 指定されたパスにログファイルが作成されます
+  - `LOG_MAX_SIZE`（MB）でログローテーションの最大サイズを設定
+  - `LOG_BACKUP_COUNT` で保持するバックアップファイル数を設定
+  - ログファイルの作成に失敗した場合は警告を出して、コンソールログのみで続行します
 
 ##### 方法 2: logrotate を使用（NAS 上で実行）
 
@@ -854,7 +884,7 @@ logging.basicConfig(
 
 #### Step 9 完了チェックリスト
 
-- [ ] ログローテーションが設定されている
+- [x] ログローテーションが設定されている
 - [x] ログファイルが適切に管理されている
 
 ---

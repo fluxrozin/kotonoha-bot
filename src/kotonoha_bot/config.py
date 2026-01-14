@@ -21,7 +21,8 @@ class Config:
     LLM_FALLBACK_MODEL: str | None = os.getenv("LLM_FALLBACK_MODEL")
 
     # データベース設定
-    DATABASE_PATH: Path = Path(os.getenv("DATABASE_PATH", "./data/sessions.db"))
+    DATABASE_NAME: str = os.getenv("DATABASE_NAME", "sessions.db")
+    DATABASE_PATH: Path = Path(f"./data/{DATABASE_NAME}")
 
     # ログ設定
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
@@ -32,7 +33,7 @@ class Config:
 
     # ヘルスチェック設定
     HEALTH_CHECK_ENABLED: bool = os.getenv("HEALTH_CHECK_ENABLED", "true").lower() == "true"
-    HEALTH_CHECK_PORT: int = int(os.getenv("HEALTH_CHECK_PORT", "8080"))
+    HEALTH_CHECK_PORT: int = 8080  # 固定ポート（docker-compose.yml と一致させる必要があります）
 
     # ログファイル設定
     LOG_FILE: str | None = os.getenv("LOG_FILE")

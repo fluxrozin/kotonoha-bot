@@ -153,6 +153,18 @@ sequenceDiagram
 
 ## 3. 環境変数一覧
 
+### 3.0 環境変数の種類
+
+環境変数は以下の2種類に分類されます:
+
+- **必須設定**: アプリケーションを起動するために**必ず設定が必要**な項目
+  - 設定しないとアプリケーションが起動しません
+  - 例: `DISCORD_TOKEN`, `ANTHROPIC_API_KEY`
+
+- **オプション**: 設定しなくても動作します（**デフォルト値が使用されます**）
+  - カスタマイズしたい場合のみ設定してください
+  - 例: `LLM_TEMPERATURE`（デフォルト: 0.7）、`LOG_LEVEL`（デフォルト: INFO）
+
 ### 3.1 必須環境変数
 
 | 変数名          | 説明                 | 例                                         | 必須 |
@@ -247,7 +259,6 @@ sequenceDiagram
 | -------------------- | ---------------------- | ------------ | ---------- |
 | `BOT_PREFIX`         | コマンドプレフィックス | `/`          | オプション |
 | `MESSAGE_MAX_LENGTH` | メッセージ最大長       | `2000`       | オプション |
-| `HEALTH_CHECK_PORT`  | ヘルスチェックポート   | `8080`       | オプション |
 
 ### 3.3 環境変数設定例
 
@@ -291,7 +302,6 @@ LOG_BACKUP_COUNT=5
 # Other
 BOT_PREFIX=/
 MESSAGE_MAX_LENGTH=2000
-HEALTH_CHECK_PORT=8080
 ```
 
 ```bash
@@ -335,7 +345,6 @@ LOG_BACKUP_COUNT=5
 # Other
 BOT_PREFIX=/
 MESSAGE_MAX_LENGTH=2000
-HEALTH_CHECK_PORT=8080
 ```
 
 ## 4. ボリューム設計（Docker）

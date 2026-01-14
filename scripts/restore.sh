@@ -11,10 +11,14 @@
 
 set -e
 
+# エラーハンドリング
+trap 'echo "Error: Restore failed at line $LINENO"; exit 1' ERR
+
 # 設定
 BACKUP_DIR="${BACKUP_DIR:-/app/backups}"
 DATA_DIR="${DATA_DIR:-/app/data}"
-DB_FILE="${DATA_DIR}/sessions.db"
+DATABASE_NAME="${DATABASE_NAME:-sessions.db}"
+DB_FILE="${DATA_DIR}/${DATABASE_NAME}"
 
 # バックアップファイルの指定
 if [ -n "$1" ]; then
@@ -36,13 +40,25 @@ fi
 
 echo "Restoring from: ${BACKUP_FILE}"
 
+# ボット停止確認の警告
+echo ""
+echo "WARNING: Restoring while the bot is running may cause data corruption."
+echo "Please ensure the bot is stopped before proceeding."
+echo ""
+read -p "Continue with restore? (y/N): " -r CONFIRM
+if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+    echo "Restore cancelled."
+    exit 0
+fi
+
 # データディレクトリの作成
 mkdir -p "${DATA_DIR}"
 
 # 既存のデータベースをバックアップ（存在する場合）
 if [ -f "${DB_FILE}" ]; then
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    CURRENT_BACKUP="${DATA_DIR}/sessions_before_restore_${TIMESTAMP}.db"
+    DB_BASENAME=$(basename "${DATABASE_NAME}" .db)
+    CURRENT_BACKUP="${DATA_DIR}/${DB_BASENAME}_before_restore_${TIMESTAMP}.db"
     echo "Backing up current database to: ${CURRENT_BACKUP}"
     cp "${DB_FILE}" "${CURRENT_BACKUP}"
 fi

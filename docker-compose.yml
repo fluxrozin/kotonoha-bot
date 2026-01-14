@@ -1,53 +1,41 @@
 # Kotonoha Discord Bot - Docker Compose
-# NAS (Synology) デプロイ用設定
-
 services:
   kotonoha-bot:
-    # ローカルビルドの場合
     build:
       context: .
       dockerfile: Dockerfile
-    # GHCR からプルする場合（CI/CD 設定後に有効化）
-    # image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest
+    # image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest  # CI/CD 使用時
 
     container_name: kotonoha-bot
     restart: unless-stopped
+    user: root  # entrypoint.sh がパーミッション修正後に botuser に切り替え
 
-    # rootで起動し、entrypoint.shが自動的にパーミッションを修正してbotuserに切り替えます
-    user: root
-
-    # 環境変数ファイル
     env_file:
       - .env
 
-    # ボリュームマウント（データの永続化）
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./backups:/app/backups
 
-    # ネットワーク設定
     networks:
       - kotonoha-network
 
-    # ポート公開（オプション）
-    # ヘルスチェックエンドポイントに外部からアクセスする場合に有効化
-    # セキュリティ上の理由から、本番環境ではリバースプロキシ経由でのアクセスを推奨
     ports:
-      - "8080:8080"  # ホスト:コンテナ
+      - "127.0.0.1:8081:8080"  # ヘルスチェック用（ローカルホストのみ）
 
-    # ヘルスチェック
-    # HTTPエンドポイントを使用してアプリケーションの状態を確認
-    # HEALTH_CHECK_ENABLED=true の場合、ポート8080でHTTPサーバーが起動します
-    # HTTPサーバーが無効な場合は、Pythonプロセスの存在を確認します
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5).read()\" 2>/dev/null || python -c 'import sys; sys.exit(0)'"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5).read()"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
 
-    # ログ設定
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
     logging:
       driver: "json-file"
       options:

@@ -6,11 +6,15 @@
 #   docker exec kotonoha-bot /app/scripts/backup.sh
 #
 # 環境変数:
+#   DATABASE_NAME: データベースファイル名 (デフォルト: sessions.db)
 #   BACKUP_DIR: バックアップ先ディレクトリ (デフォルト: /app/backups)
 #   DATA_DIR: データディレクトリ (デフォルト: /app/data)
 #   RETENTION_DAYS: バックアップ保持日数 (デフォルト: 7)
 
 set -e
+
+# エラーハンドリング
+trap 'echo "Error: Backup failed at line $LINENO"; exit 1' ERR
 
 # 設定
 BACKUP_DIR="${BACKUP_DIR:-/app/backups}"
@@ -22,8 +26,9 @@ BACKUP_FILE="${BACKUP_DIR}/kotonoha_${TIMESTAMP}.db"
 # バックアップディレクトリの作成
 mkdir -p "${BACKUP_DIR}"
 
-# データベースファイルの存在確認
-DB_FILE="${DATA_DIR}/sessions.db"
+# データベースファイルパスの決定
+DATABASE_NAME="${DATABASE_NAME:-sessions.db}"
+DB_FILE="${DATA_DIR}/${DATABASE_NAME}"
 if [ ! -f "${DB_FILE}" ]; then
     echo "Warning: Database file not found: ${DB_FILE}"
     exit 0
