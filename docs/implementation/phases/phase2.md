@@ -121,46 +121,82 @@ Phase 1 の次のフェーズとして、NAS（Network Attached Storage）への
 
 #### 1.1 `Dockerfile` の作成
 
-プロジェクトルートに `Dockerfile` を作成:
+プロジェクトルートに `Dockerfile` を作成（マルチステージビルドを使用）:
 
 ```dockerfile
-# Python 3.14 slim ベースイメージ
-FROM python:3.14-slim
+# Kotonoha Discord Bot - Dockerfile
+# Python 3.14 + uv による軽量イメージ
 
-# 作業ディレクトリを設定
+# ============================================
+# ビルドステージ
+# ============================================
+FROM python:3.14-slim AS builder
+
 WORKDIR /app
 
-# システムパッケージの更新と必要なツールのインストール
-RUN apt-get update && apt-get install -y \
+# システムパッケージの更新
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # uv のインストール
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.cargo/bin:${PATH}"
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# プロジェクトファイルのコピー
-COPY pyproject.toml uv.lock ./
+# プロジェクトファイルのコピー（README.mdはpyproject.tomlのビルド時に必要）
+COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
 
-# 依存関係のインストール
-RUN uv sync --frozen
+# 依存関係のインストール（本番用のみ）
+RUN uv sync --frozen --no-dev
 
-# 非 root ユーザーの作成
-RUN useradd -m -u 1000 botuser && \
-    chown -R botuser:botuser /app
-USER botuser
+# ============================================
+# 実行ステージ
+# ============================================
+FROM python:3.14-slim AS runtime
+
+WORKDIR /app
+
+# 必要な実行時パッケージのみインストール
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    sqlite3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# 非rootユーザーの作成
+RUN groupadd -r botuser && useradd -r -g botuser -d /app -s /sbin/nologin botuser
+
+# ビルドステージから必要なファイルをコピー
+COPY --from=builder /app/.venv /app/.venv
+COPY --from=builder /app/src /app/src
+
+# バックアップスクリプトのコピー
+COPY scripts/ /app/scripts/
+
+# データディレクトリの作成と権限設定
+RUN mkdir -p /app/data /app/logs /app/backups \
+    && chmod +x /app/scripts/*.sh \
+    && chown -R botuser:botuser /app
 
 # 環境変数の設定
+ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH=/app/src
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# ユーザー切り替え
+USER botuser
+
+# ヘルスチェック用ポート（オプション）
+EXPOSE 8080
 
 # ヘルスチェック
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD python -c "import sys; sys.exit(0)" || exit 1
 
 # エントリーポイント
-CMD ["python", "-m", "src.kotonoha_bot.main"]
+ENTRYPOINT ["python", "-m", "kotonoha_bot.main"]
 ```
 
 #### 1.2 `.dockerignore` の作成
@@ -169,54 +205,89 @@ CMD ["python", "-m", "src.kotonoha_bot.main"]
 # Git
 .git
 .gitignore
+.gitattributes
 
-# Python
+# Python キャッシュ
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
-.venv/
+*.egg-info/
+*.egg
+dist/
+build/
 
-# Environment
+# 仮想環境
+.venv/
+venv/
+env/
+ENV/
+
+# 環境変数（機密情報）
 .env
 .env.local
+.env.*.local
 
-# Database
+# データベース（ボリュームマウントで管理）
 *.db
 *.sqlite
 *.sqlite3
 data/
 
-# Logs
+# ログ（ボリュームマウントで管理）
 logs/
 *.log
 
-# IDE
+# バックアップ（ボリュームマウントで管理）
+backups/
+
+# IDE / エディタ
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Documentation
+# ドキュメント（イメージには不要）
 docs/
-README.md
+docs/**/*.md
+# README.mdはpyproject.tomlでビルド時に必要なので含める
 
-# Tests
+# テスト
 tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# その他
+*.bak
+*.tmp
+*.temp
+.cache/
 ```
+
+**注意**: `README.md` は `pyproject.toml` のビルド時に必要なので、`docs/` 配下の Markdown ファイルのみを除外し、ルートの `README.md` は自動的にビルドコンテキストに含まれます。
+
+#### 1.3 ベースイメージの選択
+
+本プロジェクトでは `python:3.14-slim` をベースイメージとして使用しています。
+
+**詳細な選定理由と代替案の比較については、[ミドルウェア選定書](../../implementation/middleware-selection.md#381-docker-ベースイメージの選択)を参照してください。**
 
 #### Step 1 完了チェックリスト
 
 - [ ] `Dockerfile` が作成されている
 - [ ] `.dockerignore` が作成されている
 - [ ] ローカルで Docker イメージがビルドできる
+- [ ] ベースイメージの選択理由を理解している
 
 ---
 
@@ -250,13 +321,15 @@ services:
     network_mode: bridge
 
     # リソース制限（オプション）
+    # 注意: CPU制限はNASのカーネルがCPU CFSをサポートしていない場合、エラーになります
+    # CPU制限が必要な場合は、Container ManagerのGUIから設定してください
     deploy:
       resources:
         limits:
-          cpus: "1.0"
+          # cpus: "1.0"  # NAS環境ではコメントアウト（CPU CFS未サポートの場合）
           memory: 512M
         reservations:
-          cpus: "0.5"
+          # cpus: "0.5"  # NAS環境ではコメントアウト（CPU CFS未サポートの場合）
           memory: 256M
 
     # ヘルスチェック
@@ -299,14 +372,16 @@ docker build -t kotonoha-bot:local .
 
 ```bash
 # docker-compose.yml があるディレクトリで実行
-docker-compose up -d
+docker compose up -d
 
 # ログを確認
-docker-compose logs -f
+docker compose logs -f
 
 # コンテナの状態を確認
-docker-compose ps
+docker compose ps
 ```
+
+**注意**: 新しい Docker では `docker compose`（ハイフンなし）が推奨されています。古いバージョンでは `docker-compose`（ハイフンあり）を使用してください。
 
 #### 3.3 動作確認
 
@@ -327,25 +402,7 @@ docker-compose ps
 
 #### 4.1 NAS へのファイル転送
 
-##### 方法 1: SMB/CIFS 共有を使用
-
-```bash
-# Windows/Mac から NAS の共有フォルダにアクセス
-# 以下のファイルをコピー:
-# - docker-compose.yml
-# - .env
-# - Dockerfile（オプション、ローカルビルドする場合）
-```
-
-##### 方法 2: SCP を使用
-
-```bash
-# SSH で NAS に接続してファイルを転送
-scp docker-compose.yml admin@nas-ip:/volume1/docker/kotonoha-bot/
-scp .env admin@nas-ip:/volume1/docker/kotonoha-bot/
-```
-
-##### 方法 3: Git を使用（推奨）
+Git リポジトリをクローンすることで、ビルドに必要なファイルをすべて取得できます。
 
 ```bash
 # NAS 上で Git リポジトリをクローン
@@ -355,26 +412,91 @@ git clone https://github.com/your-username/kotonoha-bot.git
 cd kotonoha-bot
 ```
 
+**メリット**:
+
+- ビルドに必要なファイルがすべて自動的に含まれる
+- バージョン管理が容易
+- 更新時に `git pull` で簡単に更新できる
+- ファイルの漏れがない
+
 #### 4.2 NAS 上でのディレクトリ構造
+
+**重要**: ビルドに必要なファイルをすべて含める必要があります。Git リポジトリ全体をクローンするか、必要なファイルをすべて転送してください。
 
 ```txt
 /volume1/docker/kotonoha-bot/
 ├── docker-compose.yml
-├── .env
 ├── Dockerfile
-├── data/          # データベースファイル（自動生成）
-├── logs/          # ログファイル（自動生成）
-└── backups/      # バックアップファイル（自動生成）
+├── .dockerignore          # ビルド最適化用（オプション）
+├── .env                   # 環境変数ファイル（手動作成）
+├── pyproject.toml         # プロジェクト設定（ビルドに必須）
+├── uv.lock                # 依存関係ロックファイル（ビルドに必須）
+├── README.md              # プロジェクト説明（pyproject.tomlのビルド時に必要）
+├── src/                   # ソースコード（ビルドに必須）
+│   └── kotonoha_bot/
+├── scripts/               # バックアップスクリプトなど（ビルドに必須）
+│   └── backup.sh
+├── data/                  # データベースファイル（自動生成）
+├── logs/                  # ログファイル（自動生成）
+└── backups/               # バックアップファイル（自動生成）
 ```
 
-#### 4.3 ディレクトリの権限設定
+**ビルドに必要なファイル**:
+
+- `Dockerfile` - コンテナイメージのビルド定義
+- `pyproject.toml` - Python プロジェクト設定と依存関係
+- `uv.lock` - 依存関係のロックファイル
+- `README.md` - pyproject.toml のビルド時に必要
+- `src/` - アプリケーションのソースコード
+- `scripts/` - バックアップスクリプトなど
+
+**注意**: Git リポジトリをクローンすることで、上記の必要なファイルがすべて自動的に含まれます。
+
+#### 4.3 環境変数ファイルとディレクトリの準備
+
+##### 4.3.1 .env ファイルの作成
+
+`.env.example` をコピーして `.env` ファイルを作成し、実際の値を設定します。
 
 ```bash
 # NAS 上で実行
-chmod 755 /volume1/docker/kotonoha-bot
-chmod 644 /volume1/docker/kotonoha-bot/docker-compose.yml
-chmod 600 /volume1/docker/kotonoha-bot/.env
+cd /volume1/docker/kotonoha-bot
+
+# .env.example をコピー
+cp .env.example .env
+
+# .env ファイルを編集して実際の値を設定
+# 必須項目:
+# - DISCORD_TOKEN: Discord Bot のトークン
+# - ANTHROPIC_API_KEY: Anthropic API キー
+# - LLM_MODEL: 使用する LLM モデル
+nano .env  # または vi .env
 ```
+
+##### 4.3.2 ディレクトリの作成と権限設定
+
+データ保存用のディレクトリを作成し、適切な権限を設定します。
+
+```bash
+# NAS 上で実行
+cd /volume1/docker/kotonoha-bot
+
+# データ保存用ディレクトリの作成
+mkdir -p data logs backups
+
+# ディレクトリの権限設定
+chmod 755 /volume1/docker/kotonoha-bot
+chmod 755 data logs backups
+
+# ファイルの権限設定
+chmod 644 docker-compose.yml Dockerfile pyproject.toml uv.lock README.md
+chmod 600 .env  # 機密情報を含むため、所有者のみ読み書き可能
+
+# スクリプトの実行権限設定
+chmod +x scripts/*.sh 2>/dev/null || true
+```
+
+**注意**: `.env` ファイルには機密情報（Discord Token、API キーなど）が含まれるため、権限を `600`（所有者のみ読み書き可能）に設定することが重要です。
 
 #### Step 4 完了チェックリスト
 
@@ -445,31 +567,60 @@ chmod 600 /volume1/docker/kotonoha-bot/.env
 
 ```bash
 #!/bin/bash
+# Kotonoha Bot - データベースバックアップスクリプト
+#
+# 使用方法:
+#   ./scripts/backup.sh
+#   docker exec kotonoha-bot /app/scripts/backup.sh
+#
+# 環境変数:
+#   BACKUP_DIR: バックアップ先ディレクトリ (デフォルト: /app/backups)
+#   DATA_DIR: データディレクトリ (デフォルト: /app/data)
+#   RETENTION_DAYS: バックアップ保持日数 (デフォルト: 7)
 
-# バックアップ設定
-BACKUP_DIR="/app/backups"
-DATA_DIR="/app/data"
-LOG_DIR="/app/logs"
-RETENTION_DAYS=7
+set -e
 
-# バックアップファイル名（タイムスタンプ付き）
+# 設定
+BACKUP_DIR="${BACKUP_DIR:-/app/backups}"
+DATA_DIR="${DATA_DIR:-/app/data}"
+RETENTION_DAYS="${RETENTION_DAYS:-7}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="${BACKUP_DIR}/backup_${TIMESTAMP}.tar.gz"
+BACKUP_FILE="${BACKUP_DIR}/kotonoha_${TIMESTAMP}.db"
 
 # バックアップディレクトリの作成
 mkdir -p "${BACKUP_DIR}"
 
-# データベースとログをバックアップ
-tar -czf "${BACKUP_FILE}" \
-    -C /app \
-    data/ \
-    logs/
+# データベースファイルの存在確認
+DB_FILE="${DATA_DIR}/sessions.db"
+if [ ! -f "${DB_FILE}" ]; then
+    echo "Warning: Database file not found: ${DB_FILE}"
+    exit 0
+fi
 
-# 古いバックアップの削除（7日分保持）
-find "${BACKUP_DIR}" -name "backup_*.tar.gz" -mtime +${RETENTION_DAYS} -delete
+# SQLite のバックアップ（オンラインバックアップ）
+echo "Starting backup..."
+sqlite3 "${DB_FILE}" ".backup '${BACKUP_FILE}'"
 
-echo "Backup completed: ${BACKUP_FILE}"
+# バックアップファイルの圧縮
+gzip -f "${BACKUP_FILE}"
+BACKUP_FILE="${BACKUP_FILE}.gz"
+
+# バックアップサイズの表示
+BACKUP_SIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
+echo "Backup completed: ${BACKUP_FILE} (${BACKUP_SIZE})"
+
+# 古いバックアップの削除
+echo "Cleaning up old backups (older than ${RETENTION_DAYS} days)..."
+find "${BACKUP_DIR}" -name "kotonoha_*.db.gz" -mtime +${RETENTION_DAYS} -delete
+
+# 残っているバックアップの一覧表示
+echo "Current backups:"
+ls -lh "${BACKUP_DIR}"/kotonoha_*.db.gz 2>/dev/null || echo "  (none)"
+
+echo "Backup process completed."
 ```
+
+**注意**: このスクリプトは `Dockerfile` で既にコンテナにコピーされ、実行権限が付与されています（Step 1 参照）。
 
 #### 7.2 定期実行の設定
 
@@ -483,24 +634,23 @@ crontab -e
 0 2 * * * docker exec kotonoha-bot /app/scripts/backup.sh
 ```
 
-##### 方法 2: Docker コンテナ内で cron を実行
+##### 方法 2: Docker コンテナ内で cron を実行（非推奨）
 
-`Dockerfile` に cron を追加:
+コンテナ内で cron を実行する場合は、`Dockerfile` に以下を追加:
 
 ```dockerfile
 # cron のインストール
-RUN apt-get update && apt-get install -y cron
+RUN apt-get update && apt-get install -y --no-install-recommends cron \
+    && rm -rf /var/lib/apt/lists/*
 
-# バックアップスクリプトのコピー
-COPY scripts/backup.sh /app/scripts/backup.sh
-RUN chmod +x /app/scripts/backup.sh
-
-# cron ジョブの設定
+# cron ジョブの設定（バックアップスクリプトは既にコピー済み）
 RUN echo "0 2 * * * /app/scripts/backup.sh >> /app/logs/backup.log 2>&1" | crontab -
 
-# cron の起動
-CMD cron && python -m src.kotonoha_bot.main
+# cron の起動（エントリーポイントを変更）
+CMD ["sh", "-c", "cron && python -m kotonoha_bot.main"]
 ```
+
+**注意**: 方法 1（NAS 上で cron を使用）を推奨します。コンテナ内で cron を実行する場合は、コンテナの再起動時に cron も再起動されるため、管理が複雑になります。
 
 #### Step 7 完了チェックリスト
 
@@ -668,7 +818,58 @@ USER botuser
 
 ## トラブルシューティング
 
-### 問題 1: コンテナが起動しない
+### 問題 1: CPU CFS エラー（NanoCPUs can not be set）
+
+**症状**:
+
+- コンテナ作成時に以下のエラーが発生する:
+  - `Error response from daemon: NanoCPUs can not be set, as your kernel does not support CPU CFS`
+  - `support CPU CFS scheduler or the cgroup is not mounted`
+
+**原因**:
+
+- NAS のカーネルが CPU CFS（Completely Fair Scheduler）をサポートしていない
+- `docker-compose.yml` の `deploy.resources.limits.cpus` 設定が原因
+
+**解決方法**:
+
+1. **docker-compose.yml を修正**（推奨）:
+
+   `docker-compose.yml` の CPU 制限をコメントアウトします:
+
+   ```yaml
+   deploy:
+     resources:
+       limits:
+         # cpus: "1.0"  # NAS環境ではコメントアウト
+         memory: 512M
+       reservations:
+         # cpus: "0.25"  # NAS環境ではコメントアウト
+         memory: 128M
+   ```
+
+2. **Container Manager の GUI から設定**:
+
+   - Container Manager でコンテナの「編集」を開く
+   - 「リソース制限」タブで CPU 制限を設定（GUI から設定するとエラーが発生しない場合がある）
+
+3. **リソース制限を完全に削除**:
+
+   CPU 制限が不要な場合は、`deploy` セクション全体をコメントアウト:
+
+   ```yaml
+   # リソース制限（NAS環境でCPU CFS未サポートの場合はコメントアウト）
+   # deploy:
+   #   resources:
+   #     limits:
+   #       memory: 512M
+   ```
+
+**注意**: メモリ制限は多くの NAS でサポートされているため、CPU 制限のみを削除し、メモリ制限は残すことを推奨します。
+
+---
+
+### 問題 2: コンテナが起動しない
 
 **症状**:
 
@@ -694,7 +895,7 @@ USER botuser
 
 ---
 
-### 問題 2: Bot が Discord に接続できない
+### 問題 3: Bot が Discord に接続できない
 
 **症状**:
 
@@ -717,7 +918,7 @@ USER botuser
 
 ---
 
-### 問題 3: データが永続化されない
+### 問題 4: データが永続化されない
 
 **症状**:
 
@@ -744,7 +945,7 @@ USER botuser
 
 ---
 
-### 問題 4: バックアップが実行されない
+### 問題 5: バックアップが実行されない
 
 **症状**:
 

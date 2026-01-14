@@ -1,0 +1,86 @@
+# Kotonoha Discord Bot - Docker Compose
+# NAS (Synology) デプロイ用設定
+
+services:
+  kotonoha-bot:
+    # ローカルビルドの場合
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # GHCR からプルする場合（CI/CD 設定後に有効化）
+    # image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest
+
+    container_name: kotonoha-bot
+    restart: unless-stopped
+
+    # 環境変数ファイル
+    env_file:
+      - .env
+
+    # ボリュームマウント（データの永続化）
+    volumes:
+      # データベース
+      - ./data:/app/data
+      # ログ
+      - ./logs:/app/logs
+      # バックアップ
+      - ./backups:/app/backups
+
+    # ネットワーク設定
+    networks:
+      - kotonoha-network
+
+    # ヘルスチェック用ポート（オプション）
+    # ports:
+    #   - "8080:8080"
+
+    # リソース制限
+    # 注意: CPU CFS未サポートのNAS環境では、deployセクション全体をコメントアウトしてください
+    # リソース制限が必要な場合は、Container ManagerのGUIから設定してください
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: "1.0"
+    #       memory: 512M
+    #     reservations:
+    #       cpus: "0.25"
+    #       memory: 128M
+
+    # ヘルスチェック
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+    # ログ設定
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Watchtower（自動更新）- オプション
+  # CI/CD 設定後に有効化
+  # watchtower:
+  #   image: containrrr/watchtower
+  #   container_name: watchtower
+  #   restart: unless-stopped
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     # GHCR 認証用（プライベートリポジトリの場合）
+  #     # - ~/.docker/config.json:/config.json:ro
+  #   environment:
+  #     - WATCHTOWER_CLEANUP=true
+  #     - WATCHTOWER_POLL_INTERVAL=300
+  #     - WATCHTOWER_INCLUDE_STOPPED=false
+  #     - WATCHTOWER_LABEL_ENABLE=true
+  #   networks:
+  #     - kotonoha-network
+  #   labels:
+  #     - "com.centurylinklabs.watchtower.enable=false"
+
+networks:
+  kotonoha-network:
+    driver: bridge

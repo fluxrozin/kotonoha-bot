@@ -30,6 +30,15 @@ class Config:
     MAX_SESSIONS: int = 100  # メモリ内の最大セッション数
     SESSION_TIMEOUT_HOURS: int = 24  # セッションのタイムアウト（時間）
 
+    # ヘルスチェック設定
+    HEALTH_CHECK_ENABLED: bool = os.getenv("HEALTH_CHECK_ENABLED", "true").lower() == "true"
+    HEALTH_CHECK_PORT: int = int(os.getenv("HEALTH_CHECK_PORT", "8080"))
+
+    # ログファイル設定
+    LOG_FILE: str | None = os.getenv("LOG_FILE")
+    LOG_MAX_SIZE: int = int(os.getenv("LOG_MAX_SIZE", "10"))  # MB
+    LOG_BACKUP_COUNT: int = int(os.getenv("LOG_BACKUP_COUNT", "5"))
+
     @classmethod
     def validate(cls) -> None:
         """設定の検証"""
