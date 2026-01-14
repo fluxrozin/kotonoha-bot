@@ -138,15 +138,17 @@ class LiteLLMProvider(AIProvider):
                         logger.info(f"Response stop_reason: {stop_reason}")
                         # Anthropic APIでは"end_turn"は正常な終了だが、念のためログに出力
                         if stop_reason not in ["end_turn", "stop_sequence"]:
-                            logger.warning(
-                                f"Unexpected stop_reason: {stop_reason}"
-                            )
+                            logger.warning(f"Unexpected stop_reason: {stop_reason}")
 
                 # 使用トークン数をログに出力
                 if hasattr(response, "usage"):
                     usage = response.usage
-                    input_tokens = getattr(usage, "prompt_tokens", None) or getattr(usage, "input_tokens", None)
-                    output_tokens = getattr(usage, "completion_tokens", None) or getattr(usage, "output_tokens", None)
+                    input_tokens = getattr(usage, "prompt_tokens", None) or getattr(
+                        usage, "input_tokens", None
+                    )
+                    output_tokens = getattr(
+                        usage, "completion_tokens", None
+                    ) or getattr(usage, "output_tokens", None)
                     if input_tokens is not None or output_tokens is not None:
                         logger.info(
                             f"Token usage: input={input_tokens}, output={output_tokens}, "
