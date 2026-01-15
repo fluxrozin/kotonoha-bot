@@ -6,7 +6,8 @@ from datetime import datetime
 import discord
 from discord.ext import tasks
 
-from ..ai.litellm_provider import DEFAULT_SYSTEM_PROMPT, LiteLLMProvider
+from ..ai.litellm_provider import LiteLLMProvider
+from ..ai.prompts import DEFAULT_SYSTEM_PROMPT
 from ..session.manager import SessionManager
 from ..session.models import MessageRole
 from .client import KotonohaBot
