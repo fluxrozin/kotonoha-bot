@@ -35,8 +35,12 @@ class Config:
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 
     # セッション設定
-    MAX_SESSIONS: int = 100  # メモリ内の最大セッション数
-    SESSION_TIMEOUT_HOURS: int = 24  # セッションのタイムアウト（時間）
+    MAX_SESSIONS: int = int(
+        os.getenv("MAX_SESSIONS", "100")
+    )  # メモリ内の最大セッション数
+    SESSION_TIMEOUT_HOURS: int = int(
+        os.getenv("SESSION_TIMEOUT_HOURS", "24")
+    )  # セッションのタイムアウト（時間）
 
     # ヘルスチェック設定
     HEALTH_CHECK_ENABLED: bool = (
