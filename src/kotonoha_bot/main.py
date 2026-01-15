@@ -1,5 +1,6 @@
 """メインエントリーポイント"""
 
+import asyncio
 import logging
 import signal
 import sys
@@ -55,8 +56,8 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 
-def main():
-    """メイン関数"""
+async def async_main():
+    """非同期メイン関数"""
     # 設定の検証
     Config.validate()
 
@@ -70,7 +71,7 @@ def main():
     # イベントハンドラーのセットアップ
     handler = setup_handlers(bot)
 
-    # ヘルスチェックサーバーの起動
+    # ヘルスチェックサーバーの準備（まだ起動しない）
     health_server = HealthCheckServer()
 
     def get_health_status() -> dict:
@@ -83,25 +84,84 @@ def main():
         }
 
     health_server.set_status_callback(get_health_status)
-    health_server.start()
+
+    # シャットダウンフラグ
+    shutdown_event = asyncio.Event()
 
     # シグナルハンドラー（Ctrl+C対応）
     def signal_handler(_sig, _frame):
         logger.info("Shutting down...")
-        health_server.stop()
-        handler.session_manager.save_all_sessions()
-        sys.exit(0)
+        # イベントループにタスクをスケジュール
+        try:
+            loop = asyncio.get_running_loop()
+            loop.call_soon_threadsafe(shutdown_event.set)
+        except RuntimeError:
+            # イベントループが実行されていない場合
+            logger.warning("Event loop not running, forcing exit")
+            sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
     # Botの起動
     try:
-        bot.run(Config.DISCORD_TOKEN)
+        async with bot:
+            await bot.start(Config.DISCORD_TOKEN)
+            # Botの接続が確立されるまで待機
+            await bot.wait_until_ready()
+            # Botがreadyになったらヘルスチェックサーバーを起動
+            health_server.start()
+            # シャットダウンシグナルが来るまで待機
+            await shutdown_event.wait()
+            # シャットダウンイベントが来たら、graceful shutdownを実行
+            logger.info("Shutdown signal received, starting graceful shutdown...")
+            await shutdown_gracefully(bot, handler, health_server)
     except Exception as e:
         logger.exception(f"Fatal error: {e}")
+        # エラー時もgraceful shutdownを試みる
+        try:
+            await shutdown_gracefully(bot, handler, health_server)
+        except Exception as shutdown_error:
+            logger.exception(f"Error during shutdown: {shutdown_error}")
+        raise
+
+
+async def shutdown_gracefully(
+    bot: KotonohaBot, handler, health_server: HealthCheckServer
+):
+    """適切なシャットダウン処理"""
+    logger.info("Starting graceful shutdown...")
+
+    try:
+        # ヘルスチェックサーバーを停止
         health_server.stop()
+
+        # セッションを保存
         handler.session_manager.save_all_sessions()
+
+        # Botを切断
+        if not bot.is_closed():
+            await bot.close()
+
+        logger.info("Graceful shutdown completed")
+    except Exception as e:
+        logger.exception(f"Error during shutdown: {e}")
+    finally:
+        # ログハンドラーを閉じる
+        for handler_instance in logging.root.handlers[:]:
+            handler_instance.close()
+            logging.root.removeHandler(handler_instance)
+
+
+def main():
+    """メイン関数"""
+    try:
+        asyncio.run(async_main())
+    except KeyboardInterrupt:
+        logger.info("Interrupted by user")
+        sys.exit(0)
+    except Exception as e:
+        logger.exception(f"Fatal error: {e}")
         sys.exit(1)
 
 

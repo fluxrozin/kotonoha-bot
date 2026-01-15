@@ -15,8 +15,10 @@ def _load_prompt_from_markdown(filename: str) -> str:
     Returns:
         プロンプトテキスト（Markdownの見出しを除く）
     """
-    # このファイルと同じディレクトリのMarkdownファイルを読み込む
-    prompts_dir = Path(__file__).parent
+    # プロジェクトルートの prompts/ フォルダから読み込む
+    # このファイルから見て、プロジェクトルートは src/kotonoha_bot/ai/ の3階層上
+    project_root = Path(__file__).parent.parent.parent.parent
+    prompts_dir = project_root / "prompts"
     md_file = prompts_dir / filename
 
     if not md_file.exists():
@@ -40,4 +42,4 @@ def _load_prompt_from_markdown(filename: str) -> str:
 
 
 # デフォルトのシステムプロンプト（Markdownファイルから読み込む）
-DEFAULT_SYSTEM_PROMPT = _load_prompt_from_markdown("prompts.md")
+DEFAULT_SYSTEM_PROMPT = _load_prompt_from_markdown("system_prompt.md")

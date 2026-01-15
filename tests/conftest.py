@@ -1,12 +1,36 @@
 """pytest フィクスチャ"""
 
+import logging
+import os
 import tempfile
 from pathlib import Path
 
 import pytest
 
+# テスト環境ではログファイルを無効化（main.pyのインポート前に設定）
+if "LOG_FILE" not in os.environ:
+    os.environ["LOG_FILE"] = ""
+
 from kotonoha_bot.db.sqlite import SQLiteDatabase
 from kotonoha_bot.session.manager import SessionManager
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_environment():
+    """テスト環境のセットアップ（テストセッション開始時に実行）"""
+    # 既存のログハンドラーをクリーンアップ
+    for handler in logging.root.handlers[:]:
+        if hasattr(handler, "close"):
+            handler.close()
+        logging.root.removeHandler(handler)
+    
+    yield
+    
+    # テスト終了後にログハンドラーをクリーンアップ
+    for handler in logging.root.handlers[:]:
+        if hasattr(handler, "close"):
+            handler.close()
+        logging.root.removeHandler(handler)
 
 
 @pytest.fixture
@@ -37,3 +61,14 @@ def session_manager(temp_db_path):
     # セッション辞書をクリア（_load_active_sessions で読み込まれたセッションを削除）
     manager.sessions = {}
     return manager
+
+
+@pytest.fixture(autouse=True)
+def cleanup_log_handlers():
+    """テスト後にログハンドラーをクリーンアップ"""
+    yield
+    # テスト後にすべてのログハンドラーを閉じる
+    for handler in logging.root.handlers[:]:
+        if hasattr(handler, "close"):
+            handler.close()
+        logging.root.removeHandler(handler)

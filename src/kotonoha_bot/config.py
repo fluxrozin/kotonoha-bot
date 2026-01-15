@@ -5,8 +5,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# .envファイルの読み込み
-load_dotenv()
+# .envファイルの読み込み（既存の環境変数は上書きしない）
+load_dotenv(override=False)
 
 
 class Config:
@@ -54,6 +54,23 @@ class Config:
     LOG_FILE: str | None = os.getenv("LOG_FILE")
     LOG_MAX_SIZE: int = int(os.getenv("LOG_MAX_SIZE", "10"))  # MB
     LOG_BACKUP_COUNT: int = int(os.getenv("LOG_BACKUP_COUNT", "5"))
+
+    # 聞き耳型設定
+    EAVESDROP_ENABLED_CHANNELS: str = os.getenv(
+        "EAVESDROP_ENABLED_CHANNELS", ""
+    )  # カンマ区切りのチャンネルID
+    EAVESDROP_JUDGE_MODEL: str = os.getenv(
+        "EAVESDROP_JUDGE_MODEL", "anthropic/claude-haiku-4-5"
+    )  # 判定用モデル
+    EAVESDROP_BUFFER_SIZE: int = int(
+        os.getenv("EAVESDROP_BUFFER_SIZE", "20")
+    )  # バッファサイズ
+    EAVESDROP_MIN_MESSAGES: int = int(
+        os.getenv("EAVESDROP_MIN_MESSAGES", "3")
+    )  # 判定・応答生成に必要な最低メッセージ数（会話の流れを理解するため）
+    EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES: int = int(
+        os.getenv("EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES", "10")
+    )  # 介入の最小間隔（分）
 
     @classmethod
     def validate(cls, skip_in_test: bool = False) -> None:

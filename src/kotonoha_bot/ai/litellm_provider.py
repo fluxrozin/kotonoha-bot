@@ -73,7 +73,11 @@ class LiteLLMProvider(AIProvider):
                 logger.warning(f"Failed to refresh HTTP client: {e}")
 
     def generate_response(
-        self, messages: list[Message], system_prompt: str | None = None
+        self,
+        messages: list[Message],
+        system_prompt: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         """LiteLLM経由でLLM APIを呼び出して応答を生成
 
@@ -88,18 +92,26 @@ class LiteLLMProvider(AIProvider):
         # LiteLLM用のメッセージ形式に変換
         llm_messages = self._convert_messages(messages, system_prompt)
 
-        # フォールバック設定
-        fallbacks = [self.fallback_model] if self.fallback_model else None
+        # 使用するモデルを決定
+        use_model = model or self.model
+        # フォールバック設定（指定されたモデルがデフォルトモデルの場合のみ）
+        fallbacks = (
+            [self.fallback_model]
+            if self.fallback_model and use_model == self.model
+            else None
+        )
+        # 使用するmax_tokensを決定
+        use_max_tokens = max_tokens or Config.LLM_MAX_TOKENS
 
         last_exception = None
         for attempt in range(self.max_retries + 1):
             try:
                 # APIリクエスト
                 response = litellm.completion(
-                    model=self.model,
+                    model=use_model,
                     messages=llm_messages,
                     temperature=Config.LLM_TEMPERATURE,
-                    max_tokens=Config.LLM_MAX_TOKENS,
+                    max_tokens=use_max_tokens,
                     fallbacks=fallbacks,
                 )
 

@@ -80,11 +80,21 @@ kotonoha-bot/
 │   ├── ai/                # AI プロバイダー（LiteLLM）
 │   ├── session/           # セッション管理
 │   └── db/                # データベース（SQLite）
+├── prompts/               # プロンプトファイル（Markdown）
+│   ├── system_prompt.md                    # システムプロンプト
+│   ├── eavesdrop_judge_prompt.md           # 聞き耳型判定用プロンプト
+│   └── eavesdrop_response_prompt.md       # 聞き耳型応答生成用プロンプト
 ├── tests/                 # テスト
 ├── docs/                  # ドキュメント
 ├── data/                  # データベースファイル（自動生成）
 └── pyproject.toml         # プロジェクト設定
 ```
+
+### プロンプトファイルの管理
+
+プロンプトファイルは `prompts/` フォルダに集約されています。Docker を使用している場合、`docker-compose.yml` でマウントされているため、コンテナを再起動せずにプロンプトを編集できます。
+
+詳細は [プロンプト管理ガイド](./docs/development/prompt-management.md) を参照してください。
 
 ## ドキュメント
 

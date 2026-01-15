@@ -514,21 +514,21 @@ docker login ghcr.io
 - **自動作成**: `docker login` コマンドを実行すると自動的に作成されます（推奨）
 - **手動作成**: 以下の内容でファイルを作成することも可能ですが、通常は不要です
 
-   ```bash
-   # ディレクトリを作成（存在しない場合）
-   mkdir -p ~/.docker
-   
-   # ファイルを作成（通常は docker login で自動作成されるため、この方法は推奨されません）
-   cat > ~/.docker/config.json << EOF
-   {
-     "auths": {
-       "ghcr.io": {
-         "auth": "$(echo -n 'YOUR_GITHUB_USERNAME:YOUR_GITHUB_TOKEN' | base64)"
-       }
-     }
-   }
-   EOF
-   ```
+  ```bash
+  # ディレクトリを作成（存在しない場合）
+  mkdir -p ~/.docker
+
+  # ファイルを作成（通常は docker login で自動作成されるため、この方法は推奨されません）
+  cat > ~/.docker/config.json << EOF
+  {
+    "auths": {
+      "ghcr.io": {
+        "auth": "$(echo -n 'YOUR_GITHUB_USERNAME:YOUR_GITHUB_TOKEN' | base64)"
+      }
+    }
+  }
+  EOF
+  ```
 
 **解決方法**:
 
@@ -539,19 +539,19 @@ docker login ghcr.io
    ```bash
    # SSH で NAS にログイン
    ssh admin@nas-ip-address
-   
+
    # プロジェクトディレクトリに移動
    cd /volume1/docker/kotonoha-bot
-   
+
    # .env ファイルから環境変数を読み込む
    eval $(grep '^[A-Z_].*=' .env | sed 's/#.*$//' | sed 's/[[:space:]]*$//' | sed 's/^/export /')
-   
+
    # GHCR にログイン（認証情報が ~/.docker/config.json に自動的に保存される）
    echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
-   
+
    # ファイルが作成されたか確認
    cat ~/.docker/config.json
-   
+
    # ファイルの場所を確認
    ls -la ~/.docker/config.json
    ```
@@ -563,7 +563,7 @@ docker login ghcr.io
    ```yaml
    volumes:
      - /var/run/docker.sock:/var/run/docker.sock
-     - ~/.docker/config.json:/config.json:ro  # コメントアウトを解除
+     - ~/.docker/config.json:/config.json:ro # コメントアウトを解除
    ```
 
    詳細は [Phase 3 実装ガイド](../implementation/phases/phase3.md) の「4.3 GHCR 認証の設定」を参照してください。
@@ -620,7 +620,7 @@ watchtower exited with code 1 (restarting)
 
    ```yaml
    watchtower:
-     image: containrrr/watchtower:v1.5.3  # 古いバージョンを指定
+     image: containrrr/watchtower:v1.5.3 # 古いバージョンを指定
    ```
 
    **注意**: 古いバージョンはセキュリティ更新が提供されない可能性があります。
@@ -740,7 +740,7 @@ ERROR: Cannot fix permissions automatically (not running as root).
 2. **コンテナの再起動**
 
    ```bash
-   docker compose down
+   docker compose down --remove-orphans
    docker compose up -d
    ```
 

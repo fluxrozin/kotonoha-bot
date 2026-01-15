@@ -537,6 +537,10 @@ kotonoha-bot/
 │   ├── testing/                  # テスト
 │   ├── operations/               # 運用
 │   └── development/              # 開発者向け
+├── prompts/                      # プロンプトファイル（Markdown）
+│   ├── system_prompt.md                    # システムプロンプト
+│   ├── eavesdrop_judge_prompt.md           # 聞き耳型判定用プロンプト
+│   └── eavesdrop_response_prompt.md       # 聞き耳型応答生成用プロンプト
 ├── src/
 │   └── kotonoha_bot/
 │       ├── __init__.py
@@ -544,7 +548,8 @@ kotonoha-bot/
 │       ├── ai/
 │       │   ├── __init__.py
 │       │   ├── base.py           # 抽象化インターフェース
-│       │   └── litellm_provider.py  # LiteLLM統合実装
+│       │   ├── litellm_provider.py  # LiteLLM統合実装
+│       │   └── prompts.py        # プロンプト読み込みユーティリティ
 │       ├── database/
 │       │   ├── __init__.py
 │       │   └── sqlite.py         # SQLite管理

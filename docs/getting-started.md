@@ -80,6 +80,10 @@ kotonoha-bot/
 │   ├── testing/            # テスト計画
 │   ├── operations/         # 運用ガイド
 │   └── development/        # 開発者向け
+├── prompts/                # プロンプトファイル（Markdown）
+│   ├── system_prompt.md                    # システムプロンプト
+│   ├── eavesdrop_judge_prompt.md           # 聞き耳型判定用プロンプト
+│   └── eavesdrop_response_prompt.md       # 聞き耳型応答生成用プロンプト
 ├── src/kotonoha_bot/       # ソースコード
 │   ├── bot.py              # Botメイン
 │   ├── ai/                 # AI サービス

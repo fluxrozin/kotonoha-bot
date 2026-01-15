@@ -1324,7 +1324,7 @@ ERROR: Cannot fix permissions automatically (not running as root).
 2. **コンテナの再起動**
 
    ```bash
-   docker compose down
+   docker compose down --remove-orphans
    docker compose up -d
    ```
 
