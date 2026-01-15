@@ -1,5 +1,4 @@
 """メッセージ分割機能のテスト"""
-import pytest
 
 from kotonoha_bot.utils.message_splitter import (
     DISCORD_MESSAGE_MAX_LENGTH,
