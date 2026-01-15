@@ -1,9 +1,10 @@
 """メッセージルーターのテスト"""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
-from kotonoha_bot.router.message_router import MessageRouter, ConversationTrigger
+import pytest
+
+from kotonoha_bot.router.message_router import MessageRouter
 
 
 @pytest.fixture
@@ -59,7 +60,7 @@ async def test_route_mention_mention_mode(router, mock_message):
     result = await router.route(mock_message)
     # デフォルトでスレッド型が有効
     assert result == "thread"
-    
+
     # 特定のチャンネルでスレッド型を無効化する機能は、
     # thread_enabled_channels に明示的に追加する必要があるため、
     # デフォルトの動作（スレッド型有効）をテストする
@@ -69,18 +70,18 @@ async def test_route_mention_mention_mode(router, mock_message):
 async def test_route_thread_message(router, mock_message):
     """既存スレッド内のメッセージはスレッド型として処理される"""
     import discord
-    
+
     # discord.Threadのモックを作成（isinstanceチェックを通すため）
     thread = MagicMock()
     # isinstance(thread, discord.Thread) を True にするため、__class__ を設定
-    thread.__class__ = type('Thread', (discord.Thread,), {})
+    thread.__class__ = type("Thread", (discord.Thread,), {})
     thread.id = 444555666
     thread.parent_id = 111222333
     thread.owner_id = router.bot.user.id
     thread.owner = None
     mock_message.channel = thread
     router.register_bot_thread(thread.id)
-    
+
     result = await router.route(mock_message)
     # bot_threads に登録されているため thread を返す
     assert result == "thread"
@@ -115,7 +116,7 @@ async def test_enable_disable_thread_for_channel(router):
     channel_id = 111222333
     router.enable_thread_for_channel(channel_id)
     assert channel_id in router.thread_enabled_channels
-    
+
     router.disable_thread_for_channel(channel_id)
     assert channel_id not in router.thread_enabled_channels
 
@@ -126,6 +127,6 @@ async def test_enable_disable_eavesdrop_for_channel(router):
     channel_id = 111222333
     router.enable_eavesdrop_for_channel(channel_id)
     assert channel_id in router.eavesdrop_enabled_channels
-    
+
     router.disable_eavesdrop_for_channel(channel_id)
     assert channel_id not in router.eavesdrop_enabled_channels
