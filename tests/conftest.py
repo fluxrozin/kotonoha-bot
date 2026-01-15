@@ -23,9 +23,9 @@ def setup_test_environment():
         if hasattr(handler, "close"):
             handler.close()
         logging.root.removeHandler(handler)
-    
+
     yield
-    
+
     # テスト終了後にログハンドラーをクリーンアップ
     for handler in logging.root.handlers[:]:
         if hasattr(handler, "close"):
