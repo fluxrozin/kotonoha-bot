@@ -234,33 +234,52 @@ class MessageHandler:
         if len(thread_name) < 10:
             thread_name = "会話"
 
-        # スレッドを作成
-        try:
-            thread = await message.create_thread(
-                name=thread_name, auto_archive_duration=60
+        # 既存のスレッドがあるかチェック（race condition対策）
+        if message.thread:
+            logger.info(
+                f"Thread already exists for message {message.id}, using existing thread"
             )
-        except discord.errors.HTTPException as e:
-            if e.code == 160004:
-                # すでにスレッドが作成されている場合は既存のスレッドを使用
-                if message.thread:
-                    logger.info(
-                        f"Thread already exists for message {message.id}, using existing thread"
-                    )
-                    thread = message.thread
+            thread = message.thread
+        else:
+            # スレッドを作成
+            try:
+                thread = await message.create_thread(
+                    name=thread_name, auto_archive_duration=60
+                )
+            except discord.errors.Forbidden:
+                # スレッド作成権限がない場合はメンション応答型にフォールバック
+                logger.warning(
+                    f"No permission to create thread in channel {message.channel.id}, falling back to mention mode"
+                )
+                await self.handle_mention(message)
+                return
+            except discord.errors.HTTPException as e:
+                if e.code == 160004:
+                    # すでにスレッドが作成されている場合は既存のスレッドを使用
+                    # 少し待ってからmessage.threadを再取得
+                    await asyncio.sleep(0.5)
+                    # メッセージを再取得してスレッドを確認
+                    try:
+                        updated_message = await message.channel.fetch_message(
+                            message.id
+                        )
+                        if updated_message.thread:
+                            logger.info(
+                                f"Thread already exists for message {message.id}, using existing thread (after retry)"
+                            )
+                            thread = updated_message.thread
+                        else:
+                            logger.warning(
+                                f"Thread already exists but not accessible for message {message.id}"
+                            )
+                            return
+                    except Exception:
+                        logger.warning(
+                            f"Failed to fetch message {message.id} after thread creation error"
+                        )
+                        return
                 else:
-                    logger.warning(
-                        f"Thread already exists but not accessible for message {message.id}"
-                    )
-                    return
-            else:
-                raise
-        except discord.errors.Forbidden:
-            # スレッド作成権限がない場合はメンション応答型にフォールバック
-            logger.warning(
-                f"No permission to create thread in channel {message.channel.id}, falling back to mention mode"
-            )
-            await self.handle_mention(message)
-            return
+                    raise
 
         # スレッドを記録
         self.router.register_bot_thread(thread.id)
