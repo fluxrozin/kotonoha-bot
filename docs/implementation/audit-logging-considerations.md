@@ -2,12 +2,30 @@
 
 ## 概要
 
-Kotonoha Bot の監査ログ機能とトークン使用量の追跡機能についての検討ドキュメント。
+KOTONOHA Bot の監査ログ機能とトークン使用量の追跡機能についての検討ドキュメント。
 
 ## 目的
 
 1. **監査ログ**: すべてのやり取りを記録し、問題発生時の原因追跡や利用状況の把握を可能にする
 2. **トークン使用量追跡**: やり取りごと、月ごとのトークン使用量を記録し、コスト管理と利用状況の分析を可能にする
+
+## 現在の実装状況（2026 年 1 月）
+
+### 実装済み
+
+- **トークン使用量のログ出力**: `LiteLLMProvider.generate_response()`で、LiteLLM のレスポンスからトークン情報を取得し、ログに出力している
+  - 入力トークン数（`prompt_tokens`）
+  - 出力トークン数（`completion_tokens`）
+  - 使用モデル名（`response.model`）
+- **モデル情報の取得**: `get_last_used_model()`メソッドで最後に使用したモデル名を取得可能
+- **レート制限監視**: `get_rate_limit_usage()`メソッドでレート制限の使用率を取得可能
+
+### 未実装
+
+- **監査ログ機能**: データベースへの記録機能は未実装
+- **トークン情報の永続化**: トークン情報はログにのみ出力され、データベースには保存されていない
+- **コスト計算**: トークン数からコストを計算する機能は未実装
+- **月次集計**: 月ごとの使用量集計機能は未実装
 
 ---
 
@@ -171,6 +189,42 @@ CREATE INDEX idx_audit_logs_model_used ON audit_logs(model_used);
 
 LiteLLM のレスポンスには、使用トークン数が含まれています。
 
+**現在の実装**（`src/kotonoha_bot/ai/litellm_provider.py`）:
+
+```python
+async def generate_response(
+    self,
+    messages: list[Message],
+    system_prompt: str | None = None,
+    model: str | None = None,
+    max_tokens: int | None = None,
+) -> str:
+    """LiteLLM経由でLLM APIを呼び出して応答を生成
+
+    現在の実装では、トークン情報はログに出力されるが、
+    戻り値には含まれない（strのみ返す）。
+    """
+    response = litellm.completion(...)
+
+    # 使用トークン数をログに出力（195-208行目）
+    if hasattr(response, "usage"):
+        usage = response.usage
+        input_tokens = getattr(usage, "prompt_tokens", None) or getattr(
+            usage, "input_tokens", None
+        )
+        output_tokens = getattr(
+            usage, "completion_tokens", None
+        ) or getattr(usage, "output_tokens", None)
+        if input_tokens is not None or output_tokens is not None:
+            logger.info(
+                f"Token usage: input={input_tokens}, output={output_tokens}, "
+                f"max_tokens={Config.LLM_MAX_TOKENS}"
+            )
+
+    result = response.choices[0].message.content
+    return result  # 現在はstrのみ返す
+```
+
 **レスポンス構造**:
 
 ```python
@@ -179,12 +233,19 @@ response = litellm.completion(...)
 # response.usage.prompt_tokens  # 入力トークン数
 # response.usage.completion_tokens  # 出力トークン数
 # response.usage.total_tokens  # 合計トークン数
+# response.model  # 実際に使用されたモデル名（フォールバック時も含む）
 ```
 
-**実装例**:
+**将来の実装案**（監査ログ機能実装時）:
 
 ```python
-def generate_response(self, messages: List[Message], system_prompt: str | None = None) -> tuple[str, dict]:
+async def generate_response(
+    self,
+    messages: list[Message],
+    system_prompt: str | None = None,
+    model: str | None = None,
+    max_tokens: int | None = None,
+) -> tuple[str, dict]:
     """応答を生成し、トークン使用量も返す"""
     import time
     start_time = time.time()
@@ -213,24 +274,32 @@ def generate_response(self, messages: List[Message], system_prompt: str | None =
 
 **価格表（2026 年 1 月現在）**:
 
-| モデル                              | 入力コスト           | 出力コスト           |
-| ----------------------------------- | -------------------- | -------------------- |
-| `anthropic/claude-3-haiku-20240307` | $0.25/100 万トークン | $1.25/100 万トークン |
-| `anthropic/claude-haiku-4.5`        | $1/100 万トークン    | $5/100 万トークン    |
-| `anthropic/claude-sonnet-4.5`       | $3/100 万トークン    | $15/100 万トークン   |
-| `anthropic/claude-opus-4.5`         | $5/100 万トークン    | $25/100 万トークン   |
-| `anthropic/claude-3-haiku-20240307` | $0.25/100 万トークン | $1.25/100 万トークン |
+| モデル                              | 入力コスト           | 出力コスト            | 備考                           |
+| ----------------------------------- | -------------------- | --------------------- | ------------------------------ |
+| `anthropic/claude-3-haiku-20240307` | $0.25/100 万トークン | $1.25/100 万トークン  | レガシーモデル（開発用）       |
+| `anthropic/claude-haiku-4.5`        | $1.00/100 万トークン | $5.00/100 万トークン  | 聞き耳型判定用デフォルトモデル |
+| `anthropic/claude-sonnet-4.5`       | $3.00/100 万トークン | $15.00/100 万トークン | デフォルトモデル（バランス型） |
+| `anthropic/claude-opus-4.5`         | $5.00/100 万トークン | $25.00/100 万トークン | 本番環境推奨（最高品質）       |
 
-**コスト計算関数**:
+**コスト計算関数**（実装案）:
 
 ```python
 def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
-    """トークン数からコストを計算（USD）"""
+    """トークン数からコストを計算（USD）
+
+    Args:
+        model: 使用したモデル名（例: "anthropic/claude-sonnet-4-5"）
+        input_tokens: 入力トークン数
+        output_tokens: 出力トークン数
+
+    Returns:
+        推定コスト（USD、小数点以下6桁まで）
+    """
     pricing = {
         "anthropic/claude-3-haiku-20240307": (0.25 / 1_000_000, 1.25 / 1_000_000),
-        "anthropic/claude-sonnet-4.5": (3.0 / 1_000_000, 15.0 / 1_000_000),
-        "anthropic/claude-opus-4.5": (5.0 / 1_000_000, 25.0 / 1_000_000),
-        "anthropic/claude-3-haiku-20240307": (0.25 / 1_000_000, 1.25 / 1_000_000),
+        "anthropic/claude-haiku-4-5": (1.00 / 1_000_000, 5.00 / 1_000_000),
+        "anthropic/claude-sonnet-4-5": (3.00 / 1_000_000, 15.00 / 1_000_000),
+        "anthropic/claude-opus-4-5": (5.00 / 1_000_000, 25.00 / 1_000_000),
     }
 
     input_price, output_price = pricing.get(model, (0, 0))
@@ -287,22 +356,24 @@ CREATE INDEX idx_monthly_usage_year_month ON monthly_usage(year, month);
 
 ### 3.1 アーキテクチャ
 
-```txt
-┌─────────────────┐
-│  LiteLLMProvider│
-│  (generate_     │
-│   response)     │
-└────────┬────────┘
-         │
-         │ トークン情報を返す
-         ▼
-┌─────────────────┐
-│  AuditLogger    │
-│  (log_interaction)│
-└────────┬────────┘
-         │
-         ├─→ SQLite (audit_logs)
-         └─→ 月次集計更新
+```mermaid
+graph TB
+    subgraph "AI Provider Layer"
+        LLM[LiteLLMProvider<br/>generate_response]
+    end
+
+    subgraph "Audit Layer"
+        AL[AuditLogger<br/>log_interaction]
+    end
+
+    subgraph "Data Layer"
+        DB[(SQLite<br/>audit_logs)]
+        MU[Monthly Usage<br/>Aggregation]
+    end
+
+    LLM -->|Token Info| AL
+    AL --> DB
+    AL --> MU
 ```
 
 ### 3.2 実装ステップ
@@ -336,25 +407,96 @@ class AuditLogger:
 
 #### Step 2: LiteLLMProvider の拡張
 
+**現在の実装**:
+
+- `generate_response()`は`str`のみ返す
+- トークン情報はログに出力されるが、戻り値には含まれない
+
+**実装案**:
+
 ```python
 # src/kotonoha_bot/ai/litellm_provider.py
-def generate_response(...) -> tuple[str, dict]:
-    """応答とトークン情報を返す"""
+async def generate_response(
+    self,
+    messages: list[Message],
+    system_prompt: str | None = None,
+    model: str | None = None,
+    max_tokens: int | None = None,
+) -> tuple[str, dict]:
+    """応答とトークン情報を返す
+
+    Returns:
+        tuple[str, dict]: (応答テキスト, トークン情報)
+        トークン情報の形式:
+        {
+            "input_tokens": int,
+            "output_tokens": int,
+            "total_tokens": int,
+            "model_used": str,
+            "latency_ms": int,
+        }
+    """
     # 既存の実装を拡張
     # トークン情報を返すように変更
+    # 既存のログ出力は維持
 ```
 
 #### Step 3: MessageHandler での統合
 
+**現在の実装**:
+
+- `MessageHandler`では`generate_response()`の戻り値（`str`）のみを使用
+- トークン情報は取得していない
+
+**実装案**:
+
 ```python
 # src/kotonoha_bot/bot/handlers.py
-response_text, token_info = self.ai_provider.generate_response(...)
-self.audit_logger.log_interaction(...)
+# 現在（194行目付近）:
+response_text = await self.ai_provider.generate_response(
+    messages=session.get_conversation_history(),
+    system_prompt=system_prompt,
+)
+
+# 将来の実装案:
+response_text, token_info = await self.ai_provider.generate_response(
+    messages=session.get_conversation_history(),
+    system_prompt=system_prompt,
+)
+# 監査ログに記録
+self.audit_logger.log_interaction(
+    session_key=session_key,
+    event_type="mention",  # または "thread", "eavesdrop"
+    user_id=message.author.id,
+    channel_id=message.channel.id,
+    user_message=user_message,
+    bot_response=response_text,
+    token_info=token_info,
+    model_used=token_info["model_used"],
+)
 ```
 
 ### 3.3 データベーススキーマの追加
 
-既存の `sessions.db` に `audit_logs` テーブルと `monthly_usage` テーブルを追加。
+**現在のデータベーススキーマ**（`src/kotonoha_bot/db/sqlite.py`）:
+
+```sql
+-- 現在実装されているテーブル
+CREATE TABLE IF NOT EXISTS sessions (
+    session_key TEXT PRIMARY KEY,
+    session_type TEXT NOT NULL,
+    messages TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    last_active_at TEXT NOT NULL,
+    channel_id INTEGER,
+    thread_id INTEGER,
+    user_id INTEGER
+);
+```
+
+**追加が必要なテーブル**:
+
+既存の `sessions.db` に `audit_logs` テーブルと `monthly_usage` テーブルを追加する必要があります。
 
 ---
 
@@ -459,39 +601,64 @@ class AsyncAuditLogger:
 
 ### LiteLLM の使用量情報
 
+**現在の実装での取得方法**（`src/kotonoha_bot/ai/litellm_provider.py` 195-208 行目）:
+
 ```python
 import litellm
 
 response = litellm.completion(
-    model="anthropic/claude-3-haiku-20240307",
+    model="anthropic/claude-sonnet-4-5",  # デフォルトモデル
     messages=[...],
 )
 
-# 使用量情報
-print(response.usage.prompt_tokens)      # 入力トークン数
-print(response.usage.completion_tokens)  # 出力トークン数
-print(response.usage.total_tokens)       # 合計トークン数
-print(response.model)                    # 実際に使用されたモデル
+# 使用量情報の取得
+if hasattr(response, "usage"):
+    usage = response.usage
+    input_tokens = getattr(usage, "prompt_tokens", None) or getattr(
+        usage, "input_tokens", None
+    )
+    output_tokens = getattr(
+        usage, "completion_tokens", None
+    ) or getattr(usage, "output_tokens", None)
+
+    # ログに出力（現在の実装）
+    logger.info(
+        f"Token usage: input={input_tokens}, output={output_tokens}, "
+        f"max_tokens={Config.LLM_MAX_TOKENS}"
+    )
+
+# 実際に使用されたモデル（フォールバック時も含む）
+model_used = response.model
 ```
 
 ### コスト計算の実装例
 
 ```python
 def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
-    """トークン数からコストを計算"""
+    """トークン数からコストを計算（USD）
+
+    Args:
+        model: 使用したモデル名（例: "anthropic/claude-sonnet-4-5"）
+        input_tokens: 入力トークン数
+        output_tokens: 出力トークン数
+
+    Returns:
+        推定コスト（USD、小数点以下6桁まで）
+    """
     # モデル名からプロバイダーとモデルを抽出
     if model.startswith("anthropic/"):
-        model_name = model.replace("anthropic/", "")
+        # 完全なモデル名で検索（ハイフンとアンダースコアの違いに注意）
         pricing = {
-            "claude-3-haiku-20240307": (0.25 / 1_000_000, 1.25 / 1_000_000),
-            "claude-sonnet-4.5": (3.0 / 1_000_000, 15.0 / 1_000_000),
-            "claude-opus-4.5": (5.0 / 1_000_000, 25.0 / 1_000_000),
-            "claude-3-haiku-20240307": (0.25 / 1_000_000, 1.25 / 1_000_000),
+            "anthropic/claude-3-haiku-20240307": (0.25 / 1_000_000, 1.25 / 1_000_000),
+            "anthropic/claude-haiku-4-5": (1.00 / 1_000_000, 5.00 / 1_000_000),
+            "anthropic/claude-sonnet-4-5": (3.00 / 1_000_000, 15.00 / 1_000_000),
+            "anthropic/claude-opus-4-5": (5.00 / 1_000_000, 25.00 / 1_000_000),
         }
 
-        if model_name in pricing:
-            input_price, output_price = pricing[model_name]
-            return round((input_tokens * input_price) + (output_tokens * output_price), 6)
+        if model in pricing:
+            input_price, output_price = pricing[model]
+            cost = (input_tokens * input_price) + (output_tokens * output_price)
+            return round(cost, 6)
 
     return 0.0
 ```
@@ -508,6 +675,31 @@ def calculate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
 
 ---
 
+## 10. 実装時の注意事項
+
+### 10.1 既存実装への影響
+
+- **`LiteLLMProvider.generate_response()`の戻り値変更**: 現在は`str`のみ返すが、`tuple[str, dict]`に変更する必要がある
+- **`MessageHandler`の修正**: すべての`generate_response()`呼び出し箇所を修正する必要がある
+  - `handle_mention()`（194 行目）
+  - `_create_thread_and_respond()`（453 行目）
+  - `_process_thread_message()`（553 行目）
+  - `LLMJudge.generate_response()`（聞き耳型判定・応答生成）
+
+### 10.2 パフォーマンスへの配慮
+
+- **非同期処理**: ログ記録は非同期で実行し、応答速度への影響を最小化
+- **バッチ処理**: 複数のログをまとめて書き込む
+- **データベース接続**: 既存の`SQLiteDatabase`クラスを活用
+
+### 10.3 既存のログ出力との関係
+
+- 現在、トークン情報は`LiteLLMProvider`でログに出力されている
+- 監査ログ機能実装後も、既存のログ出力は維持することを推奨（デバッグ用）
+
+---
+
 **作成日**: 2026 年 1 月
-**ステータス**: 要検討
+**最終更新**: 2026 年 1 月（現在の実装状況を反映）
+**ステータス**: 要検討・未実装
 **優先度**: 中〜高（コスト管理の観点から重要）

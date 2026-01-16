@@ -2,26 +2,52 @@
 
 ## 1. モジュール仕様書
 
-### 1.1 `bot.py` - Discord Bot コア
+### 1.1 `bot/client.py` - Discord Bot クライアント
 
-**責務**: Discord Bot のメイン処理、イベントハンドリング
+**責務**: Discord Bot のクライアント実装
 
 **主要クラス**:
 
-- `KotonohaBot`: Discord Bot のメインクラス
+- `KotonohaBot`: Discord Bot のメインクラス（`commands.Bot` を継承）
 
 **主要メソッド**:
 
 - `on_ready()`: Bot 起動時の処理
-- `on_message(message)`: メッセージ受信時の処理
-- `on_thread_create(thread)`: スレッド作成時の処理
-- `on_thread_update(before, after)`: スレッド更新時の処理
+- `on_error(event_method, ...)`: エラーハンドリング
+
+**依存関係**:
+
+- `discord.ext.commands`
+- `config`
+
+---
+
+### 1.1.1 `bot/handlers.py` - メッセージハンドラー
+
+**責務**: Discord イベントのハンドリング、メッセージ処理
+
+**主要クラス**:
+
+- `MessageHandler`: メッセージハンドラー
+
+**主要メソッド**:
+
+- `handle_mention(message)`: メンション応答型の処理
+- `handle_thread(message)`: スレッド型の処理
+- `handle_eavesdrop(message)`: 聞き耳型の処理
+- `_process_mention(message)`: メンション処理の実装
+- `_process_thread_creation(message)`: スレッド作成処理
+- `_process_thread_message(message)`: スレッド内メッセージ処理
+- `_process_eavesdrop(message)`: 聞き耳型処理の実装
 
 **依存関係**:
 
 - `router.message_router`
 - `session.manager`
-- `ai.base`
+- `ai.litellm_provider`
+- `eavesdrop.llm_judge`
+- `eavesdrop.conversation_buffer`
+- `rate_limit.request_queue`
 
 ---
 
@@ -35,18 +61,19 @@
 
 **主要メソッド**:
 
-- `route_message(message)`: メッセージをルーティング
-- `detect_trigger_type(message)`: 会話の契機を判定
-- `handle_mention(message)`: メンション応答型の処理
-- `handle_thread(message)`: スレッド型の処理
-- `handle_eavesdrop(message)`: 聞き耳型の処理
+- `route(message)`: メッセージをルーティングし、会話の契機を判定
+- `_should_create_thread(message)`: スレッド型を有効にするか判定
+- `_is_bot_thread(thread)`: Bot によって作成されたスレッドか判定
+- `_should_eavesdrop(message)`: 聞き耳型を有効にするか判定
+- `register_bot_thread(thread_id)`: Bot が作成したスレッドを記録
+- `enable_thread_for_channel(channel_id)`: チャンネルでスレッド型を有効化
+- `disable_thread_for_channel(channel_id)`: チャンネルでスレッド型を無効化
+- `enable_eavesdrop_for_channel(channel_id)`: チャンネルで聞き耳型を有効化
+- `disable_eavesdrop_for_channel(channel_id)`: チャンネルで聞き耳型を無効化
 
 **依存関係**:
 
-- `session.manager`
-- `ai.base`
-- `eavesdrop.llm_judge`
-- `eavesdrop.rule_judge`
+- `discord`
 
 ---
 
@@ -60,17 +87,18 @@
 
 **主要メソッド**:
 
-- `get_session(session_key)`: セッションを取得
+- `get_session(session_key)`: セッションを取得（メモリから、または SQLite から復元）
 - `create_session(session_key, session_type, **kwargs)`: セッションを作成
-- `update_session(session_key, message)`: セッションを更新
-- `save_session(session_key)`: セッションを保存
-- `delete_session(session_key)`: セッションを削除
-- `cleanup_idle_sessions()`: 非アクティブセッションをクリーンアップ
+- `add_message(session_key, role, content)`: セッションにメッセージを追加
+- `save_session(session_key)`: セッションを SQLite に保存
+- `save_all_sessions()`: 全セッションを SQLite に保存
+- `cleanup_old_sessions()`: 古いセッションをメモリから削除
+- `_load_active_sessions()`: アクティブなセッションを SQLite から読み込み
 
 **依存関係**:
 
 - `session.chat_session`
-- `database.sqlite`
+- `db.sqlite`
 
 ---
 
@@ -84,10 +112,8 @@
 
 **主要メソッド**:
 
-- `add_message(role, content, message_id)`: メッセージを追加
-- `get_messages(limit)`: メッセージ履歴を取得
-- `clear_messages()`: メッセージ履歴をクリア
-- `update_activity()`: アクティビティを更新
+- `add_message(role, content)`: メッセージを追加（`last_active_at` も自動更新）
+- `get_conversation_history(limit)`: 会話履歴を取得
 - `to_dict()`: 辞書形式に変換
 - `from_dict(data)`: 辞書から復元
 
@@ -95,7 +121,7 @@
 
 ---
 
-### 1.5 `ai/base.py` - AI プロバイダー抽象クラス
+### 1.5 `ai/provider.py` - AI プロバイダー抽象クラス
 
 **責務**: AI プロバイダーの抽象化インターフェース
 
@@ -105,8 +131,7 @@
 
 **主要メソッド（抽象）**:
 
-- `generate_response(messages, system_prompt)`: 応答を生成
-- `judge_should_respond(messages)`: 発言すべきか判定
+- `generate_response(messages, system_prompt, model, max_tokens)`: 応答を生成
 
 **依存関係**: なし
 
@@ -122,11 +147,9 @@
 
 **主要メソッド**:
 
-- `generate_response(messages, system_prompt)`: 応答を生成
-- `judge_should_respond(messages)`: 発言すべきか判定
-- `_call_api(messages, **kwargs)`: LiteLLM 経由で API を呼び出し
-- `_parse_response(response)`: レスポンスをパース
-- `_handle_fallback(error)`: フォールバック処理
+- `generate_response(messages, system_prompt, model, max_tokens)`: 応答を生成
+- `get_last_used_model()`: 最後に使用したモデル名を取得
+- `get_rate_limit_usage()`: レート制限使用率を取得
 
 **対応プロバイダー**:
 
@@ -136,8 +159,10 @@
 
 **依存関係**:
 
-- `ai.base`
+- `ai.provider`
 - `litellm`
+- `rate_limit.monitor`
+- `rate_limit.token_bucket`
 
 ---
 
@@ -157,30 +182,31 @@
 
 **依存関係**:
 
-- `ai.base`
+- `ai.litellm_provider`
+- `session.manager`
+- `eavesdrop.conversation_buffer`
 
 ---
 
-### 1.8 `eavesdrop/rule_judge.py` - ルールベース判断機能
+### 1.8 `eavesdrop/conversation_buffer.py` - 会話バッファ管理
 
-**責務**: 聞き耳型のルールベース判断（アプローチ 2）
+**責務**: 聞き耳型の会話バッファ管理
 
 **主要クラス**:
 
-- `RuleJudge`: ルールベース判断クラス
+- `ConversationBuffer`: 会話バッファクラス
 
 **主要メソッド**:
 
-- `should_respond(message, context)`: 発言すべきか判定
-- `_check_keywords(message)`: キーワードをチェック
-- `_check_activity(context)`: 盛り上がりをチェック
-- `_random_check()`: ランダム判定
+- `add_message(channel_id, message)`: メッセージをバッファに追加
+- `get_recent_messages(channel_id, limit)`: 直近のメッセージを取得
+- `clear(channel_id)`: チャンネルのバッファをクリア
 
 **依存関係**: なし
 
 ---
 
-### 1.9 `database/sqlite.py` - SQLite 操作
+### 1.9 `db/sqlite.py` - SQLite 操作
 
 **責務**: SQLite データベースの操作
 
@@ -190,15 +216,16 @@
 
 **主要メソッド**:
 
-- `get_session(session_key)`: セッションを取得
-- `save_session(session_data)`: セッションを保存
-- `get_messages(session_key, limit)`: メッセージを取得
-- `add_message(session_key, message_data)`: メッセージを追加
+- `save_session(session)`: セッションを保存（メッセージ履歴も JSON 形式で保存）
+- `load_session(session_key)`: セッションを読み込み
+- `load_all_sessions()`: 全セッションを読み込み
 - `delete_session(session_key)`: セッションを削除
+- `_get_connection()`: データベース接続を取得（WAL モード有効化）
 
 **依存関係**:
 
-- `aiosqlite`
+- `sqlite3`
+- `session.models`
 
 ---
 
@@ -212,14 +239,50 @@
 
 **主要メソッド**:
 
-- `chat_start(interaction, topic)`: `/chat start` コマンド
-- `chat_reset(interaction)`: `/chat reset` コマンド
-- `chat_status(interaction)`: `/chat status` コマンド
+- `chat_reset(interaction)`: `/chat reset` コマンド（会話履歴をリセット）
+- `chat_status(interaction)`: `/chat status` コマンド（セッション状態を表示）
 
 **依存関係**:
 
-- `session.manager`
+- `bot.handlers`
 - `discord.app_commands`
+
+---
+
+### 1.11 `rate_limit/request_queue.py` - リクエストキュー管理
+
+**責務**: リクエストの優先度管理とキューイング
+
+**主要クラス**:
+
+- `RequestQueue`: リクエストキュー管理クラス
+- `RequestPriority`: 優先度の列挙型（`EAVESDROP`, `MENTION`, `THREAD`）
+
+**主要メソッド**:
+
+- `enqueue(priority, func, *args, **kwargs)`: リクエストをキューに追加
+- `start()`: キュー処理を開始
+- `stop()`: キュー処理を停止
+
+**依存関係**: なし
+
+---
+
+### 1.12 `rate_limit/monitor.py` - レート制限監視
+
+**責務**: レート制限の監視と警告
+
+**主要クラス**:
+
+- `RateLimitMonitor`: レート制限監視クラス
+
+**主要メソッド**:
+
+- `record_request(provider)`: リクエストを記録
+- `check_warning(provider)`: 警告閾値をチェック
+- `set_rate_limit(provider, limit, window_seconds)`: レート制限を設定
+
+**依存関係**: なし
 
 ---
 
@@ -279,7 +342,7 @@
 
 ### 2.2 AI 関数
 
-#### 2.2.1 `generate_response(messages: List[Message], system_prompt: str = None) -> str`
+#### 2.2.1 `generate_response()`
 
 **説明**: AI で応答を生成します。
 
@@ -306,22 +369,23 @@
 
 ---
 
-#### 2.2.2 `judge_should_respond(messages: List[Message]) -> bool`
+#### 2.2.2 `generate_response()` (LLMJudge)
 
-**説明**: 聞き耳型で発言すべきか判定します。
+**説明**: 聞き耳型で応答を生成します（`LLMJudge` クラス）。
 
 **パラメータ**:
 
-- `messages` (List[Message]): 会話履歴（直近 10 件）
+- `channel_id` (int): チャンネル ID
+- `recent_messages` (List[Message]): 直近のメッセージ
 
-**戻り値**: `True`（発言すべき）または `False`（発言しない）
+**戻り値**: 生成された応答テキスト、または `None`（発言しない場合）
 
 **処理フロー**:
 
-1. 判定用プロンプトを作成
-2. Gemini Flash で API を呼び出し
-3. レスポンスをパース（YES/NO）
-4. ブール値を返す
+1. 会話の流れを分析
+2. 発言すべきか判定
+3. 発言すべき場合、応答を生成
+4. 応答テキストを返す
 
 **例外**:
 
@@ -332,21 +396,22 @@
 
 ### 2.3 データベース関数
 
-#### 2.3.1 `get_session(session_key: str) -> dict | None`
+#### 2.3.1 `load_session(session_key: str) -> ChatSession | None`
 
-**説明**: SQLite からセッションを取得します。
+**説明**: SQLite からセッションを読み込みます。
 
 **パラメータ**:
 
 - `session_key` (str): セッションキー
 
-**戻り値**: セッションデータ（辞書形式）、または `None`
+**戻り値**: `ChatSession` オブジェクト、または `None`
 
 **処理フロー**:
 
 1. SQL クエリを実行
-2. 結果を辞書に変換
-3. セッションデータを返す
+2. メッセージ履歴を JSON から復元
+3. `ChatSession` オブジェクトを作成
+4. セッションを返す
 
 **例外**:
 
@@ -354,19 +419,19 @@
 
 ---
 
-#### 2.3.2 `save_session(session_data: dict) -> None`
+#### 2.3.2 `save_session(session: ChatSession) -> None`
 
-**説明**: セッションを SQLite に保存します。
+**説明**: セッションを SQLite に保存します（メッセージ履歴も JSON 形式で保存）。
 
 **パラメータ**:
 
-- `session_data` (dict): セッションデータ
+- `session` (ChatSession): セッションオブジェクト
 
 **処理フロー**:
 
-1. セッションデータを検証
-2. INSERT または UPDATE を実行
-3. メッセージ履歴も保存
+1. メッセージ履歴を JSON 形式に変換
+2. INSERT OR REPLACE を実行
+3. セッションデータとメッセージ履歴を保存
 
 **例外**:
 
@@ -380,79 +445,29 @@
 
 **テーブル名**: `sessions`
 
-**説明**: 会話セッションの情報を管理します。
+**説明**: 会話セッションの情報とメッセージ履歴を管理します。メッセージは JSON 形式で `messages` カラムに保存されます。
 
-| カラム名        | データ型  | NULL     | デフォルト        | 説明                          |
-| --------------- | --------- | -------- | ----------------- | ----------------------------- |
-| `session_key`   | TEXT      | NOT NULL | -                 | セッションキー（PRIMARY KEY） |
-| `session_type`  | TEXT      | NOT NULL | -                 | セッションタイプ              |
-| `channel_id`    | INTEGER   | NULL     | -                 | Discord チャンネル ID         |
-| `thread_id`     | INTEGER   | NULL     | -                 | Discord スレッド ID           |
-| `user_id`       | INTEGER   | NULL     | -                 | Discord ユーザー ID           |
-| `created_at`    | TIMESTAMP | NOT NULL | CURRENT_TIMESTAMP | 作成日時                      |
-| `updated_at`    | TIMESTAMP | NOT NULL | CURRENT_TIMESTAMP | 更新日時                      |
-| `last_activity` | TIMESTAMP | NOT NULL | CURRENT_TIMESTAMP | 最後のアクティビティ日時      |
-| `is_archived`   | BOOLEAN   | NOT NULL | 0                 | アーカイブ済みフラグ          |
+| カラム名         | データ型 | NULL     | デフォルト | 説明                                                 |
+| ---------------- | -------- | -------- | ---------- | ---------------------------------------------------- |
+| `session_key`    | TEXT     | NOT NULL | -          | セッションキー（PRIMARY KEY）                        |
+| `session_type`   | TEXT     | NOT NULL | -          | セッションタイプ（`mention`, `thread`, `eavesdrop`） |
+| `messages`       | TEXT     | NOT NULL | -          | メッセージ履歴（JSON 形式）                          |
+| `created_at`     | TEXT     | NOT NULL | -          | セッション作成日時（ISO 形式）                       |
+| `last_active_at` | TEXT     | NOT NULL | -          | 最後のアクティビティ日時（ISO 形式）                 |
+| `channel_id`     | INTEGER  | NULL     | -          | Discord チャンネル ID                                |
+| `thread_id`      | INTEGER  | NULL     | -          | Discord スレッド ID（スレッド型の場合）              |
+| `user_id`        | INTEGER  | NULL     | -          | Discord ユーザー ID                                  |
 
 **制約**:
 
 - PRIMARY KEY: `session_key`
-- CHECK: `session_type IN ('mention', 'thread', 'eavesdrop')`
-- CHECK: `is_archived IN (0, 1)`
 
 **インデックス**:
 
-- `idx_sessions_type`: `session_type`
-- `idx_sessions_user_id`: `user_id`
-- `idx_sessions_last_activity`: `last_activity`
-- `idx_sessions_thread_id`: `thread_id` (WHERE thread_id IS NOT NULL)
+- `idx_last_active_at`: `last_active_at`
+- `idx_session_type`: `session_type`
 
----
-
-### 3.2 messages テーブル
-
-**テーブル名**: `messages`
-
-**説明**: 会話履歴（メッセージ）を管理します。
-
-| カラム名      | データ型  | NULL     | デフォルト        | 説明                                        |
-| ------------- | --------- | -------- | ----------------- | ------------------------------------------- |
-| `id`          | INTEGER   | NOT NULL | -                 | メッセージ ID（PRIMARY KEY, AUTOINCREMENT） |
-| `session_key` | TEXT      | NOT NULL | -                 | セッションキー（FOREIGN KEY）               |
-| `role`        | TEXT      | NOT NULL | -                 | ロール                                      |
-| `content`     | TEXT      | NOT NULL | -                 | メッセージ内容                              |
-| `message_id`  | INTEGER   | NULL     | -                 | Discord メッセージ ID                       |
-| `timestamp`   | TIMESTAMP | NOT NULL | CURRENT_TIMESTAMP | 送信日時                                    |
-
-**制約**:
-
-- PRIMARY KEY: `id`
-- FOREIGN KEY: `session_key` REFERENCES `sessions(session_key)` ON DELETE CASCADE
-- CHECK: `role IN ('user', 'assistant', 'system')`
-
-**インデックス**:
-
-- `idx_messages_session_key`: `session_key`
-- `idx_messages_timestamp`: `timestamp`
-- `idx_messages_message_id`: `message_id` (WHERE message_id IS NOT NULL)
-
----
-
-### 3.3 settings テーブル
-
-**テーブル名**: `settings`
-
-**説明**: システム設定を管理します（将来の拡張用）。
-
-| カラム名     | データ型  | NULL     | デフォルト        | 説明                    |
-| ------------ | --------- | -------- | ----------------- | ----------------------- |
-| `key`        | TEXT      | NOT NULL | -                 | 設定キー（PRIMARY KEY） |
-| `value`      | TEXT      | NOT NULL | -                 | 設定値                  |
-| `updated_at` | TIMESTAMP | NOT NULL | CURRENT_TIMESTAMP | 更新日時                |
-
-**制約**:
-
-- PRIMARY KEY: `key`
+**注**: 現在の実装では、メッセージは別テーブルではなく、`sessions` テーブルの `messages` カラムに JSON 形式で保存されます。
 
 ---
 
@@ -460,33 +475,62 @@
 
 ### 4.1 メッセージ処理フロー
 
+#### 4.1.1 ルーティング段階
+
 ```mermaid
 sequenceDiagram
-    participant M as Message
+    participant U as User
+    participant B as Bot
+    participant H as MessageHandler
     participant R as Router
-    participant S as SessionManager
-    participant C as ChatSession
-    participant A as AIService
-    participant D as Database
 
-    M->>R: メッセージ受信
-    R->>R: 会話の契機判定
-    R->>S: get_session()
-    S->>C: メモリから取得
-    alt メモリにない
-        S->>D: get_session()
-        D-->>S: セッションデータ
-        S->>C: 復元
+    U->>B: Send Message
+    B->>H: on_message()
+    H->>R: route(message)
+    R->>R: Check mentions
+    R->>R: Check thread
+    R->>R: Check eavesdrop
+    R-->>H: trigger type
+    alt mention
+        H->>H: handle_mention()
+    else thread
+        H->>H: handle_thread()
+    else eavesdrop
+        H->>H: handle_eavesdrop()
     end
-    S-->>R: ChatSession
-    R->>C: get_messages()
-    C-->>R: 会話履歴
-    R->>A: generate_response()
-    A-->>R: AI応答
-    R->>C: add_message()
-    R->>S: update_session()
-    S->>D: save_session() (非同期)
-    R->>M: 応答送信
+    H->>H: enqueue to RequestQueue
+```
+
+#### 4.1.2 処理段階
+
+```mermaid
+sequenceDiagram
+    participant Q as RequestQueue
+    participant H as MessageHandler
+    participant S as SessionManager
+    participant D as Database
+    participant A as AIService
+    participant B as Bot
+    participant U as User
+
+    Q->>H: Process request
+    H->>S: get_session()
+    alt In memory
+        S-->>H: ChatSession
+    else Not in memory
+        S->>D: load_session()
+        D-->>S: Session data
+        S->>S: Restore to memory
+        S-->>H: ChatSession
+    end
+    H->>H: get_conversation_history()
+    H->>A: generate_response()
+    A-->>H: AI Response
+    H->>H: add_message()
+    H->>S: save_session()
+    S->>D: save_session()
+    H->>B: Send response
+    B->>U: Response message
 ```
 
 ---

@@ -8,23 +8,35 @@
 # provider.py - 抽象クラス（約束事）
 class AIProvider(ABC):
     @abstractmethod
-    def generate_response(self, messages, system_prompt=None) -> str:
+    async def generate_response(
+        self,
+        messages: list[Message],
+        system_prompt: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
         pass
 
 # litellm_provider.py - 実装
 class LiteLLMProvider(AIProvider):  # 約束事を守る
-    def generate_response(self, messages, system_prompt=None) -> str:
+    async def generate_response(
+        self,
+        messages: list[Message],
+        system_prompt: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
         # 実装...
         return response
 
 # handlers.py - 使用
 class MessageHandler:
     def __init__(self, bot):
-        self.ai_provider = LiteLLMProvider()  # AIProvider を継承している
+        self.ai_provider = LiteLLMProvider()  # AIProvider を継承している（40行目）
 
-    async def handle_mention(self, message):
-        # AIProvider の約束事（generate_response）を使う
-        response = self.ai_provider.generate_response(...)
+    async def _process_mention(self, message):
+        # AIProvider の約束事（generate_response）を使う（async）
+        response = await self.ai_provider.generate_response(...)  # 194行目
 ```
 
 ---
@@ -38,7 +50,13 @@ class MessageHandler:
 
 # litellm_provider.py
 class LiteLLMProvider:  # AIProvider を継承していない
-    def generate_response(self, messages, system_prompt=None) -> str:
+    async def generate_response(
+        self,
+        messages: list[Message],
+        system_prompt: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
         # 実装...
         return response
 
@@ -47,8 +65,8 @@ class MessageHandler:
     def __init__(self, bot):
         self.ai_provider = LiteLLMProvider()  # 直接使う
 
-    async def handle_mention(self, message):
-        response = self.ai_provider.generate_response(...)
+    async def _process_mention(self, message):
+        response = await self.ai_provider.generate_response(...)
 ```
 
 **一見問題なさそうですが...**
@@ -62,7 +80,13 @@ class MessageHandler:
 ```python
 # 新しいプロバイダーを追加
 class OpenAIProvider(AIProvider):  # 同じ約束事を守る
-    def generate_response(self, messages, system_prompt=None) -> str:
+    async def generate_response(
+        self,
+        messages: list[Message],
+        system_prompt: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
         # OpenAI APIを呼び出す
         return response
 
@@ -75,8 +99,9 @@ class MessageHandler:
         else:
             self.ai_provider = LiteLLMProvider()
 
-        # この部分は全く変更不要
-        response = self.ai_provider.generate_response(...)
+    async def _process_mention(self, message):
+        # この部分は全く変更不要（async メソッド）
+        response = await self.ai_provider.generate_response(...)
 ```
 
 ### AIProvider がない場合（プロバイダー追加時）
@@ -84,7 +109,7 @@ class MessageHandler:
 ```python
 # 新しいプロバイダーを追加
 class OpenAIProvider:  # 約束事がない
-    def generate_response(self, messages, system_prompt=None) -> str:
+    async def generate_response(self, messages, system_prompt=None) -> str:
         # OpenAI APIを呼び出す
         return response
 
@@ -96,10 +121,12 @@ class MessageHandler:
         else:
             self.ai_provider = LiteLLMProvider()
 
+    async def _process_mention(self, message):
         # 問題: 型チェックが効かない
         # 問題: generate_response() があるか保証されない
-        # 問題: メソッドのシグネチャが違うかもしれない
-        response = self.ai_provider.generate_response(...)  # エラーになる可能性
+        # 問題: メソッドのシグネチャが違うかもしれない（model, max_tokens がない？）
+        # 問題: async かどうか分からない
+        response = await self.ai_provider.generate_response(...)  # エラーになる可能性
 ```
 
 **実際のエラー例：**
@@ -107,11 +134,11 @@ class MessageHandler:
 ```python
 # OpenAIProvider の実装者が間違えてメソッド名を変えた
 class OpenAIProvider:
-    def create_response(self, messages, system_prompt=None):  # 名前が違う！
+    async def create_response(self, messages, system_prompt=None):  # 名前が違う！
         return response
 
 # handlers.py で実行時エラー
-response = self.ai_provider.generate_response(...)
+response = await self.ai_provider.generate_response(...)
 # AttributeError: 'OpenAIProvider' object has no attribute 'generate_response'
 ```
 
@@ -125,12 +152,19 @@ response = self.ai_provider.generate_response(...)
 # provider.py で約束事を定義
 class AIProvider(ABC):
     @abstractmethod
-    def generate_response(self, messages, system_prompt=None) -> str:
+    async def generate_response(
+        self,
+        messages: list[Message],
+        system_prompt: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
         pass
 
 # 実装者が間違えると、インスタンス化時にエラー
 class BadProvider(AIProvider):
-    def generate_response(self, messages):  # system_prompt がない！
+    # system_prompt, model, max_tokens がない！
+    async def generate_response(self, messages):
         return "test"
 
 # エラー: TypeError: Can't instantiate abstract class BadProvider
@@ -142,15 +176,16 @@ provider = BadProvider()  # すぐにエラーが分かる
 ```python
 # 約束事がないので、何でもあり
 class BadProvider:
-    def generate_response(self, messages):  # system_prompt がない！
+    # system_prompt, model, max_tokens がない！
+    async def generate_response(self, messages):
         return "test"
 
 # エラーにならない（インスタンス化は成功）
 provider = BadProvider()
 
 # 実行時にエラー
-response = provider.generate_response(messages, system_prompt="...")
-# TypeError: generate_response() takes 2 positional arguments but 3 were given
+response = await provider.generate_response(messages, system_prompt="...", model="...")
+# TypeError: generate_response() takes 2 positional arguments but 4 were given
 ```
 
 ---
@@ -161,26 +196,26 @@ response = provider.generate_response(messages, system_prompt="...")
 
 ```python
 # handlers.py
-def use_provider(provider: AIProvider):  # 型ヒントで保証
-    response = provider.generate_response(...)  # このメソッドがあることが保証される
+async def use_provider(provider: AIProvider):  # 型ヒントで保証
+    response = await provider.generate_response(...)  # このメソッドがあることが保証される
 
 # 型チェッカー（mypy）がエラーを検出
-use_provider(LiteLLMProvider())  # OK
-use_provider(OpenAIProvider())   # OK
-use_provider("文字列")            # エラー: 型が違う
+await use_provider(LiteLLMProvider())  # OK
+await use_provider(OpenAIProvider())   # OK
+await use_provider("文字列")            # エラー: 型が違う
 ```
 
 ### AIProvider がない場合（型チェック不可）
 
 ```python
 # handlers.py
-def use_provider(provider):  # 型ヒントがない
-    response = provider.generate_response(...)  # メソッドがあるか分からない
+async def use_provider(provider):  # 型ヒントがない
+    response = await provider.generate_response(...)  # メソッドがあるか分からない
 
 # 型チェッカーが何も検出できない
-use_provider(LiteLLMProvider())  # OK（実行時まで分からない）
-use_provider(OpenAIProvider())   # OK（実行時まで分からない）
-use_provider("文字列")            # 実行時エラー: AttributeError
+await use_provider(LiteLLMProvider())  # OK（実行時まで分からない）
+await use_provider(OpenAIProvider())   # OK（実行時まで分からない）
+await use_provider("文字列")            # 実行時エラー: AttributeError
 ```
 
 ---
@@ -192,13 +227,19 @@ use_provider("文字列")            # 実行時エラー: AttributeError
 ```python
 # テスト用のモックを作成
 class MockAIProvider(AIProvider):  # 約束事を守る
-    def generate_response(self, messages, system_prompt=None) -> str:
+    async def generate_response(
+        self,
+        messages: list[Message],
+        system_prompt: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
         return "テスト応答"
 
 # テスト
 handler = MessageHandler(bot)
 handler.ai_provider = MockAIProvider()  # 実際のAPIを呼ばない
-response = handler.ai_provider.generate_response(...)
+response = await handler.ai_provider.generate_response(...)
 assert response == "テスト応答"
 ```
 
@@ -209,11 +250,14 @@ assert response == "テスト応答"
 class MockAIProvider:  # 約束事がない
     # generate_response() を実装すべき？メソッド名は？
     # パラメータは？戻り値の型は？
-    def generate_response(self, messages, system_prompt=None):
+    # async かどうか？
+    # model, max_tokens パラメータは必要？
+    async def generate_response(self, messages, system_prompt=None):
         return "テスト応答"
 
 # でも、これが正しいかどうか分からない
 # 実装が変わったら、テストも壊れる可能性がある
+# 実際の実装では model, max_tokens パラメータが必要かもしれない
 ```
 
 ---
@@ -223,11 +267,11 @@ class MockAIProvider:  # 約束事がない
 ### 現在の実装（AIProvider あり）
 
 ```python
-# handlers.py 23行目
+# handlers.py 40行目
 self.ai_provider = LiteLLMProvider()
 
-# handlers.py 99行目
-response_text = self.ai_provider.generate_response(
+# handlers.py 194行目（_process_mention 内）
+response_text = await self.ai_provider.generate_response(
     messages=session.get_conversation_history(),
     system_prompt=system_prompt,
 )
@@ -235,18 +279,19 @@ response_text = self.ai_provider.generate_response(
 
 **このコードは：**
 
-- ✅ `LiteLLMProvider` が `AIProvider` を継承しているので、`generate_response()` があることが保証される
+- ✅ `LiteLLMProvider` が `AIProvider` を継承しているので、`async generate_response()` があることが保証される
+- ✅ メソッドシグネチャが統一されている（`messages`, `system_prompt`, `model`, `max_tokens`）
 - ✅ 別のプロバイダーに変更しても、同じメソッドが使える
 - ✅ 型チェッカーが正しさを検証できる
 
 ### AIProvider がない場合（実際のコード）
 
 ```python
-# handlers.py 23行目
+# handlers.py 40行目
 self.ai_provider = LiteLLMProvider()
 
-# handlers.py 99行目
-response_text = self.ai_provider.generate_response(
+# handlers.py 194行目（_process_mention 内）
+response_text = await self.ai_provider.generate_response(
     messages=session.get_conversation_history(),
     system_prompt=system_prompt,
 )
@@ -256,6 +301,8 @@ response_text = self.ai_provider.generate_response(
 
 - ❌ `generate_response()` があるかどうか、実行時まで分からない
 - ❌ 別のプロバイダーを追加するとき、メソッド名やパラメータが違う可能性がある
+- ❌ `async` かどうか分からない
+- ❌ `model`, `max_tokens` パラメータが必要かどうか分からない
 - ❌ 型チェッカーが何も検出できない
 - ❌ ドキュメントがないので、実装者が何をすべきか分からない
 
@@ -271,10 +318,11 @@ response_text = self.ai_provider.generate_response(
 
 **AIProvider があると：**
 
-- ✅ 約束事が明確（`generate_response()` を実装する）
+- ✅ 約束事が明確（`async generate_response()` を実装する）
+- ✅ メソッドシグネチャが統一される（`messages`, `system_prompt`, `model`, `max_tokens`）
 - ✅ 型チェックが効く（コンパイル時にエラーを検出）
 - ✅ プロバイダーを追加しても互換性が保証される
 - ✅ テストが簡単（モックを作りやすい）
-- ✅ メソッドのシグネチャが統一される
+- ✅ `async` であることが保証される
 
 **つまり、AIProvider は「設計図」や「契約書」のような役割を果たします！**

@@ -1,6 +1,9 @@
 # LiteLLM の必要性分析（Claude 専用の場合）
 
-> **注意**: このドキュメントは検討資料です。最終的な決定は [ADR-0002: LiteLLM マルチプロバイダー戦略](../architecture/adr/0002-litellm-multi-provider-strategy.md) を参照してください。
+> **注意**: このドキュメントは検討資料です。
+> 最終的な決定は
+> [ADR-0002: LiteLLM マルチプロバイダー戦略](../architecture/adr/0002-litellm-multi-provider-strategy.md)
+> を参照してください。
 
 最初から Claude を使う場合、LiteLLM が必要かどうかを分析します。
 

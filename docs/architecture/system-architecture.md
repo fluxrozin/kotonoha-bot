@@ -6,13 +6,13 @@
 
 ```mermaid
 graph TB
-    subgraph "開発環境"
-        Dev[開発者PC]
+    subgraph "Development Environment"
+        Dev[Developer PC]
         WSL[WSL2 Ubuntu]
         Dev --> WSL
     end
 
-    subgraph "CI/CD パイプライン"
+    subgraph "CI/CD Pipeline"
         GitHub[GitHub Repository]
         GHA[GitHub Actions]
         DockerBuild[Docker Build]
@@ -24,9 +24,9 @@ graph TB
         DockerBuild -->|Push| GHCR
     end
 
-    subgraph "本番環境: Synology DS1823xs+"
+    subgraph "Production: Synology DS1823xs+"
         Watchtower[Watchtower]
-        Container[Kotonoha Container]
+        Container[KOTONOHA Container]
         SQLite[(SQLite Database)]
 
         Watchtower -->|Check Update| GHCR
@@ -34,16 +34,18 @@ graph TB
         Container <-->|R/W| SQLite
     end
 
-    subgraph "外部サービス"
+    subgraph "External Services"
         Discord[Discord API]
         LiteLLM[LiteLLM]
-        ClaudeHaiku[Claude 3 Haiku<br/>開発用（レガシー）]
-        ClaudeOpus[Claude Opus 4.5<br/>本番用]
+        ClaudeHaiku[Claude 3 Haiku<br/>Legacy for Dev]
+        ClaudeSonnet[Claude Sonnet 4.5<br/>Default/Balanced]
+        ClaudeOpus[Claude Opus 4.5<br/>Production]
 
         Container <-->|WebSocket/HTTP| Discord
         Container -->|API Call| LiteLLM
-        LiteLLM -->|開発| ClaudeHaiku
-        LiteLLM -->|本番| ClaudeOpus
+        LiteLLM -->|Dev| ClaudeHaiku
+        LiteLLM -->|Default| ClaudeSonnet
+        LiteLLM -->|Production| ClaudeOpus
     end
 ```
 
@@ -51,14 +53,18 @@ graph TB
 
 ```mermaid
 graph TB
-    subgraph "Kotonoha Bot Application"
-        Bot[Discord Bot Core]
+    subgraph "KOTONOHA Bot Application"
+        Bot[Bot Client]
+        Handler[Message Handler]
         Router[Message Router]
         SessionMgr[Session Manager]
         AIService[AI Service]
         DBService[Database Service]
+        Queue[Request Queue]
 
-        Bot --> Router
+        Bot --> Handler
+        Handler --> Router
+        Handler --> Queue
         Router --> SessionMgr
         Router --> AIService
         SessionMgr --> DBService
@@ -73,63 +79,41 @@ graph TB
     end
 
     subgraph "AI Services"
-        LiteLLM[LiteLLM<br/>統一インターフェース]
-        ClaudeHaiku[Claude 3 Haiku<br/>開発用（レガシー）]
-        ClaudeSonnet[Claude Sonnet 4.5<br/>調整用]
-        ClaudeOpus[Claude Opus 4.5<br/>本番用]
+        LiteLLM[LiteLLM<br/>Unified Interface]
+        ClaudeHaiku[Claude 3 Haiku<br/>Legacy for Dev]
+        ClaudeSonnet[Claude Sonnet 4.5<br/>Default/Balanced]
+        ClaudeOpus[Claude Opus 4.5<br/>Production]
         AIService --> LiteLLM
         LiteLLM --> ClaudeHaiku
-        LiteLLM --> ClaudeSonnet
+        LiteLLM -->|Default| ClaudeSonnet
         LiteLLM --> ClaudeOpus
     end
 ```
 
-### 1.3 データフロー図
-
-```mermaid
-sequenceDiagram
-    participant User as ユーザー
-    participant Discord as Discord API
-    participant Bot as Kotonoha Bot
-    participant Router as Message Router
-    participant Session as Session Manager
-    participant AI as AI Service
-    participant DB as SQLite
-
-    User->>Discord: メッセージ送信
-    Discord->>Bot: on_message イベント
-    Bot->>Router: メッセージルーティング
-    Router->>Session: セッション取得/作成
-    Session->>DB: 履歴取得（必要時）
-    DB-->>Session: 会話履歴
-    Session-->>Router: セッション情報
-    Router->>AI: プロンプト生成・API呼び出し
-    AI-->>Router: AI応答
-    Router->>Session: 会話履歴更新
-    Session->>DB: 永続化（非同期）
-    Router->>Discord: 応答メッセージ送信
-    Discord->>User: メッセージ表示
-```
-
 ## 2. 技術スタック定義
+
+**注**: 詳細なデータフロー図は [詳細設計書](./detailed-design.md#41-メッセージ処理フロー) を参照してください。
 
 ### 2.1 技術スタック一覧
 
-| カテゴリ               | 技術                           | バージョン | 用途                         |
-| ---------------------- | ------------------------------ | ---------- | ---------------------------- |
-| **言語**               | Python                         | 3.14       | アプリケーション開発         |
-| **パッケージ管理**     | uv                             | latest     | 依存関係管理                 |
-| **フレームワーク**     | discord.py                     | latest     | Discord Bot 開発             |
-| **AI 統合**            | LiteLLM                        | latest     | マルチ LLM プロバイダー統合  |
-| **AI（開発）**         | Claude 3 Haiku API（レガシー） | 3.0        | 開発・テスト用（超低コスト） |
-| **AI（本番）**         | Claude API                     | 4.5        | 本番用（Opus 4.5）           |
-| **データベース**       | SQLite                         | 3.x        | 会話履歴の永続化             |
-| **コンテナ**           | Docker                         | latest     | コンテナ化                   |
-| **CI/CD**              | GitHub Actions                 | -          | 自動ビルド・デプロイ         |
-| **コンテナレジストリ** | GitHub Container Registry      | -          | イメージ保存                 |
-| **自動更新**           | Watchtower                     | latest     | コンテナ自動更新             |
-| **OS**                 | Ubuntu (WSL2)                  | 22.04+     | 開発環境                     |
-| **本番 OS**            | DSM (Synology)                 | latest     | 本番環境                     |
+| カテゴリ                         | 技術                           | バージョン | 用途                                                            |
+| -------------------------------- | ------------------------------ | ---------- | --------------------------------------------------------------- |
+| **言語**                         | Python                         | 3.14       | アプリケーション開発                                            |
+| **パッケージ管理**               | uv                             | latest     | 依存関係管理                                                    |
+| **フレームワーク**               | discord.py                     | latest     | Discord Bot 開発                                                |
+| **AI 統合**                      | LiteLLM                        | latest     | マルチ LLM プロバイダー統合                                     |
+| **AI（デフォルト）**             | Claude Sonnet API              | 4.5        | デフォルトモデル（バランス型）、モデル: `claude-sonnet-4-5`     |
+| **AI（開発）**                   | Claude 3 Haiku API（レガシー） | -          | 開発・テスト用（超低コスト）、モデル: `claude-3-haiku-20240307` |
+| **AI（本番）**                   | Claude Opus API                | 4.5        | 本番用（最高品質）、モデル: `claude-opus-4-5`                   |
+| **データベース**                 | SQLite                         | 3.x        | 会話履歴の永続化                                                |
+| **コンテナ**                     | Docker                         | 24.0.2     | コンテナ化                                                      |
+| **コンテナオーケストレーション** | Docker Compose                 | v2.20.1    | コンテナ管理                                                    |
+| **CI/CD**                        | GitHub Actions                 | -          | 自動ビルド・デプロイ                                            |
+| **コンテナレジストリ**           | GitHub Container Registry      | -          | イメージ保存                                                    |
+| **自動更新**                     | Watchtower                     | latest     | コンテナ自動更新                                                |
+| **OS**                           | Ubuntu (WSL2)                  | 22.04+     | 開発環境                                                        |
+| **本番 OS**                      | DSM (Synology)                 | latest     | 本番環境                                                        |
+| **本番 Docker**                  | Docker Engine                  | 24.0.2     | 本番環境のコンテナランタイム                                    |
 
 ### 2.2 主要ライブラリ
 
@@ -137,27 +121,27 @@ sequenceDiagram
 | -------------- | ---------- | --------------------------- |
 | discord.py     | latest     | Discord API クライアント    |
 | litellm        | latest     | マルチ LLM プロバイダー統合 |
-| aiosqlite      | latest     | 非同期 SQLite 操作          |
 | python-dotenv  | latest     | 環境変数管理                |
 | pytest         | latest     | テストフレームワーク        |
 | pytest-asyncio | latest     | 非同期テスト                |
 
 ### 2.3 ハードウェア要件
 
-| 項目             | 仕様                        |
-| ---------------- | --------------------------- |
-| **CPU**          | AMD Ryzen V1780B (AVX 対応) |
-| **メモリ**       | 最小 512MB、推奨 1GB        |
-| **ストレージ**   | 最小 1GB（データベース用）  |
-| **ネットワーク** | インターネット接続必須      |
+| 項目             | 仕様                                     |
+| ---------------- | ---------------------------------------- |
+| **CPU**          | AMD Ryzen V1780B (AVX 対応)              |
+| **メモリ**       | NAS: 8GB、コンテナ: 最小 512MB、推奨 1GB |
+| **ストレージ**   | 最小 1GB（データベース用）               |
+| **ネットワーク** | インターネット接続必須                   |
 
 ## 3. 環境変数一覧
 
 ### 3.0 環境変数の種類
 
-環境変数は以下の2種類に分類されます:
+環境変数は以下の 2 種類に分類されます:
 
 - **必須設定**: アプリケーションを起動するために**必ず設定が必要**な項目
+
   - 設定しないとアプリケーションが起動しません
   - 例: `DISCORD_TOKEN`, `ANTHROPIC_API_KEY`
 
@@ -170,7 +154,7 @@ sequenceDiagram
 | 変数名          | 説明                 | 例                                         | 必須 |
 | --------------- | -------------------- | ------------------------------------------ | ---- |
 | `DISCORD_TOKEN` | Discord Bot トークン | `MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.XXXXXX.XXXXXX` | 必須 |
-| `LLM_MODEL`     | LLM モデル名         | `anthropic/claude-3-haiku-20240307`        | 必須 |
+| `LLM_MODEL`     | LLM モデル名         | `anthropic/claude-sonnet-4-5`              | 必須 |
 
 **プロバイダー別 API キー**（使用するプロバイダーに応じて設定）:
 
@@ -182,70 +166,68 @@ sequenceDiagram
 
 #### 3.2.1 LLM 設定
 
-| 変数名               | 説明                 | デフォルト値                        | 必須       |
-| -------------------- | -------------------- | ----------------------------------- | ---------- |
-| `LLM_MODEL`          | 使用する LLM モデル  | `anthropic/claude-3-haiku-20240307` | 必須       |
-| `LLM_TEMPERATURE`    | 温度パラメータ       | `0.7`                               | オプション |
-| `LLM_MAX_TOKENS`     | 最大トークン数       | `2048`                              | オプション |
-| `LLM_FALLBACK_MODEL` | フォールバックモデル | -                                   | オプション |
-| `LLM_MAX_RETRIES`    | 最大リトライ回数     | `3`                                 | オプション |
-| `LLM_RETRY_DELAY_BASE` | 指数バックオフのベース遅延（秒） | `1.0` | オプション |
+| 変数名                 | 説明                             | デフォルト値                  | 必須       |
+| ---------------------- | -------------------------------- | ----------------------------- | ---------- |
+| `LLM_MODEL`            | 使用する LLM モデル              | `anthropic/claude-sonnet-4-5` | 必須       |
+| `LLM_TEMPERATURE`      | 温度パラメータ                   | `0.7`                         | オプション |
+| `LLM_MAX_TOKENS`       | 最大トークン数                   | `2048`                        | オプション |
+| `LLM_FALLBACK_MODEL`   | フォールバックモデル             | -                             | オプション |
+| `LLM_MAX_RETRIES`      | 最大リトライ回数                 | `3`                           | オプション |
+| `LLM_RETRY_DELAY_BASE` | 指数バックオフのベース遅延（秒） | `1.0`                         | オプション |
 
 **リトライ設定について**:
 
 - `LLM_MAX_RETRIES`: 一時的なエラー（HTTP 529 Overloaded、HTTP 429 Rate Limit など）に対する最大リトライ回数
 - `LLM_RETRY_DELAY_BASE`: 指数バックオフのベース遅延時間（秒）
-  - リトライ間隔: 1回目 → 1秒、2回目 → 2秒、3回目 → 4秒
-  - 例: `LLM_RETRY_DELAY_BASE=1.0` の場合、1秒 → 2秒 → 4秒
+  - リトライ間隔: 1 回目 → 1 秒、2 回目 → 2 秒、3 回目 → 4 秒
+  - 例: `LLM_RETRY_DELAY_BASE=1.0` の場合、1 秒 → 2 秒 → 4 秒
 
 **フェーズ別推奨モデル**:
 
-| フェーズ | `LLM_MODEL` の値                    | 説明                                                         |
-| -------- | ----------------------------------- | ------------------------------------------------------------ |
-| 開発     | `anthropic/claude-3-haiku-20240307` | 超低コストでの開発・テスト（制限なし）                       |
-| 調整     | `anthropic/claude-sonnet-4-5`       | 品質調整・プロンプト最適化（$3/input MTok, $15/output MTok） |
-| 本番     | `anthropic/claude-opus-4-5`         | 最高品質の本番運用（$5/input MTok, $25/output MTok）         |
+| フェーズ   | `LLM_MODEL` の値                    | 説明                                                       |
+| ---------- | ----------------------------------- | ---------------------------------------------------------- |
+| デフォルト | `anthropic/claude-sonnet-4-5`       | バランス型（デフォルト）、\$3/input MTok, \$15/output MTok |
+| 開発       | `anthropic/claude-3-haiku-20240307` | 超低コストでの開発・テスト（制限なし）                     |
+| 本番       | `anthropic/claude-opus-4-5`         | 最高品質の本番運用（\$5/input MTok, \$25/output MTok）     |
 
 **開発用モデル（Claude 3 Haiku（レガシー））のコスト**（[公式価格表](https://platform.claude.com/docs/en/about-claude/models/overview)）:
 
-- 入力: $0.25/100 万トークン、出力: $1.25/100 万トークン
+- 入力: \$0.25/100 万トークン、出力: \$1.25/100 万トークン
 - 1 回あたり約 0.075 セント（入力 500 トークン、出力 500 トークンの場合）
-- 月間コスト例: 1,000 回で約$0.75（約 113 円）、5,000 回で約$3.75（約 563 円）
+- 月間コスト例: 1,000 回で約\$0.75（約 113 円）、5,000 回で約\$3.75（約 563 円）
 - 無料枠の制限がなく、開発から本番まで同じプロバイダーで統一可能
 
 **Claude モデル比較**（2026 年 1 月現在）:
 
-- **Haiku 4.5**: $1/input MTok, $5/output MTok（最速、低コスト）
-- **Sonnet 4.5**: $3/input MTok, $15/output MTok（バランス型、推奨）
-- **Opus 4.5**: $5/input MTok, $25/output MTok（最高品質）
+- **Haiku 4.5**: \$1/input MTok, \$5/output MTok（最速、低コスト）
+- **Sonnet 4.5**: \$3/input MTok, \$15/output MTok（バランス型、推奨）
+- **Opus 4.5**: \$5/input MTok, \$25/output MTok（最高品質）
 
 #### 3.2.2 データベース設定
 
-| 変数名          | 説明                     | デフォルト値            | 必須       |
-| --------------- | ------------------------ | ----------------------- | ---------- |
-| `DATABASE_NAME` | データベースファイル名   | `sessions.db`           | オプション |
-| `DATABASE_PATH` | データベースファイルパス | `./data/DATABASE_NAME`  | オプション |
+| 変数名          | 説明                     | デフォルト値           | 必須       |
+| --------------- | ------------------------ | ---------------------- | ---------- |
+| `DATABASE_NAME` | データベースファイル名   | `sessions.db`          | オプション |
+| `DATABASE_PATH` | データベースファイルパス | `./data/DATABASE_NAME` | オプション |
 
 **注意**: `DATABASE_PATH` が設定されていない場合、`./data/DATABASE_NAME` が使用されます。
 
 #### 3.2.3 セッション設定
 
-| 変数名                   | 説明                         | デフォルト値   | 必須       |
-| ------------------------ | ---------------------------- | -------------- | ---------- |
-| `SESSION_TIMEOUT_ACTIVE` | アクティブタイムアウト（秒） | `300` (5 分)   | オプション |
-| `SESSION_TIMEOUT_IDLE`   | アイドルタイムアウト（秒）   | `1800` (30 分) | オプション |
-| `SESSION_MAX_MEMORY`     | メモリ内最大セッション数     | `100`          | オプション |
-| `SESSION_HISTORY_LIMIT`  | メモリ内履歴保持数           | `50`           | オプション |
+| 変数名                  | 説明                           | デフォルト値 | 必須       |
+| ----------------------- | ------------------------------ | ------------ | ---------- |
+| `SESSION_TIMEOUT_HOURS` | セッションタイムアウト（時間） | `24`         | オプション |
+| `MAX_SESSIONS`          | メモリ内最大セッション数       | `100`        | オプション |
 
 #### 3.2.4 聞き耳型設定
 
-| 変数名                          | 説明                             | デフォルト値 | 必須       |
-| ------------------------------- | -------------------------------- | ------------ | ---------- |
-| `EAVESDROP_ENABLED`             | 聞き耳型の有効/無効              | `true`       | オプション |
-| `EAVESDROP_APPROACH`            | アプローチ選択 (`llm` or `rule`) | `llm`        | オプション |
-| `EAVESDROP_LOG_SIZE`            | 会話ログ保持数                   | `10`         | オプション |
-| `EAVESDROP_KEYWORD_PROBABILITY` | キーワード検知時の反応確率       | `0.5`        | オプション |
-| `EAVESDROP_RANDOM_PROBABILITY`  | ランダム反応確率                 | `0.03`       | オプション |
+| 変数名                                        | 説明                                              | デフォルト値                 | 必須       |
+| --------------------------------------------- | ------------------------------------------------- | ---------------------------- | ---------- |
+| `EAVESDROP_ENABLED_CHANNELS`                  | 聞き耳型を有効にするチャンネル ID（カンマ区切り） | -                            | オプション |
+| `EAVESDROP_JUDGE_MODEL`                       | 判定用モデル                                      | `anthropic/claude-haiku-4-5` | オプション |
+| `EAVESDROP_BUFFER_SIZE`                       | 会話ログバッファサイズ                            | `20`                         | オプション |
+| `EAVESDROP_MIN_MESSAGES`                      | 判定・応答生成に必要な最低メッセージ数            | `3`                          | オプション |
+| `EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES` | 介入の最小間隔（分）                              | `10`                         | オプション |
 
 #### 3.2.5 ログ設定
 
@@ -258,16 +240,17 @@ sequenceDiagram
 
 #### 3.2.6 レート制限設定
 
-| 変数名                         | 説明                          | デフォルト値 | 必須       |
-| ------------------------------ | ----------------------------- | ------------ | ---------- |
-| `RATE_LIMIT_FLASH_MAX`         | Flash API 最大リクエスト数/分 | `15`         | オプション |
-| `RATE_LIMIT_PRO_MAX`           | Pro API 最大リクエスト数/分   | `2`          | オプション |
-| `RATE_LIMIT_WARNING_THRESHOLD` | 警告閾値（使用率）            | `0.8`        | オプション |
+| 変数名                 | 説明                                | デフォルト値 | 必須       |
+| ---------------------- | ----------------------------------- | ------------ | ---------- |
+| `RATE_LIMIT_CAPACITY`  | レート制限の上限値（リクエスト/分） | `50`         | オプション |
+| `RATE_LIMIT_REFILL`    | 補充レート（リクエスト/秒）         | `0.8`        | オプション |
+| `RATE_LIMIT_WINDOW`    | 監視ウィンドウ（秒）                | `60`         | オプション |
+| `RATE_LIMIT_THRESHOLD` | 警告閾値（使用率、0.0-1.0）         | `0.9`        | オプション |
 
 #### 3.2.7 ヘルスチェック設定
 
-| 変数名                | 説明                     | デフォルト値 | 必須       |
-| --------------------- | ------------------------ | ------------ | ---------- |
+| 変数名                 | 説明                      | デフォルト値 | 必須       |
+| ---------------------- | ------------------------- | ------------ | ---------- |
 | `HEALTH_CHECK_ENABLED` | ヘルスチェックの有効/無効 | `true`       | オプション |
 
 #### 3.2.8 その他設定
@@ -279,11 +262,11 @@ sequenceDiagram
 
 #### 3.2.9 CI/CD 設定
 
-| 変数名              | 説明                           | デフォルト値 | 必須       |
-| ------------------- | ------------------------------ | ------------ | ---------- |
-| `GITHUB_REPOSITORY` | GitHub リポジトリ名            | -            | オプション |
-| `GITHUB_USERNAME`   | GitHub ユーザー名（GHCR 認証用）| -            | オプション |
-| `GITHUB_TOKEN`      | GitHub Personal Access Token   | -            | オプション |
+| 変数名              | 説明                             | デフォルト値 | 必須       |
+| ------------------- | -------------------------------- | ------------ | ---------- |
+| `GITHUB_REPOSITORY` | GitHub リポジトリ名              | -            | オプション |
+| `GITHUB_USERNAME`   | GitHub ユーザー名（GHCR 認証用） | -            | オプション |
+| `GITHUB_TOKEN`      | GitHub Personal Access Token     | -            | オプション |
 
 **GitHub Container Registry (GHCR) 認証について**:
 
@@ -293,15 +276,15 @@ sequenceDiagram
 
 #### 3.2.10 Watchtower 設定
 
-| 変数名                        | 説明                                 | デフォルト値 | 必須       |
-| ----------------------------- | ------------------------------------ | ------------ | ---------- |
-| `WATCHTOWER_CLEANUP`          | 古いイメージを自動削除               | `true`       | オプション |
-| `WATCHTOWER_POLL_INTERVAL`    | イメージ更新チェック間隔（秒）       | `300`        | オプション |
-| `WATCHTOWER_LABEL_ENABLE`     | ラベルで対象コンテナを制限           | `true`       | オプション |
-| `WATCHTOWER_NOTIFICATIONS`    | 通知方法（shoutrrr）                 | `shoutrrr`   | オプション |
-| `WATCHTOWER_NOTIFICATION_URL` | 通知先 URL（Discord Webhook など）   | -            | オプション |
-| `WATCHTOWER_SCHEDULE`         | cron 形式でのスケジュール            | -            | オプション |
-| `WATCHTOWER_ROLLING_RESTART`  | 一度に 1 コンテナずつ更新            | `false`      | オプション |
+| 変数名                        | 説明                               | デフォルト値 | 必須       |
+| ----------------------------- | ---------------------------------- | ------------ | ---------- |
+| `WATCHTOWER_CLEANUP`          | 古いイメージを自動削除             | `true`       | オプション |
+| `WATCHTOWER_POLL_INTERVAL`    | イメージ更新チェック間隔（秒）     | `300`        | オプション |
+| `WATCHTOWER_LABEL_ENABLE`     | ラベルで対象コンテナを制限         | `true`       | オプション |
+| `WATCHTOWER_NOTIFICATIONS`    | 通知方法（shoutrrr）               | `shoutrrr`   | オプション |
+| `WATCHTOWER_NOTIFICATION_URL` | 通知先 URL（Discord Webhook など） | -            | オプション |
+| `WATCHTOWER_SCHEDULE`         | cron 形式でのスケジュール          | -            | オプション |
+| `WATCHTOWER_ROLLING_RESTART`  | 一度に 1 コンテナずつ更新          | `false`      | オプション |
 
 **Watchtower 通知 URL の設定方法**:
 
@@ -319,8 +302,8 @@ Watchtower は Docker コンテナの自動更新ツールです。GitHub Contai
 
 #### 3.2.11 Docker/NAS デプロイ設定
 
-| 変数名                  | 説明               | デフォルト値 | 必須       |
-| ----------------------- | ------------------ | ------------ | ---------- |
+| 変数名                  | 説明                 | デフォルト値 | 必須       |
+| ----------------------- | -------------------- | ------------ | ---------- |
 | `BACKUP_RETENTION_DAYS` | バックアップ保持日数 | `7`          | オプション |
 
 ### 3.3 環境変数設定例
@@ -332,7 +315,9 @@ Watchtower は Docker コンテナの自動更新ツールです。GitHub Contai
 DISCORD_TOKEN=your_discord_bot_token_here
 
 # LLM 設定（LiteLLM）
-LLM_MODEL=anthropic/claude-3-haiku-20240307  # 開発用（レガシー、超低コスト）
+# デフォルト: anthropic/claude-sonnet-4-5（バランス型）
+# 開発用（超低コスト）: anthropic/claude-3-haiku-20240307
+LLM_MODEL=anthropic/claude-sonnet-4-5
 LLM_TEMPERATURE=0.7
 LLM_MAX_TOKENS=2048
 
@@ -340,21 +325,24 @@ LLM_MAX_TOKENS=2048
 ANTHROPIC_API_KEY=your_anthropic_api_key_here  # 開発・調整・本番環境用
 
 # Database
-DATABASE_PATH=/app/data/kotonoha.db
-DATABASE_BACKUP_DIR=/app/backups
+DATABASE_NAME=sessions.db
 
 # Session
-SESSION_TIMEOUT_ACTIVE=300
-SESSION_TIMEOUT_IDLE=1800
-SESSION_MAX_MEMORY=100
-SESSION_HISTORY_LIMIT=50
+SESSION_TIMEOUT_HOURS=24
+MAX_SESSIONS=100
 
 # Eavesdrop
-EAVESDROP_ENABLED=true
-EAVESDROP_APPROACH=llm
-EAVESDROP_LOG_SIZE=10
-EAVESDROP_KEYWORD_PROBABILITY=0.5
-EAVESDROP_RANDOM_PROBABILITY=0.03
+EAVESDROP_ENABLED_CHANNELS=123456789012345678,987654321098765432
+EAVESDROP_JUDGE_MODEL=anthropic/claude-haiku-4-5
+EAVESDROP_BUFFER_SIZE=20
+EAVESDROP_MIN_MESSAGES=3
+EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES=10
+
+# Rate Limit
+RATE_LIMIT_CAPACITY=50
+RATE_LIMIT_REFILL=0.8
+RATE_LIMIT_WINDOW=60
+RATE_LIMIT_THRESHOLD=0.9
 
 # Logging
 LOG_LEVEL=INFO
@@ -362,9 +350,11 @@ LOG_FILE=/app/logs/kotonoha.log
 LOG_MAX_SIZE=10
 LOG_BACKUP_COUNT=5
 
-# Other
-BOT_PREFIX=/
-MESSAGE_MAX_LENGTH=2000
+# Bot
+BOT_PREFIX=!
+
+# Health Check
+HEALTH_CHECK_ENABLED=true
 ```
 
 ```bash
@@ -383,21 +373,24 @@ LLM_FALLBACK_MODEL=anthropic/claude-3-haiku-20240307  # フォールバック用
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
 # Database
-DATABASE_PATH=/app/data/kotonoha.db
-DATABASE_BACKUP_DIR=/app/backups
+DATABASE_NAME=sessions.db
 
 # Session
-SESSION_TIMEOUT_ACTIVE=300
-SESSION_TIMEOUT_IDLE=1800
-SESSION_MAX_MEMORY=100
-SESSION_HISTORY_LIMIT=50
+SESSION_TIMEOUT_HOURS=24
+MAX_SESSIONS=100
 
 # Eavesdrop
-EAVESDROP_ENABLED=true
-EAVESDROP_APPROACH=llm
-EAVESDROP_LOG_SIZE=10
-EAVESDROP_KEYWORD_PROBABILITY=0.5
-EAVESDROP_RANDOM_PROBABILITY=0.03
+EAVESDROP_ENABLED_CHANNELS=123456789012345678,987654321098765432
+EAVESDROP_JUDGE_MODEL=anthropic/claude-haiku-4-5
+EAVESDROP_BUFFER_SIZE=20
+EAVESDROP_MIN_MESSAGES=3
+EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES=10
+
+# Rate Limit
+RATE_LIMIT_CAPACITY=50
+RATE_LIMIT_REFILL=0.8
+RATE_LIMIT_WINDOW=60
+RATE_LIMIT_THRESHOLD=0.9
 
 # Logging
 LOG_LEVEL=INFO
@@ -405,9 +398,11 @@ LOG_FILE=/app/logs/kotonoha.log
 LOG_MAX_SIZE=10
 LOG_BACKUP_COUNT=5
 
-# Other
-BOT_PREFIX=/
-MESSAGE_MAX_LENGTH=2000
+# Bot
+BOT_PREFIX=!
+
+# Health Check
+HEALTH_CHECK_ENABLED=true
 ```
 
 ## 4. ボリューム設計（Docker）
@@ -447,51 +442,81 @@ volumes:
 ### 4.3 Docker Compose 設定例
 
 ```yaml
-version: "3.8"
-
 services:
-  kotonoha:
-    image: ghcr.io/your-org/kotonoha-bot:latest
+  kotonoha-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest
     container_name: kotonoha-bot
     restart: unless-stopped
-    environment:
-      - DISCORD_TOKEN=${DISCORD_TOKEN}
-      - LLM_MODEL=${LLM_MODEL}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - DATABASE_PATH=/app/data/kotonoha.db
-      - LOG_FILE=/app/logs/kotonoha.log
+    user: root
+    stop_grace_period: 30s
+
+    env_file:
+      - .env
+
     volumes:
-      - kotonoha_data:/app/data
-      - kotonoha_logs:/app/logs
-      - kotonoha_backups:/app/backups
-    resources:
-      limits:
-        memory: 1G
-        cpus: "1.0"
-      reservations:
-        memory: 512M
-        cpus: "0.5"
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+      - ./prompts:/app/prompts
+
+    networks:
+      - kotonoha-network
+
+    ports:
+      - "127.0.0.1:8081:8080"
+
     healthcheck:
       test:
         [
           "CMD",
           "python",
           "-c",
-          "import requests; requests.get('http://localhost:8080/health')",
+          "import urllib.request; "
+          "urllib.request.urlopen('http://localhost:8080/health', "
+          "timeout=5).read()",
         ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 15s
 
-volumes:
-  kotonoha_data:
-    driver: local
-  kotonoha_logs:
-    driver: local
-  kotonoha_backups:
-    driver: local
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=${WATCHTOWER_ENABLED:-true}"
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - .env
+    environment:
+      - DOCKER_API_VERSION=${DOCKER_API_VERSION:-}
+      - WATCHTOWER_CLEANUP=${WATCHTOWER_CLEANUP:-true}
+      - WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-300}
+      - WATCHTOWER_LABEL_ENABLE=${WATCHTOWER_LABEL_ENABLE:-true}
+      - WATCHTOWER_NOTIFICATIONS=${WATCHTOWER_NOTIFICATIONS:-shoutrrr}
+      - WATCHTOWER_NOTIFICATION_URL=${WATCHTOWER_NOTIFICATION_URL:-}
+    networks:
+      - kotonoha-network
+
+networks:
+  kotonoha-network:
+    driver: bridge
 ```
 
 ### 4.4 ボリュームの権限設定
@@ -544,28 +569,46 @@ kotonoha-bot/
 ├── src/
 │   └── kotonoha_bot/
 │       ├── __init__.py
-│       ├── bot.py                # Discordボットメイン
+│       ├── main.py               # エントリーポイント
+│       ├── config.py             # 設定管理
+│       ├── health.py             # ヘルスチェック
+│       ├── bot/
+│       │   ├── __init__.py
+│       │   ├── client.py         # Discord Bot クライアント
+│       │   └── handlers.py       # メッセージハンドラー
 │       ├── ai/
 │       │   ├── __init__.py
-│       │   ├── base.py           # 抽象化インターフェース
+│       │   ├── provider.py       # AI プロバイダー抽象クラス
 │       │   ├── litellm_provider.py  # LiteLLM統合実装
 │       │   └── prompts.py        # プロンプト読み込みユーティリティ
-│       ├── database/
+│       ├── db/
 │       │   ├── __init__.py
 │       │   └── sqlite.py         # SQLite管理
 │       ├── session/
 │       │   ├── __init__.py
 │       │   ├── manager.py        # セッション管理（ハイブリッド）
-│       │   └── chat_session.py   # ChatSessionクラス
+│       │   └── models.py         # ChatSession, Message モデル
 │       ├── router/
 │       │   ├── __init__.py
 │       │   └── message_router.py # 会話の契機判定
 │       ├── eavesdrop/
 │       │   ├── __init__.py
-│       │   ├── llm_judge.py      # アプローチ1: LLM判断
-│       │   └── rule_judge.py     # アプローチ2: ルールベース判断
-│       └── commands/
-│           └── chat.py           # チャットコマンド
+│       │   ├── llm_judge.py      # LLM判断
+│       │   └── conversation_buffer.py  # 会話バッファ管理
+│       ├── commands/
+│       │   └── chat.py           # チャットコマンド
+│       ├── rate_limit/
+│       │   ├── __init__.py
+│       │   ├── request_queue.py  # リクエストキュー
+│       │   ├── monitor.py        # レート制限監視
+│       │   └── token_bucket.py   # トークンバケット
+│       ├── errors/
+│       │   ├── __init__.py
+│       │   ├── database_errors.py
+│       │   └── discord_errors.py
+│       └── utils/
+│           ├── message_formatter.py
+│           └── message_splitter.py
 ├── data/
 │   └── kotonoha.db               # SQLiteデータベース（.gitignore）
 ├── Dockerfile
@@ -575,13 +618,15 @@ kotonoha-bot/
 └── README.md
 ```
 
-### 5.2 Dockerfile 構成（予定）
+### 5.2 Dockerfile 構成
 
-- Python 3.14 slim ベースイメージ
-- uv による依存関係インストール
-- 非 root ユーザーでの実行
-- ヘルスチェック設定
-- データボリュームマウントポイント: `/app/data`
+- **Multi-stage build**: ビルドステージとランタイムステージを分離
+- **ベースイメージ**: Python 3.14 slim
+- **パッケージマネージャー**: uv（依存関係管理）
+- **非 root ユーザー**: `botuser` (UID/GID 1000) で実行
+- **ヘルスチェック**: HTTP エンドポイント (`/health`) で監視
+- **データボリュームマウントポイント**: `/app/data`, `/app/logs`, `/app/backups`
+- **タイムゾーン**: Asia/Tokyo
 
 ---
 

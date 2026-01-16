@@ -4,33 +4,15 @@
 
 ```mermaid
 erDiagram
-    SESSIONS ||--o{ MESSAGES : "has"
-
     SESSIONS {
         string session_key PK
         string session_type
+        text messages
+        string created_at
+        string last_active_at
         integer channel_id
         integer thread_id
         integer user_id
-        timestamp created_at
-        timestamp updated_at
-        timestamp last_activity
-        boolean is_archived
-    }
-
-    MESSAGES {
-        integer id PK
-        string session_key FK
-        string role
-        text content
-        integer message_id
-        timestamp timestamp
-    }
-
-    SETTINGS {
-        string key PK
-        text value
-        timestamp updated_at
     }
 ```
 
@@ -38,79 +20,33 @@ erDiagram
 
 ### 2.1 sessions テーブル
 
-**説明**: 会話セッションの情報を管理します。
+**説明**: 会話セッションの情報とメッセージ履歴を管理します。メッセージは JSON 形式で `messages` カラムに保存されます。
 
-| カラム名        | データ型  | 制約        | 説明                                                       |
-| --------------- | --------- | ----------- | ---------------------------------------------------------- |
-| `session_key`   | TEXT      | PRIMARY KEY | セッションキー（一意）                                     |
-| `session_type`  | TEXT      | NOT NULL    | セッションタイプ（`mention`, `thread`, `dm`, `eavesdrop`） |
-| `channel_id`    | INTEGER   | NULL        | Discord チャンネル ID                                      |
-| `thread_id`     | INTEGER   | NULL        | Discord スレッド ID（スレッド型の場合）                    |
-| `user_id`       | INTEGER   | NULL        | Discord ユーザー ID                                        |
-| `created_at`    | TIMESTAMP | NOT NULL    | セッション作成日時                                         |
-| `updated_at`    | TIMESTAMP | NOT NULL    | セッション更新日時                                         |
-| `last_activity` | TIMESTAMP | NOT NULL    | 最後のアクティビティ日時                                   |
-| `is_archived`   | BOOLEAN   | DEFAULT 0   | アーカイブ済みフラグ                                       |
+| カラム名         | データ型 | 制約        | 説明                                                 |
+| ---------------- | -------- | ----------- | ---------------------------------------------------- |
+| `session_key`    | TEXT     | PRIMARY KEY | セッションキー（一意）                               |
+| `session_type`   | TEXT     | NOT NULL    | セッションタイプ（`mention`, `thread`, `eavesdrop`） |
+| `messages`       | TEXT     | NOT NULL    | メッセージ履歴（JSON 形式）                          |
+| `created_at`     | TEXT     | NOT NULL    | セッション作成日時（ISO 形式）                       |
+| `last_active_at` | TEXT     | NOT NULL    | 最後のアクティビティ日時（ISO 形式）                 |
+| `channel_id`     | INTEGER  | NULL        | Discord チャンネル ID                                |
+| `thread_id`      | INTEGER  | NULL        | Discord スレッド ID（スレッド型の場合）              |
+| `user_id`        | INTEGER  | NULL        | Discord ユーザー ID                                  |
 
 **インデックス**:
 
-- `idx_sessions_type`: `session_type`
-- `idx_sessions_user_id`: `user_id`
-- `idx_sessions_last_activity`: `last_activity`
-- `idx_sessions_thread_id`: `thread_id` (NULL でない場合)
+- `idx_last_active_at`: `last_active_at`
+- `idx_session_type`: `session_type`
 
 **制約**:
 
 - `session_key` は一意である必要がある
 - `session_type` は必須
-- `last_activity` は `created_at` 以降である必要がある
+- `messages` は JSON 形式の文字列である必要がある
 
 ---
 
-### 2.2 messages テーブル
-
-**説明**: 会話履歴（メッセージ）を管理します。
-
-| カラム名      | データ型  | 制約                      | 説明                                                |
-| ------------- | --------- | ------------------------- | --------------------------------------------------- |
-| `id`          | INTEGER   | PRIMARY KEY AUTOINCREMENT | メッセージ ID（内部）                               |
-| `session_key` | TEXT      | NOT NULL, FK              | セッションキー（sessions.session_key への外部キー） |
-| `role`        | TEXT      | NOT NULL                  | ロール（`user`, `assistant`, `system`）             |
-| `content`     | TEXT      | NOT NULL                  | メッセージ内容                                      |
-| `message_id`  | INTEGER   | NULL                      | Discord メッセージ ID                               |
-| `timestamp`   | TIMESTAMP | NOT NULL                  | メッセージ送信日時                                  |
-
-**インデックス**:
-
-- `idx_messages_session_key`: `session_key`
-- `idx_messages_timestamp`: `timestamp`
-- `idx_messages_message_id`: `message_id` (NULL でない場合)
-
-**制約**:
-
-- `session_key` は `sessions` テーブルに存在する必要がある
-- `role` は `user`, `assistant`, `system` のいずれかである必要がある
-- `content` は必須
-
-**外部キー制約**:
-
-- `session_key` → `sessions.session_key` ON DELETE CASCADE
-
----
-
-### 2.3 settings テーブル
-
-**説明**: システム設定を管理します（将来の拡張用）。
-
-| カラム名     | データ型  | 制約        | 説明                  |
-| ------------ | --------- | ----------- | --------------------- |
-| `key`        | TEXT      | PRIMARY KEY | 設定キー              |
-| `value`      | TEXT      | NOT NULL    | 設定値（JSON 形式可） |
-| `updated_at` | TIMESTAMP | NOT NULL    | 更新日時              |
-
-**インデックス**:
-
-- なし（`key` が PRIMARY KEY のため）
+**注**: 現在の実装では、メッセージは別テーブルではなく、`sessions` テーブルの `messages` カラムに JSON 形式で保存されます。これにより、セッション単位でのデータ管理が簡潔になり、外部キー制約が不要になります。
 
 ---
 
@@ -122,32 +58,13 @@ erDiagram
 -- sessions テーブル
 CREATE TABLE IF NOT EXISTS sessions (
     session_key TEXT PRIMARY KEY,
-    session_type TEXT NOT NULL CHECK(session_type IN ('mention', 'thread', 'eavesdrop')),
+    session_type TEXT NOT NULL,
+    messages TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    last_active_at TEXT NOT NULL,
     channel_id INTEGER,
     thread_id INTEGER,
-    user_id INTEGER,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_activity TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_archived BOOLEAN DEFAULT 0
-);
-
--- messages テーブル
-CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_key TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('user', 'assistant', 'system')),
-    content TEXT NOT NULL,
-    message_id INTEGER,
-    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (session_key) REFERENCES sessions(session_key) ON DELETE CASCADE
-);
-
--- settings テーブル
-CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    user_id INTEGER
 );
 ```
 
@@ -155,26 +72,21 @@ CREATE TABLE IF NOT EXISTS settings (
 
 ```sql
 -- sessions テーブルのインデックス
-CREATE INDEX IF NOT EXISTS idx_sessions_type ON sessions(session_type);
-CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_last_activity ON sessions(last_activity);
-CREATE INDEX IF NOT EXISTS idx_sessions_thread_id ON sessions(thread_id) WHERE thread_id IS NOT NULL;
-
--- messages テーブルのインデックス
-CREATE INDEX IF NOT EXISTS idx_messages_session_key ON messages(session_key);
-CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
-CREATE INDEX IF NOT EXISTS idx_messages_message_id ON messages(message_id) WHERE message_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_last_active_at ON sessions(last_active_at);
+CREATE INDEX IF NOT EXISTS idx_session_type ON sessions(session_type);
 ```
 
-### 3.3 トリガー（将来の拡張）
+### 3.3 WAL モードと最適化設定
 
 ```sql
--- updated_at の自動更新トリガー
-CREATE TRIGGER IF NOT EXISTS update_sessions_timestamp
-AFTER UPDATE ON sessions
-BEGIN
-    UPDATE sessions SET updated_at = CURRENT_TIMESTAMP WHERE session_key = NEW.session_key;
-END;
+-- WAL モードを有効化（長時間稼働時のファイルロック問題を回避）
+PRAGMA journal_mode=WAL;
+
+-- 外部キー制約を有効化
+PRAGMA foreign_keys=ON;
+
+-- バスシーサイズを増やす（パフォーマンス向上）
+PRAGMA busy_timeout=30000;  -- 30秒
 ```
 
 ---
@@ -185,72 +97,70 @@ END;
 
 ```mermaid
 graph TB
-    subgraph "メモリ層"
+    subgraph "Memory Layer"
         MemSession[ChatSession<br/>Memory Cache]
     end
 
-    subgraph "永続化層"
+    subgraph "Persistence Layer"
         SQLite[(SQLite Database)]
     end
 
-    MemSession <-->|リアルタイム同期| SQLite
-    MemSession -->|バッチ同期| SQLite
-    MemSession -->|セッション終了時| SQLite
+    MemSession <-->|Real-time Sync| SQLite
+    MemSession -->|Batch Sync| SQLite
+    MemSession -->|Session End| SQLite
 ```
 
 ### 4.2 永続化タイミング
 
-| タイミング           | 条件                               | 処理内容                       |
-| -------------------- | ---------------------------------- | ------------------------------ |
-| **リアルタイム同期** | 重要な会話                         | 即座に SQLite に保存           |
-| **バッチ同期**       | 5 分ごと                           | アイドル状態のセッションを保存 |
-| **セッション終了時** | スレッドアーカイブ、セッション削除 | 必ず SQLite に保存             |
-| **ボット再起動時**   | 起動時                             | SQLite からセッションを復元    |
+| タイミング           | 条件                               | 処理内容                                          |
+| -------------------- | ---------------------------------- | ------------------------------------------------- |
+| **セッション作成時** | 新しいセッションが作成された時     | 即座に SQLite に保存                              |
+| **メッセージ追加後** | メッセージが追加された後           | 明示的に `save_session()` を呼び出した時のみ保存  |
+| **バッチ同期**       | 5 分ごと                           | アイドル状態のセッションを保存                    |
+| **セッション削除時** | タイムアウトしたセッションの削除時 | 削除前に SQLite に保存                            |
+| **ボット再起動時**   | 起動時                             | SQLite からタイムアウトしていないセッションを復元 |
 
 ### 4.3 データのライフサイクル
 
 ```mermaid
 stateDiagram-v2
-    [*] --> メモリ作成: セッション開始
-    メモリ作成 --> アクティブ: メッセージ受信
-    アクティブ --> アイドル: 5分経過
-    アイドル --> SQLite保存: バッチ同期
-    アイドル --> アクティブ: メッセージ受信
-    アイドル --> 非アクティブ: 30分経過
-    非アクティブ --> SQLite保存: 自動保存
-    非アクティブ --> アクティブ: メッセージ受信
-    非アクティブ --> 削除: 24時間経過
-    SQLite保存 --> 削除: メモリから削除
-    削除 --> [*]
+    [*] --> MemoryCreated: Session Start
+    MemoryCreated --> Active: Message Received
+    Active --> Idle: 5 minutes elapsed
+    Idle --> SQLiteSaved: Batch Sync
+    Idle --> Active: Message Received
+    Idle --> Inactive: Timeout elapsed
+    Inactive --> SQLiteSaved: Auto Save
+    Inactive --> Active: Message Received
+    Inactive --> Deleted: 24 hours elapsed
+    SQLiteSaved --> Deleted: Remove from Memory
+    Deleted --> [*]
 ```
 
 ### 4.4 データ保持ポリシー
 
-| データ種別             | 保持期間         | 削除条件                       |
-| ---------------------- | ---------------- | ------------------------------ |
-| **メモリ内セッション** | アクティブな間   | 24 時間非アクティブ            |
-| **SQLite セッション**  | 無期限           | 手動削除のみ                   |
-| **メッセージ履歴**     | セッションと共に | セッション削除時（CASCADE）    |
-| **バックアップ**       | 7 日分           | 7 日以上古いファイルを自動削除 |
+| データ種別             | 保持期間         | 削除条件                                                  |
+| ---------------------- | ---------------- | --------------------------------------------------------- |
+| **メモリ内セッション** | アクティブな間   | `SESSION_TIMEOUT_HOURS`（デフォルト 24 時間）非アクティブ |
+| **SQLite セッション**  | 無期限           | 手動削除のみ                                              |
+| **メッセージ履歴**     | セッションと共に | セッション削除時に一緒に削除                              |
 
 ### 4.5 同期戦略
 
-#### 4.5.1 リアルタイム同期
+#### 4.5.1 セッション作成時の保存
 
-**対象**: 重要な会話
+**対象**: 新規作成されたセッション
 
-- スレッドアーカイブ時
-- セッション終了時
-- エラー発生時（データ損失防止）
+- セッション作成時に即座に SQLite に保存
 
 **処理**:
 
 ```python
-async def save_session_realtime(session_key: str):
-    session = memory_sessions.get(session_key)
-    if session:
-        await db.save_session(session)
-        await db.save_messages(session_key, session.messages)
+def create_session(session_key: str, session_type: str, **kwargs):
+    session = ChatSession(session_key, session_type, **kwargs)
+    memory_sessions[session_key] = session
+    db.save_session(session)  # 即座に保存
+    return session
 ```
 
 #### 4.5.2 バッチ同期
@@ -263,10 +173,14 @@ async def save_session_realtime(session_key: str):
 **処理**:
 
 ```python
-async def batch_sync_sessions():
-    idle_sessions = get_idle_sessions(timeout=300)  # 5分
-    for session_key in idle_sessions:
-        await save_session_realtime(session_key)
+async def batch_sync_task():
+    now = datetime.now()
+    idle_threshold = timedelta(minutes=5)
+
+    for session_key, session in memory_sessions.items():
+        time_since_activity = now - session.last_active_at
+        if time_since_activity >= idle_threshold:
+            db.save_session(session)
 ```
 
 #### 4.5.3 セッション復元
@@ -276,13 +190,15 @@ async def batch_sync_sessions():
 **処理**:
 
 ```python
-async def restore_sessions():
-    active_sessions = await db.get_active_sessions()
-    for session_data in active_sessions:
-        session = ChatSession.from_dict(session_data)
-        messages = await db.get_messages(session_key)
-        session.messages = messages
-        memory_sessions[session_key] = session
+def _load_active_sessions():
+    all_sessions = db.load_all_sessions()
+    now = datetime.now()
+    timeout = timedelta(hours=Config.SESSION_TIMEOUT_HOURS)
+
+    for session in all_sessions:
+        # タイムアウトしていないセッションのみメモリに読み込む
+        if now - session.last_active_at < timeout:
+            memory_sessions[session.session_key] = session
 ```
 
 ---
@@ -292,48 +208,41 @@ async def restore_sessions():
 ### 5.1 セッション作成
 
 ```python
-async def create_session(session_key: str, session_type: str, **kwargs):
+def create_session(session_key: str, session_type: str, **kwargs):
     # メモリに作成
     session = ChatSession(session_key, session_type, **kwargs)
     memory_sessions[session_key] = session
 
-    # SQLite にも作成（メタデータのみ）
-    await db.create_session(
-        session_key=session_key,
-        session_type=session_type,
-        channel_id=kwargs.get('channel_id'),
-        thread_id=kwargs.get('thread_id'),
-        user_id=kwargs.get('user_id')
-    )
+    # SQLite にも即座に保存（メッセージ履歴も含む）
+    db.save_session(session)
+    return session
 ```
 
 ### 5.2 メッセージ追加
 
 ```python
-async def add_message(session_key: str, role: str, content: str, message_id: int = None):
+def add_message(session_key: str, role: MessageRole, content: str):
     # メモリに追加
-    session = memory_sessions.get(session_key)
-    if session:
-        session.add_message(role, content, message_id)
+    session = get_session(session_key)
+    if not session:
+        raise KeyError(f"Session not found: {session_key}")
 
-    # SQLite にも追加（非同期）
-    asyncio.create_task(db.add_message(session_key, role, content, message_id))
+    session.add_message(role, content)
+    # メッセージ追加後は明示的に save_session() を呼び出す必要がある
 ```
 
 ### 5.3 セッション取得
 
 ```python
-async def get_session(session_key: str) -> ChatSession:
+def get_session(session_key: str) -> ChatSession | None:
     # まずメモリから取得
     if session_key in memory_sessions:
         return memory_sessions[session_key]
 
     # メモリにない場合は SQLite から復元
-    session_data = await db.get_session(session_key)
-    if session_data:
-        session = ChatSession.from_dict(session_data)
-        messages = await db.get_messages(session_key, limit=50)
-        session.messages = messages
+    session = db.load_session(session_key)
+    if session:
+        # メッセージ履歴は JSON から自動的に復元される
         memory_sessions[session_key] = session
         return session
 
@@ -352,18 +261,22 @@ async def get_session(session_key: str) -> ChatSession:
 
 ### 6.2 WAL モード
 
-```sql
-PRAGMA journal_mode = WAL;
-PRAGMA synchronous = NORMAL;
-PRAGMA cache_size = -64000;  -- 64MB
-PRAGMA temp_store = MEMORY;
+実装では、データベース接続取得時に自動的に WAL モードが有効化されます：
+
+```python
+def _get_connection(self) -> sqlite3.Connection:
+    conn = sqlite3.connect(str(self.db_path), timeout=30.0, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA busy_timeout=30000")  # 30秒
+    return conn
 ```
 
-### 6.3 接続プール
+### 6.3 接続管理
 
-- データベース接続をプール化
-- 接続の再利用
-- 同時接続数の制限
+- 各操作で新しい接続を取得し、コンテキストマネージャーで自動的にクローズ
+- 長時間稼働時のファイルロック問題を WAL モードで回避
+- タイムアウト設定により、同時アクセス時の待機を制御
 
 ---
 

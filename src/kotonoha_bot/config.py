@@ -17,7 +17,7 @@ class Config:
     BOT_PREFIX: str = os.getenv("BOT_PREFIX", "!")
 
     # LLM設定（LiteLLM）
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "anthropic/claude-3-haiku-20240307")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "anthropic/claude-sonnet-4-5")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
     LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2048"))
     LLM_FALLBACK_MODEL: str | None = os.getenv("LLM_FALLBACK_MODEL")

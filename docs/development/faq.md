@@ -2,7 +2,11 @@
 
 Kotonoha Discord Bot プロジェクトに関するよくある質問をまとめました。
 
-> **注意**: 本プロジェクトは現在 **Claude API（LiteLLM 経由）** を使用しています。Gemini API に関する FAQ は、聞き耳型機能（Phase 5）での将来実装の参考情報として残しています。詳細は [ADR-0002](../architecture/adr/0002-litellm-multi-provider-strategy.md) を参照してください。
+> **注意**: 本プロジェクトは現在 **Claude API（LiteLLM 経由）** を使用しています。
+> Gemini API に関する FAQ は、聞き耳型機能（Phase 5）での将来実装の
+> 参考情報として残しています。
+> 詳細は [ADR-0002](../architecture/adr/0002-litellm-multi-provider-strategy.md)
+> を参照してください。
 
 ## 目次
 

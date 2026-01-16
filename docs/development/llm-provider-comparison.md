@@ -1,6 +1,10 @@
 # LLM プロバイダー比較（開発用・低コスト）
 
-> **注意**: このドキュメントは検討資料です。最終的な決定は [ADR-0002: LiteLLM マルチプロバイダー戦略](../architecture/adr/0002-litellm-multi-provider-strategy.md) を参照してください。本プロジェクトでは **Claude API（LiteLLM 経由）** を採用しています。
+> **注意**: このドキュメントは検討資料です。
+> 最終的な決定は
+> [ADR-0002: LiteLLM マルチプロバイダー戦略](../architecture/adr/0002-litellm-multi-provider-strategy.md)
+> を参照してください。
+> 本プロジェクトでは **Claude API（LiteLLM 経由）** を採用しています。
 
 2026 年 1 月現在の開発用無料枠・低コストモデルの比較と、LiteLLM での使いやすさをまとめます。
 

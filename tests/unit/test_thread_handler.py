@@ -32,7 +32,10 @@ def mock_session_manager():
 def mock_ai_provider():
     """モックAIProvider"""
     provider = MagicMock()
-    provider.generate_response = MagicMock(return_value="テスト応答")
+    # generate_responseは非同期メソッドなのでAsyncMockを使用
+    provider.generate_response = AsyncMock(return_value="テスト応答")
+    provider.get_last_used_model = MagicMock(return_value="test-model")
+    provider.get_rate_limit_usage = MagicMock(return_value=0.5)
     return provider
 
 
@@ -45,12 +48,36 @@ def mock_router():
 
 
 @pytest.fixture
-def handler(mock_bot, mock_session_manager, mock_ai_provider, mock_router):
+def mock_request_queue():
+    """モックRequestQueue"""
+    import asyncio
+
+    queue = MagicMock()
+
+    # enqueueは非同期メソッドなのでAsyncMockを使用
+    # 直接処理関数を呼び出すように設定（キューを経由せずに直接実行）
+    async def enqueue_side_effect(_priority, func, *args, **kwargs):
+        # 直接関数を実行して結果を返す
+        result = await func(*args, **kwargs)
+        # Futureを作成して結果を設定
+        future = asyncio.Future()
+        future.set_result(result)
+        return future
+
+    queue.enqueue = AsyncMock(side_effect=enqueue_side_effect)
+    return queue
+
+
+@pytest.fixture
+def handler(
+    mock_bot, mock_session_manager, mock_ai_provider, mock_router, mock_request_queue
+):
     """MessageHandlerのフィクスチャ"""
     handler = MessageHandler(mock_bot)
     handler.session_manager = mock_session_manager
     handler.ai_provider = mock_ai_provider
     handler.router = mock_router
+    handler.request_queue = mock_request_queue
     return handler
 
 
@@ -140,7 +167,7 @@ async def test_handle_thread_existing_thread(handler, mock_message, mock_thread)
         mock_split.return_value = ["テスト応答"]
         mock_format.return_value = ["テスト応答"]
 
-        await handler._handle_thread_message(mock_message)
+        await handler._process_thread_message(mock_message)
 
         # セッションが作成されたことを確認
         handler.session_manager.create_session.assert_called_once()
@@ -277,7 +304,7 @@ async def test_handle_thread_message_session_creation(
         mock_split.return_value = ["テスト応答"]
         mock_format.return_value = ["テスト応答"]
 
-        await handler._handle_thread_message(mock_message)
+        await handler._process_thread_message(mock_message)
 
         # セッションが作成されたことを確認
         handler.session_manager.create_session.assert_called_once()
@@ -317,7 +344,7 @@ async def test_handle_thread_message_existing_session(
         mock_split.return_value = ["テスト応答"]
         mock_format.return_value = ["テスト応答"]
 
-        await handler._handle_thread_message(mock_message)
+        await handler._process_thread_message(mock_message)
 
         # 新しいセッションが作成されなかったことを確認
         handler.session_manager.create_session.assert_not_called()

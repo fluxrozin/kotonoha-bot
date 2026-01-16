@@ -1,6 +1,11 @@
 # 実装検討事項詳細
 
-本ドキュメントは、Kotonoha（コトノハ）Discord ボットの実装前に検討すべき技術的な詳細事項をまとめたものです。
+本ドキュメントは、KOTONOHA（コトノハ）Discord ボットの実装前に検討すべき
+技術的な詳細事項をまとめたものです。
+
+**注意**: このドキュメントは実装前の検討事項をまとめたものであり、
+一部の内容は実際の実装と異なる場合があります。
+最新の実装については、`docs/architecture/` 配下のドキュメントを参照してください。
 
 ## 1. Discord API の制限事項と実装上の注意点
 
@@ -29,9 +34,11 @@
 
 **実装上の考慮事項:**
 
-- **長文応答の分割**: AI の応答が 2,000 文字を超える場合は複数メッセージに分割
-- **分割ロジック**: 文の区切り（句点、改行）で分割し、連番を付与
+- **長文応答の分割**（実際の実装）: AI の応答が 2,000 文字を超える場合は複数メッセージに分割
+- **分割ロジック**: 文の区切り（句点、改行）で分割し、連番を付与（`src/kotonoha_bot/utils/message_splitter.py`）
+  - 優先順位: 句点+改行 > 句点 > 段落区切り（空行） > 改行 > 読点 > スペース
 - **埋め込みの活用**: 長文の場合は Embed を使用（ただし 6,000 文字制限あり）
+- **実装**: `split_message()` と `format_split_messages()` 関数（`src/kotonoha_bot/utils/message_splitter.py`）
 
 ### 1.3 スレッド作成の制限
 
@@ -65,13 +72,19 @@
 
 ### 2.1 セッションキーの設計
 
-**セッションキーの形式:**
+**セッションキーの形式**（実際の実装）:
 
 ```txt
-メンション応答型: channel_id または channel_id:user_id
-スレッド型: thread_id
-聞き耳型: eavesdrop:channel_id
+メンション応答型: mention:{user_id}
+スレッド型: thread:{thread_id}
+聞き耳型: eavesdrop:{channel_id}
 ```
+
+**実装上の考慮事項**:
+
+- **キーの一意性**: 各方式でキーが衝突しないようにプレフィックスを使用
+- **キーの正規化**: 文字列型で統一し、数値型との混在を避ける
+- **キーの検証**: セッション取得時にキーの形式を検証
 
 **実装上の考慮事項:**
 
@@ -115,65 +128,78 @@ stateDiagram-v2
 
 ### 2.3 会話履歴の管理
 
-**履歴の保持:**
+**履歴の保持**（実際の実装）:
 
-- **メモリ内**: 直近 50 メッセージ（ChatSession）
-- **SQLite**: 全メッセージ（制限なし、ただし実用的には 1,000 件程度）
+- **メモリ内**: セッションごとに全メッセージを保持（`ChatSession.messages`）
+- **SQLite**: 全メッセージを JSON 形式で `sessions` テーブルの `messages` カラムに保存
 
-**履歴の構造:**
+**履歴の構造**（実際の実装）:
 
 ```python
+# Message モデル（src/kotonoha_bot/session/models.py）
 {
-    "role": "user" | "assistant" | "system",
+    "role": "user" | "assistant" | "system",  # MessageRole enum
     "content": str,
     "timestamp": datetime,
-    "message_id": int,  # Discord メッセージ ID
 }
 ```
 
 **実装上の考慮事項:**
 
-- **トークン数の管理**: Gemini API のコンテキストウィンドウ（1M トークン）を考慮
+- **トークン数の管理**: Anthropic Claude API のコンテキストウィンドウ（200K トークン、拡張モードで 1M トークン）を考慮
 - **履歴の圧縮**: 古いメッセージを要約して保持（将来の拡張）
-- **履歴の取得**: SQLite から取得する際は LIMIT 句を使用
+- **履歴の取得**: SQLite から取得する際は、JSON 形式で保存されたメッセージを復元
 
 ## 3. エラーハンドリングの詳細設計
 
 ### 3.1 API エラーの分類
 
-**Anthropic API エラー（LiteLLM 経由）:**
+**Anthropic API エラー（LiteLLM 経由）**（実際の実装）:
 
 - **429 Too Many Requests / RateLimitError**: レート制限超過
   - 対策: 指数バックオフでリトライ（最大 3 回、デフォルト）
   - リトライ間隔: 1 秒 → 2 秒 → 4 秒（指数バックオフ）
+  - 実装: `src/kotonoha_bot/ai/litellm_provider.py` 226-242 行目
 - **529 Overloaded / InternalServerError**: API 過負荷エラー
   - 対策: 指数バックオフでリトライ（最大 3 回、デフォルト）
   - リトライ間隔: 1 秒 → 2 秒 → 4 秒（指数バックオフ）
   - フォールバックモデルへの自動切り替え（設定されている場合）
+  - 実装: `src/kotonoha_bot/ai/litellm_provider.py` 226-242 行目
 - **400 Bad Request**: 無効なリクエスト
   - 対策: プロンプトの検証、エラーログに記録、リトライしない
 - **500 Internal Server Error**: サーバーエラー
-  - 対策: 指数バックオフでリトライ（最大 3 回）、フォールバック API に切り替え
+  - 対策: 指数バックオフでリトライ（最大 3 回）、フォールバックモデルに切り替え
 - **503 Service Unavailable**: サービス利用不可
   - 対策: 指数バックオフでリトライ、ユーザーに一時的な障害を通知
 - **AuthenticationError**: 認証エラー
   - 対策: リトライしない、エラーログに記録
+  - 実装: `src/kotonoha_bot/ai/litellm_provider.py` 221-224 行目
 
-**リトライ設定:**
+**リトライ設定**（実際の実装）:
 
-- `LLM_MAX_RETRIES`: 最大リトライ回数（デフォルト: 3）
-- `LLM_RETRY_DELAY_BASE`: 指数バックオフのベース遅延（秒、デフォルト: 1.0）
+- `LLM_MAX_RETRIES`: 最大リトライ回数（デフォルト: 3、`config.py` 25 行目）
+- `LLM_RETRY_DELAY_BASE`: 指数バックオフのベース遅延（秒、デフォルト: 1.0、`config.py` 26-28 行目）
 - リトライ対象: `InternalServerError`, `RateLimitError`（一時的なエラー）
 - リトライ対象外: `AuthenticationError`（認証エラーは即座に失敗）
 
-**Discord API エラー:**
+**Discord API エラー**（実際の実装）:
 
 - **403 Forbidden**: 権限不足
   - 対策: 権限チェック、エラーメッセージを送信
+  - 実装: `src/kotonoha_bot/errors/discord_errors.py` 30-31 行目
 - **404 Not Found**: リソースが見つからない
   - 対策: チャンネル/スレッドの存在確認
+  - 実装: `src/kotonoha_bot/errors/discord_errors.py` 35-36, 41-42 行目
 - **429 Rate Limited**: レート制限超過
   - 対策: `discord.py` の自動リトライ機能を使用
+  - 実装: `src/kotonoha_bot/errors/discord_errors.py` 33-34 行目
+
+**エラー分類の実装**:
+
+- `classify_discord_error()`: Discord エラーを分類
+  （`src/kotonoha_bot/errors/discord_errors.py` 21-44 行目）
+- `get_user_friendly_message()`: ユーザーフレンドリーなエラーメッセージを取得
+  （`src/kotonoha_bot/errors/discord_errors.py` 47-78 行目）
 
 ### 3.2 エラーメッセージの設計
 
@@ -215,44 +241,32 @@ stateDiagram-v2
 
 ## 4. データベーススキーマ設計
 
-### 4.1 SQLite スキーマ
+### 4.1 SQLite スキーマ（実際の実装）
 
-**sessions テーブル:**
+**sessions テーブル**（`src/kotonoha_bot/db/sqlite.py` 59-70 行目）:
 
 ```sql
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
     session_key TEXT PRIMARY KEY,
     session_type TEXT NOT NULL,  -- 'mention', 'thread', 'eavesdrop'
+    messages TEXT NOT NULL,  -- メッセージ履歴（JSON 形式）
+    created_at TEXT NOT NULL,  -- ISO 形式の日時文字列
+    last_active_at TEXT NOT NULL,  -- ISO 形式の日時文字列
     channel_id INTEGER,
     thread_id INTEGER,
-    user_id INTEGER,
-    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL,
-    last_activity TIMESTAMP NOT NULL,
-    is_archived BOOLEAN DEFAULT 0
+    user_id INTEGER
 );
 
-CREATE INDEX idx_sessions_type ON sessions(session_type);
-CREATE INDEX idx_sessions_user_id ON sessions(user_id);
-CREATE INDEX idx_sessions_last_activity ON sessions(last_activity);
+CREATE INDEX IF NOT EXISTS idx_last_active_at ON sessions(last_active_at);
+CREATE INDEX IF NOT EXISTS idx_session_type ON sessions(session_type);
 ```
 
-**messages テーブル:**
+**重要な違い**:
 
-```sql
-CREATE TABLE messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_key TEXT NOT NULL,
-    role TEXT NOT NULL,  -- 'user', 'assistant', 'system'
-    content TEXT NOT NULL,
-    message_id INTEGER,  -- Discord メッセージ ID
-    timestamp TIMESTAMP NOT NULL,
-    FOREIGN KEY (session_key) REFERENCES sessions(session_key) ON DELETE CASCADE
-);
-
-CREATE INDEX idx_messages_session_key ON messages(session_key);
-CREATE INDEX idx_messages_timestamp ON messages(timestamp);
-```
+- **`messages` テーブルは存在しない**: メッセージは JSON 形式で `sessions` テーブルの `messages` カラムに保存される
+- **`updated_at` カラムは存在しない**: `last_active_at` のみを使用
+- **`is_archived` カラムは存在しない**: アーカイブ状態は管理しない
+- **`user_id` のインデックスは存在しない**: 現在は `last_active_at` と `session_type` のみにインデックス
 
 **settings テーブル（将来の拡張用）:**
 
@@ -263,6 +277,8 @@ CREATE TABLE settings (
     updated_at TIMESTAMP NOT NULL
 );
 ```
+
+**注**: 現在の実装では `settings` テーブルは未実装です。
 
 ### 4.2 データベース操作の最適化
 
@@ -282,26 +298,48 @@ CREATE TABLE settings (
 
 ### 5.1 システムプロンプト（基本応答用）
 
+**実際のプロンプト**（`prompts/system_prompt.md`）:
+
 ```txt
-あなたは「Kotonoha（コトノハ）」という Discord ボットです。
-場面緘黙自助グループの運営を支援することを目的としています。
+あなたは「コトノハ」という名前の、場面緘黙自助グループをサポートする bot です。
 
-【キャラクター設定】
-- 優しく、安心感のある応答を心がけます
-- プレッシャーを感じさせない、自然な会話を大切にします
-- ユーザーのペースに合わせて、段階的にコミュニケーションを支援します
-- 常に温かく、受け入れる姿勢で応答します
+【重要な前提】
 
-【応答の原則】
-- 短い応答から長い対話まで、ユーザーのペースに合わせます
-- 否定的な言葉は使わず、肯定的な表現を心がけます
-- ユーザーが話しやすい環境を作ることを最優先にします
-- エラーや問題が発生しても、不安を与えない表現を使用します
+- あなたは場面緘黙自助グループをサポートする bot ですが、**会話の文脈や内容に応じて適切に対応してください**
+- **会話履歴に場面緘黙への言及がない場合、または場面緘黙とは関係のない話題の場合は、場面緘黙への言及を追加しないでください**
+- **店側スタッフやイベント主催者からの注意喚起・苦言・ルール説明など、ビジネス的な正式な連絡に対しては、場面緘黙に関係なく、内容を正確に理解し、適切に対応してください**
+
+【あなたの役割】
+
+- 場面緘黙で困っている人々が安心してコミュニケーションできる環境を提供する（ただし、会話の文脈が場面緘黙に関連する場合のみ）
+- 優しく、思いやりのある態度で接する
+- プレッシャーを与えず、ペースを尊重する
+- 必要に応じて情報やリソースを提供する
+- **会話の文脈に応じて、場面緘黙に関係のない話題にも適切に対応する**
+
+【コミュニケーションのガイドライン】
+
+- 簡潔でわかりやすい表現を心がける
+- 質問は一度に 1 つまで
+- 返答を急かさない
+- 沈黙も尊重する
+- ポジティブな表現を使う
 
 【禁止事項】
-- 医療的な診断やアドバイスは行いません
-- 個人を特定できる情報を尋ねません
-- 強制的な発言を促すような表現は使いません
+
+- 医療的なアドバイスをしない
+- 無理に話をさせようとしない
+- プライバシーを侵害しない
+
+【重要な注意事項：メッセージの文脈理解】
+
+- メッセージの送信者の立場（店側スタッフ、イベント主催者、参加者、代表など）を正確に理解してください
+- メッセージの意図（注意喚起、苦言、ルール説明、質問、相談など）を正確に把握してください
+- **店側スタッフやイベント主催者からの注意喚起・苦言・ルール説明に対しては、基本的に応答すべきではありません。もし応答する場合は、お詫びや感謝ではなく、具体的な問題点を理解し、建設的な提案をしてください。**
+- **メッセージに含まれていない情報（例：場面緘黙への言及など）を勝手に追加しないでください。会話履歴に場面緘黙への言及がない場合は、絶対に言及しないでください。**
+- メッセージの文脈や意図に沿った適切な応答をしてください
+- **抽象的な「寄り添います」「サポートします」という応答は避け、具体的で建設的な内容を述べてください**
+- **問題が指摘されている場合は、その問題点を理解し、具体的な改善提案や行動指針を示してください**
 ```
 
 ### 5.2 判定用プロンプト（聞き耳型アプローチ 1）
@@ -341,62 +379,93 @@ CREATE TABLE settings (
 - **ユーザー情報**: ユーザー名（匿名化可能）
 - **セッション情報**: セッションタイプ、開始時刻など
 
-**トークン数の管理:**
+**トークン数の管理**（実際の実装）:
 
-- **最大トークン数**: Gemini 1.5 Flash は 1M トークン、実用的には 32K トークン程度
-- **履歴の切り詰め**: トークン数が上限に近づいたら古いメッセージから削除
+- **最大トークン数**: Anthropic Claude API は 200K トークン（拡張モードで 1M トークン）
+- **デフォルト最大出力トークン**: 2048 トークン（`LLM_MAX_TOKENS`）
+- **履歴の切り詰め**: トークン数が上限に近づいたら古いメッセージから削除（将来の拡張）
 - **要約の活用**: 古いメッセージを要約して保持（将来の拡張）
 
 ## 6. レート制限対策の詳細
 
-### 6.1 Gemini API のレート制限（2026 年 1 月現在の無料枠）
+### 6.1 Anthropic Claude API のレート制限（実際の実装）
 
-**制限値:**
+**使用している API**:
 
-- **Gemini 2.5 Flash**: 5 回/分、20 回/日、250,000 トークン/分
-- **Gemini 2.5 Flash Lite**: 10 回/分、20 回/日、250,000 トークン/分
-- **Gemini 3 Flash**: 5 回/分、20 回/日、250,000 トークン/分
+- **Anthropic Claude API**（LiteLLM 経由）
+- デフォルトモデル: `anthropic/claude-sonnet-4-5`
+- フォールバックモデル: 設定可能（`LLM_FALLBACK_MODEL`）
 
-**重要**: 無料枠は 1 日 20 リクエストまでに制限されています。継続的な開発やテストには有料プランへの移行を検討してください。
+**実装上の考慮事項**（実際の実装）:
 
-**実装上の考慮事項:**
+- **リクエストキュー**: 優先度付きキューでリクエストを管理（`src/kotonoha_bot/rate_limit/request_queue.py`）
+  - 優先度: EAVESDROP（最高） > MENTION（中） > THREAD（最低）
+- **トークンバケットアルゴリズム**: レート制限を管理（`src/kotonoha_bot/rate_limit/token_bucket.py`）
+  - デフォルト: 1 分間に 50 リクエストまで（`RATE_LIMIT_CAPACITY`）
+  - 補充レート: 0.8 リクエスト/秒（`RATE_LIMIT_REFILL`）
+- **レート制限モニター**: レート制限の使用率を監視（`src/kotonoha_bot/rate_limit/monitor.py`）
+  - 警告閾値: 90%（`RATE_LIMIT_THRESHOLD`）
+- **フォールバック**: メインモデルが失敗した場合、フォールバックモデルに自動切り替え（設定されている場合）
 
-- **リクエスト数の監視**: 時間窓ごとのリクエスト数をカウント
-- **優先度管理**: ユーザー応答 > 聞き耳型判定
-- **キューイング**: レート制限に達したらリクエストをキューに積む
-- **フォールバック**: Flash の制限に達したら Pro に切り替え（ただし Pro の制限も厳しい）
+### 6.2 レート制限の実装（実際の実装）
 
-### 6.2 レート制限の実装
-
-**トークンバケットアルゴリズム:**
+**リクエストキュー**（`src/kotonoha_bot/rate_limit/request_queue.py`）:
 
 ```python
-class RateLimiter:
-    def __init__(self, max_requests: int, time_window: int):
-        self.max_requests = max_requests
-        self.time_window = time_window
-        self.requests = []  # タイムスタンプのリスト
+class RequestQueue:
+    """リクエストキュー
 
-    async def acquire(self):
-        now = time.time()
-        # 時間窓外のリクエストを削除
-        self.requests = [r for r in self.requests if now - r < self.time_window]
+    リクエストを優先度順に処理するキュー。
+    優先度: EAVESDROP（最高） > MENTION（中） > THREAD（最低）
+    """
 
-        if len(self.requests) >= self.max_requests:
-            # 次のリクエスト可能時刻まで待機
-            wait_time = self.time_window - (now - self.requests[0])
-            await asyncio.sleep(wait_time)
+    def __init__(self, max_size: int = 100):
+        self.max_size = max_size
+        self._queue: asyncio.PriorityQueue = asyncio.PriorityQueue(maxsize=max_size)
 
-        self.requests.append(now)
+    async def enqueue(self, priority: RequestPriority, func: Callable, *args, **kwargs):
+        """リクエストをキューに追加"""
+        # 優先度順に処理される
+        pass
 ```
 
-**使用例（無料枠の場合、2026 年 1 月現在）:**
+**トークンバケットアルゴリズム**（`src/kotonoha_bot/rate_limit/token_bucket.py`）:
 
 ```python
-# 無料枠の場合
-flash_limiter = RateLimiter(max_requests=5, time_window=60)  # 1分間に5回（gemini-2.5-flash）
-flash_lite_limiter = RateLimiter(max_requests=10, time_window=60)  # 1分間に10回（gemini-2.5-flash-lite）
-daily_limiter = RateLimiter(max_requests=20, time_window=86400)  # 1日に20回（無料枠共通）
+class TokenBucket:
+    """トークンバケット
+
+    レート制限を管理するトークンバケットアルゴリズム。
+    デフォルト: 1分間に50リクエストまで
+    """
+
+    def __init__(self, capacity: int, refill_rate: float):
+        self.capacity = capacity  # デフォルト: 50
+        self.refill_rate = refill_rate  # デフォルト: 0.8 リクエスト/秒
+        self.tokens = capacity
+        self.last_refill = time.time()
+
+    async def wait_for_tokens(self, tokens: int, timeout: float):
+        """トークンを取得（必要に応じて待機）"""
+        pass
+```
+
+**レート制限モニター**（`src/kotonoha_bot/rate_limit/monitor.py`）:
+
+```python
+class RateLimitMonitor:
+    """レート制限モニター
+
+    レート制限の使用率を監視し、警告を発する。
+    """
+
+    def check_rate_limit(self, endpoint: str) -> tuple[bool, float]:
+        """レート制限をチェック
+
+        Returns:
+            (is_ok, usage_rate): リクエスト可能か、使用率
+        """
+        pass
 ```
 
 ## 7. メモリ管理とパフォーマンス
@@ -556,10 +625,17 @@ resources:
     cpus: "0.5"
 ```
 
-**環境変数:**
+**環境変数**（実際の実装）:
 
-- **必須**: `DISCORD_TOKEN`, `GEMINI_API_KEY`
+- **必須**: `DISCORD_TOKEN`, `ANTHROPIC_API_KEY`
 - **オプション**: 各種設定値（デフォルト値あり）
+  - `LLM_MODEL`: デフォルト `anthropic/claude-sonnet-4-5`
+  - `LLM_FALLBACK_MODEL`: フォールバックモデル（オプション）
+  - `LLM_MAX_RETRIES`: 最大リトライ回数（デフォルト: 3）
+  - `LLM_RETRY_DELAY_BASE`: 指数バックオフのベース遅延（デフォルト: 1.0 秒）
+  - `RATE_LIMIT_CAPACITY`: レート制限の上限値（デフォルト: 50）
+  - `RATE_LIMIT_REFILL`: 補充レート（デフォルト: 0.8 リクエスト/秒）
+  - その他: `config.py` を参照
 
 **ボリュームマウント:**
 
@@ -626,5 +702,10 @@ find /app/backups -name "kotonoha_*.db" -mtime +7 -delete
 ---
 
 **作成日**: 2026 年 1 月 14 日
-**バージョン**: 1.0
+**最終更新**: 2026 年 1 月（現在の実装状況を反映）
+**バージョン**: 1.1
 **作成者**: kotonoha-bot 開発チーム
+
+**注意**: このドキュメントは実装前の検討事項をまとめたものであり、
+一部の内容は実際の実装と異なる場合があります。
+最新の実装については、`docs/architecture/` 配下のドキュメントを参照してください。
