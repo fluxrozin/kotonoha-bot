@@ -73,9 +73,10 @@ class Config:
     )  # 介入の最小間隔（分）
 
     # スレッド型設定
+    _thread_auto_archive_duration_str = os.getenv("THREAD_AUTO_ARCHIVE_DURATION")
     THREAD_AUTO_ARCHIVE_DURATION: int | None = (
-        int(os.getenv("THREAD_AUTO_ARCHIVE_DURATION"))
-        if os.getenv("THREAD_AUTO_ARCHIVE_DURATION")
+        int(_thread_auto_archive_duration_str)
+        if _thread_auto_archive_duration_str is not None
         else None
     )  # スレッドの自動アーカイブ期間（分）
     # 有効な値: 60 (1時間), 1440 (1日), 4320 (3日), 10080 (7日), 43200 (30日)

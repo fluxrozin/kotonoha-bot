@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
+from typing import Literal, cast
 
 import discord
 from discord.ext import tasks
@@ -348,12 +349,18 @@ class MessageHandler:
             # スレッドを作成
             try:
                 # 環境変数で設定された場合はその値を使用、未設定の場合はサーバーのデフォルト値を使用
-                thread_kwargs = {"name": thread_name}
                 if Config.THREAD_AUTO_ARCHIVE_DURATION is not None:
-                    thread_kwargs["auto_archive_duration"] = (
-                        Config.THREAD_AUTO_ARCHIVE_DURATION
+                    # discord.py expects Literal[60, 1440, 4320, 10080] for auto_archive_duration
+                    # We cast to the expected type since we validate the value comes from env var
+                    thread = await message.create_thread(
+                        name=thread_name,
+                        auto_archive_duration=cast(
+                            Literal[60, 1440, 4320, 10080],
+                            Config.THREAD_AUTO_ARCHIVE_DURATION,
+                        ),
                     )
-                thread = await message.create_thread(**thread_kwargs)
+                else:
+                    thread = await message.create_thread(name=thread_name)
             except discord.errors.Forbidden:
                 # スレッド作成権限がない場合はメンション応答型にフォールバック
                 logger.warning(
