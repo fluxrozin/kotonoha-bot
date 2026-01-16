@@ -103,14 +103,16 @@ async def async_main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+    # ヘルスチェックサーバーを先に起動（Botの状態に関わらずヘルスチェックに応答するため）
+    health_server.start()
+
     # Botの起動
     try:
         async with bot:
             await bot.start(Config.DISCORD_TOKEN)
             # Botの接続が確立されるまで待機
             await bot.wait_until_ready()
-            # Botがreadyになったらヘルスチェックサーバーを起動
-            health_server.start()
+            logger.info("Bot is ready, health check will now report healthy status")
             # シャットダウンシグナルが来るまで待機
             await shutdown_event.wait()
             # シャットダウンイベントが来たら、graceful shutdownを実行
