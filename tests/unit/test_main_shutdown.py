@@ -18,6 +18,9 @@ def mock_bot():
     bot.close = AsyncMock()
     bot.start = AsyncMock()
     bot.wait_until_ready = AsyncMock()
+    bot.add_cog = AsyncMock()
+    bot.tree = MagicMock()
+    bot.tree.sync = AsyncMock(return_value=[])
     bot.__aenter__ = AsyncMock(return_value=bot)
     bot.__aexit__ = AsyncMock(return_value=None)
     return bot
@@ -116,7 +119,11 @@ async def test_async_main_sets_up_components(
         shutdown_event = asyncio.Event()
 
         async def trigger_shutdown():
-            await asyncio.sleep(0.01)  # 少し待ってからシャットダウンをトリガー
+            # bot.startが呼ばれるまで待つ
+            while not mock_bot.start.called:
+                await asyncio.sleep(0.001)
+            # bot.startが呼ばれた後、少し待ってからシャットダウンをトリガー
+            await asyncio.sleep(0.01)
             shutdown_event.set()
 
         # シャットダウンイベントをモック

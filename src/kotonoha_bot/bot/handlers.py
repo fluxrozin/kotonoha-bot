@@ -347,9 +347,13 @@ class MessageHandler:
         else:
             # スレッドを作成
             try:
-                thread = await message.create_thread(
-                    name=thread_name, auto_archive_duration=60
-                )
+                # 環境変数で設定された場合はその値を使用、未設定の場合はサーバーのデフォルト値を使用
+                thread_kwargs = {"name": thread_name}
+                if Config.THREAD_AUTO_ARCHIVE_DURATION is not None:
+                    thread_kwargs["auto_archive_duration"] = (
+                        Config.THREAD_AUTO_ARCHIVE_DURATION
+                    )
+                thread = await message.create_thread(**thread_kwargs)
             except discord.errors.Forbidden:
                 # スレッド作成権限がない場合はメンション応答型にフォールバック
                 logger.warning(

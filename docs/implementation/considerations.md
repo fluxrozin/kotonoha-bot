@@ -35,10 +35,17 @@
 **実装上の考慮事項:**
 
 - **長文応答の分割**（実際の実装）: AI の応答が 2,000 文字を超える場合は複数メッセージに分割
-- **分割ロジック**: 文の区切り（句点、改行）で分割し、連番を付与（`src/kotonoha_bot/utils/message_splitter.py`）
-  - 優先順位: 句点+改行 > 句点 > 段落区切り（空行） > 改行 > 読点 > スペース
-- **埋め込みの活用**: 長文の場合は Embed を使用（ただし 6,000 文字制限あり）
-- **実装**: `split_message()` と `format_split_messages()` 関数（`src/kotonoha_bot/utils/message_splitter.py`）
+- **分割ロジック**: 文の区切りで分割し、連番を付与
+  （`src/kotonoha_bot/utils/message_splitter.py`）
+  - 優先順位（`SPLIT_PATTERNS`）: 句点+改行（`。\n`） > 句点（`。`） >
+    段落区切り（`\n\n`） > 改行（`\n`） > 読点（`[、，]`） > スペース（` `）
+  - 分割位置が見つからない場合は、強制的に `max_length` で分割
+- **連番付与**: 複数メッセージに分割された場合、各メッセージに
+  `**(1/3)**` のような連番を付与（`format_split_messages()`）
+- **埋め込みの活用**: 最初のメッセージのみ Embed で送信
+  （フッターにモデル名とレート制限使用率を表示）
+- **実装**: `split_message()` と `format_split_messages()` 関数
+  （`src/kotonoha_bot/utils/message_splitter.py`）
 
 ### 1.3 スレッド作成の制限
 
@@ -94,37 +101,38 @@
 
 ### 2.2 セッションのライフサイクル
 
-**セッションの状態遷移:**
+**セッションの状態遷移**（実際の実装）:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> 新規作成: セッション開始
-    新規作成 --> アクティブ: メッセージ受信
-    アクティブ --> アクティブ: 5分以内にメッセージ受信
-    アクティブ --> アイドル: 5分経過
-    アイドル --> アクティブ: メッセージ受信
-    アイドル --> 非アクティブ: 30分経過
-    アイドル --> SQLite保存: 自動保存
-    非アクティブ --> アクティブ: メッセージ受信
-    非アクティブ --> SQLite保存: 自動保存
-    非アクティブ --> 削除: 24時間経過
-    SQLite保存 --> 削除: メモリから削除
-    削除 --> [*]
+    [*] --> New: Session start
+    New --> Active: Message received
+    Active --> Active: Message received
+    Active --> Idle: 5 minutes elapsed (saved by batch sync)
+    Idle --> Active: Message received
+    Idle --> SavedToSQLite: Batch sync (every 5 minutes)
+    Active --> Timeout: 24 hours elapsed
+    Idle --> Timeout: 24 hours elapsed
+    Timeout --> SavedToSQLite: Cleanup (every hour)
+    SavedToSQLite --> Deleted: Removed from memory
+    Deleted --> [*]
 ```
 
-**タイムアウト設定:**
+**タイムアウト設定**（実際の実装）:
 
-- **アクティブ**: 最後のメッセージから 5 分以内
-- **アイドル**: 最後のメッセージから 5 分〜30 分
-- **非アクティブ**: 最後のメッセージから 30 分以上
-- **自動保存**: アイドル状態になったら SQLite に保存
-- **自動削除**: 非アクティブ状態が 24 時間続いたらメモリから削除
+- **セッションタイムアウト**: 最後のメッセージから 24 時間（`Config.SESSION_TIMEOUT_HOURS`、デフォルト: 24）
+- **アイドル閾値**: 最後のメッセージから 5 分以上経過（バッチ同期の閾値）
+- **自動保存**: バッチ同期タスクが 5 分ごとに実行され、最後のアクティビティから 5 分以上経過しているセッションを SQLite に保存
+- **自動削除**: クリーンアップタスクが 1 時間ごとに実行され、タイムアウト（24 時間）したセッションを SQLite に保存してからメモリから削除
 
-**実装上の考慮事項:**
+**実装上の考慮事項**（実際の実装）:
 
-- **タイマー管理**: `asyncio.Timer` または `discord.ext.tasks` を使用
-- **定期的なクリーンアップ**: 1 時間ごとに非アクティブセッションをクリーンアップ
-- **メモリ使用量の監視**: セッション数とメモリ使用量を監視
+- **タイマー管理**: `discord.ext.tasks` を使用（`@tasks.loop` デコレータ）
+- **定期的なクリーンアップ**: 1 時間ごとに実行
+  （`cleanup_task`、`src/kotonoha_bot/bot/handlers.py` 59-67 行目）
+- **バッチ同期**: 5 分ごとに実行
+  （`batch_sync_task`、`src/kotonoha_bot/bot/handlers.py` 74-102 行目）
+- **メモリ使用量の監視**: セッション数とメモリ使用量を監視（将来の拡張）
 
 ### 2.3 会話履歴の管理
 
@@ -263,7 +271,8 @@ CREATE INDEX IF NOT EXISTS idx_session_type ON sessions(session_type);
 
 **重要な違い**:
 
-- **`messages` テーブルは存在しない**: メッセージは JSON 形式で `sessions` テーブルの `messages` カラムに保存される
+- **`messages` テーブルは存在しない**: メッセージは JSON 形式で
+  `sessions` テーブルの `messages` カラムに保存される
 - **`updated_at` カラムは存在しない**: `last_active_at` のみを使用
 - **`is_archived` カラムは存在しない**: アーカイブ状態は管理しない
 - **`user_id` のインデックスは存在しない**: 現在は `last_active_at` と `session_type` のみにインデックス
@@ -305,9 +314,13 @@ CREATE TABLE settings (
 
 【重要な前提】
 
-- あなたは場面緘黙自助グループをサポートする bot ですが、**会話の文脈や内容に応じて適切に対応してください**
-- **会話履歴に場面緘黙への言及がない場合、または場面緘黙とは関係のない話題の場合は、場面緘黙への言及を追加しないでください**
-- **店側スタッフやイベント主催者からの注意喚起・苦言・ルール説明など、ビジネス的な正式な連絡に対しては、場面緘黙に関係なく、内容を正確に理解し、適切に対応してください**
+- あなたは場面緘黙自助グループをサポートする bot ですが、
+  **会話の文脈や内容に応じて適切に対応してください**
+- **会話履歴に場面緘黙への言及がない場合、または場面緘黙とは関係のない話題の場合は、
+  場面緘黙への言及を追加しないでください**
+- **店側スタッフやイベント主催者からの注意喚起・苦言・ルール説明など、
+  ビジネス的な正式な連絡に対しては、場面緘黙に関係なく、
+  内容を正確に理解し、適切に対応してください**
 
 【あなたの役割】
 
@@ -335,11 +348,15 @@ CREATE TABLE settings (
 
 - メッセージの送信者の立場（店側スタッフ、イベント主催者、参加者、代表など）を正確に理解してください
 - メッセージの意図（注意喚起、苦言、ルール説明、質問、相談など）を正確に把握してください
-- **店側スタッフやイベント主催者からの注意喚起・苦言・ルール説明に対しては、基本的に応答すべきではありません。もし応答する場合は、お詫びや感謝ではなく、具体的な問題点を理解し、建設的な提案をしてください。**
-- **メッセージに含まれていない情報（例：場面緘黙への言及など）を勝手に追加しないでください。会話履歴に場面緘黙への言及がない場合は、絶対に言及しないでください。**
+- **店側スタッフやイベント主催者からの注意喚起・苦言・ルール説明に対しては、
+  基本的に応答すべきではありません。もし応答する場合は、お詫びや感謝ではなく、
+  具体的な問題点を理解し、建設的な提案をしてください。**
+- **メッセージに含まれていない情報（例：場面緘黙への言及など）を勝手に追加しないでください。
+  会話履歴に場面緘黙への言及がない場合は、絶対に言及しないでください。**
 - メッセージの文脈や意図に沿った適切な応答をしてください
 - **抽象的な「寄り添います」「サポートします」という応答は避け、具体的で建設的な内容を述べてください**
-- **問題が指摘されている場合は、その問題点を理解し、具体的な改善提案や行動指針を示してください**
+- **問題が指摘されている場合は、その問題点を理解し、
+  具体的な改善提案や行動指針を示してください**
 ```
 
 ### 5.2 判定用プロンプト（聞き耳型アプローチ 1）
@@ -398,14 +415,21 @@ CREATE TABLE settings (
 
 **実装上の考慮事項**（実際の実装）:
 
-- **リクエストキュー**: 優先度付きキューでリクエストを管理（`src/kotonoha_bot/rate_limit/request_queue.py`）
-  - 優先度: EAVESDROP（最高） > MENTION（中） > THREAD（最低）
+- **リクエストキュー**: 優先度付きキューでリクエストを管理
+  （`src/kotonoha_bot/rate_limit/request_queue.py`）
+  - 優先度: EAVESDROP（最高、値: 3） > MENTION（中、値: 2） > THREAD（最低、値: 1）
+  - 同じ優先度の場合は、作成時刻でソート（古い順）
+  - 最大サイズ: 100 リクエスト（`max_size`）
+  - ワーカータスクがキューからリクエストを取得して順次処理
 - **トークンバケットアルゴリズム**: レート制限を管理（`src/kotonoha_bot/rate_limit/token_bucket.py`）
   - デフォルト: 1 分間に 50 リクエストまで（`RATE_LIMIT_CAPACITY`）
-  - 補充レート: 0.8 リクエスト/秒（`RATE_LIMIT_REFILL`）
+  - 補充レート: 0.8 リクエスト/秒（`RATE_LIMIT_REFILL`、1 分間に約 48 リクエスト）
+  - 非同期ロックを使用してスレッドセーフに実装
 - **レート制限モニター**: レート制限の使用率を監視（`src/kotonoha_bot/rate_limit/monitor.py`）
-  - 警告閾値: 90%（`RATE_LIMIT_THRESHOLD`）
-- **フォールバック**: メインモデルが失敗した場合、フォールバックモデルに自動切り替え（設定されている場合）
+  - 警告閾値: 90%（`RATE_LIMIT_THRESHOLD`、デフォルト: 0.9）
+  - 監視ウィンドウ: 60 秒（`RATE_LIMIT_WINDOW`）
+- **フォールバック**: メインモデルが失敗した場合、フォールバックモデルに自動切り替え
+  （`LLM_FALLBACK_MODEL` が設定されている場合）
 
 ### 6.2 レート制限の実装（実際の実装）
 
@@ -421,9 +445,13 @@ class RequestQueue:
 
     def __init__(self, max_size: int = 100):
         self.max_size = max_size
-        self._queue: asyncio.PriorityQueue = asyncio.PriorityQueue(maxsize=max_size)
+        self._queue: asyncio.PriorityQueue = (
+            asyncio.PriorityQueue(maxsize=max_size)
+        )
 
-    async def enqueue(self, priority: RequestPriority, func: Callable, *args, **kwargs):
+    async def enqueue(
+        self, priority: RequestPriority, func: Callable, *args, **kwargs
+    ):
         """リクエストをキューに追加"""
         # 優先度順に処理される
         pass
@@ -439,15 +467,40 @@ class TokenBucket:
     デフォルト: 1分間に50リクエストまで
     """
 
-    def __init__(self, capacity: int, refill_rate: float):
+    def __init__(
+        self, capacity: int, refill_rate: float, initial_tokens: int | None = None
+    ):
         self.capacity = capacity  # デフォルト: 50
         self.refill_rate = refill_rate  # デフォルト: 0.8 リクエスト/秒
-        self.tokens = capacity
-        self.last_refill = time.time()
+        self.tokens = (
+            initial_tokens if initial_tokens is not None else capacity
+        )
+        self.last_refill = datetime.now()
+        self._lock = asyncio.Lock()  # 非同期ロック
 
-    async def wait_for_tokens(self, tokens: int, timeout: float):
-        """トークンを取得（必要に応じて待機）"""
-        pass
+    async def acquire(self, tokens: int = 1) -> bool:
+        """トークンを取得（必要に応じて補充）
+
+        Returns:
+            トークンを取得できた場合 True
+        """
+        async with self._lock:
+            await self._refill()
+            if self.tokens >= tokens:
+                self.tokens -= tokens
+                return True
+            return False
+
+    async def wait_for_tokens(
+        self, tokens: int = 1, timeout: float | None = None
+    ) -> bool:
+        """トークンが利用可能になるまで待機
+
+        Returns:
+            トークンを取得できた場合 True、タイムアウトした場合 False
+        """
+        # ループでトークンを取得できるまで待機
+        # タイムアウトが設定されている場合はチェック
 ```
 
 **レート制限モニター**（`src/kotonoha_bot/rate_limit/monitor.py`）:
@@ -465,23 +518,29 @@ class RateLimitMonitor:
         Returns:
             (is_ok, usage_rate): リクエスト可能か、使用率
         """
+        # 監視ウィンドウ（60秒）内のリクエスト数をカウント
+        # 使用率を計算し、警告閾値（90%）を超えたら警告
         pass
 ```
+
+**注**: レート制限モニターは将来の拡張として設計されていますが、現在の実装では未使用です。
 
 ## 7. メモリ管理とパフォーマンス
 
 ### 7.1 メモリ使用量の最適化
 
-**ChatSession のメモリ管理:**
+**ChatSession のメモリ管理**（実際の実装）:
 
-- **セッション数の制限**: 同時に保持するセッション数を 100 に制限
-- **LRU キャッシュ**: 最近使用されていないセッションから SQLite に移動
-- **定期的なクリーンアップ**: 1 時間ごとに非アクティブセッションを削除
+- **セッション数の制限**: 同時に保持するセッション数を 100 に制限（`Config.MAX_SESSIONS`、デフォルト: 100）
+- **タイムアウトベースの削除**: 24 時間以上アクティブでないセッションを SQLite に保存してからメモリから削除
+- **定期的なクリーンアップ**: 1 時間ごとに実行（`cleanup_task`）
+- **バッチ同期**: 5 分ごとに実行され、最後のアクティビティから 5 分以上経過しているセッションを SQLite に保存
 
-**会話履歴のメモリ管理:**
+**会話履歴のメモリ管理**（実際の実装）:
 
-- **履歴の制限**: メモリ内では直近 50 メッセージのみ保持
-- **古いメッセージの圧縮**: 30 分以上前のメッセージは要約して保持（将来の拡張）
+- **履歴の保持**: メモリ内では全メッセージを保持（`ChatSession.messages`）
+- **SQLite への保存**: 全メッセージを JSON 形式で `sessions` テーブルの `messages` カラムに保存
+- **古いメッセージの圧縮**: 将来の拡張（現在は未実装）
 
 ### 7.2 非同期処理の活用
 
@@ -491,12 +550,13 @@ class RateLimitMonitor:
 - **データベース操作**: 読み取り操作は並行実行可能
 - **メッセージ送信**: キューに積んで順次処理（レート制限対策）
 
-**タスクの管理:**
+**タスクの管理**（実際の実装）:
 
-- **バックグラウンドタスク**: `discord.ext.tasks` を使用
-  - セッションのクリーンアップ（1 時間ごと）
-  - SQLite へのバッチ同期（5 分ごと）
-  - レート制限の監視（1 分ごと）
+- **バックグラウンドタスク**: `discord.ext.tasks` を使用（`@tasks.loop` デコレータ）
+  - セッションのクリーンアップ（1 時間ごと、`cleanup_task`）
+  - SQLite へのバッチ同期（5 分ごと、`batch_sync_task`）
+  - レート制限の監視（将来の拡張、現在は未実装）
+- **タスクの開始**: `on_ready` イベントでタスクを開始（イベントループが必要なため）
 
 ## 8. セキュリティ対策の詳細
 
@@ -703,9 +763,14 @@ find /app/backups -name "kotonoha_*.db" -mtime +7 -delete
 
 **作成日**: 2026 年 1 月 14 日
 **最終更新**: 2026 年 1 月（現在の実装状況を反映）
-**バージョン**: 1.1
+**バージョン**: 1.2
 **作成者**: kotonoha-bot 開発チーム
 
 **注意**: このドキュメントは実装前の検討事項をまとめたものであり、
 一部の内容は実際の実装と異なる場合があります。
 最新の実装については、`docs/architecture/` 配下のドキュメントを参照してください。
+
+**更新履歴**:
+
+- v1.2 (2026 年 1 月): 現在の実装状況を反映（セッション管理、レート制限、メッセージ分割、エラーハンドリングなど）
+- v1.1 (2026 年 1 月): 初期版

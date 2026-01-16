@@ -7,10 +7,13 @@
 - **OS**: WSL2 Ubuntu 22.04+ (Windows) または Linux/macOS
 - **Python**: 3.14
 - **uv**: パッケージマネージャー
-- **Discord Bot Token**: [Discord Developer Portal](https://discord.com/developers/applications) から取得
+- **Discord Bot Token**:
+  [Discord Developer Portal](https://discord.com/developers/applications) から取得
 - **LLM API Key**:
-  - 開発環境: [Anthropic Console](https://console.anthropic.com/) から Claude API Key を取得
-  - 本番環境: [Anthropic Console](https://console.anthropic.com/) から Claude API Key を取得
+  - 開発環境:
+    [Anthropic Console](https://console.anthropic.com/) から Claude API Key を取得
+  - 本番環境:
+    [Anthropic Console](https://console.anthropic.com/) から Claude API Key を取得
 
 ## 5 分でセットアップ
 
@@ -30,12 +33,10 @@ cp .env.example .env
 
 # エディタで開いて以下を設定
 # DISCORD_TOKEN=your_discord_bot_token_here
-# LLM_MODEL=anthropic/claude-3-haiku-20240307  # 開発用（レガシー、超低コスト）
-# ANTHROPIC_API_KEY=your_anthropic_api_key_here  # 開発・本番環境用
-
-# 本番環境の場合:
-# LLM_MODEL=anthropic/claude-opus-4-5  # 本番用
 # ANTHROPIC_API_KEY=your_anthropic_api_key_here
+# LLM_MODEL=anthropic/claude-opus-4-5  # 本番用（最高品質）
+# LLM_MODEL=anthropic/claude-haiku-4-5    # 開発用（最速・低コスト）
+# LLM_MODEL=anthropic/claude-sonnet-4-5   # バランス型
 ```
 
 ### 3. 依存関係のインストール
@@ -52,10 +53,7 @@ uv sync
 
 ```bash
 # 開発モードで起動
-uv run python -m kotonoha_bot
-
-# または
-uv run python src/kotonoha_bot/bot.py
+uv run python -m kotonoha_bot.main
 ```
 
 ### 5. 動作確認
@@ -81,19 +79,33 @@ kotonoha-bot/
 │   ├── operations/         # 運用ガイド
 │   └── development/        # 開発者向け
 ├── prompts/                # プロンプトファイル（Markdown）
-│   ├── system_prompt.md                    # システムプロンプト
-│   ├── eavesdrop_judge_prompt.md           # 聞き耳型判定用プロンプト
-│   └── eavesdrop_response_prompt.md       # 聞き耳型応答生成用プロンプト
+│   ├── system_prompt.md                              # システムプロンプト
+│   ├── eavesdrop_judge_prompt.md                    # 聞き耳型判定用プロンプト
+│   ├── eavesdrop_response_prompt.md                 # 聞き耳型応答生成用プロンプト
+│   ├── eavesdrop_same_conversation_prompt.md        # 聞き耳型同一会話判定用プロンプト
+│   ├── eavesdrop_conversation_state_prompt.md       # 聞き耳型会話状態判定用プロンプト
+│   └── eavesdrop_conversation_situation_changed_prompt.md  # 聞き耳型会話状況変化判定用プロンプト
 ├── src/kotonoha_bot/       # ソースコード
-│   ├── bot.py              # Botメイン
+│   ├── main.py             # Bot エントリーポイント
+│   ├── bot/                # Bot コア機能
+│   │   ├── client.py       # Bot クライアント
+│   │   └── handlers.py     # イベントハンドラー
 │   ├── ai/                 # AI サービス
 │   ├── session/            # セッション管理
 │   ├── router/             # メッセージルーティング
 │   ├── eavesdrop/          # 聞き耳型機能
-│   ├── database/           # データベース
-│   └── commands/           # スラッシュコマンド
+│   ├── db/                 # データベース
+│   ├── commands/           # スラッシュコマンド
+│   ├── rate_limit/         # レート制限
+│   ├── errors/             # エラーハンドリング
+│   └── utils/              # ユーティリティ
 ├── tests/                  # テストコード
+│   ├── unit/               # 単体テスト
+│   └── integration/        # 統合テスト
 ├── data/                   # データベース（.gitignore）
+│   └── sessions.db         # SQLite データベースファイル
+├── logs/                   # ログファイル（.gitignore）
+│   └── run.log             # 実行ログ
 ├── .env                    # 環境変数（.gitignore）
 └── pyproject.toml          # プロジェクト設定
 ```
@@ -133,24 +145,23 @@ kotonoha-bot/
 
 ### Q: データベースエラーが発生する
 
-**A**: `data/` ディレクトリが作成されているか、書き込み権限があるか確認してください。
+**A**: 以下を確認してください:
+
+- `data/` ディレクトリが作成されているか
+- 書き込み権限があるか
+- `DATABASE_NAME` が正しく設定されているか（デフォルト: `sessions.db`）
+
+### Q: ログファイルが作成されない
+
+**A**: 以下を確認してください:
+
+- `logs/` ディレクトリが作成されているか
+- 書き込み権限があるか
+- `LOG_FILE` が正しく設定されているか（デフォルト: `./logs/run.log`）
 
 詳細は [FAQ](development/faq.md) と [トラブルシューティング](operations/troubleshooting.md) を参照してください。
 
 ## 開発フロー
-
-```mermaid
-graph LR
-    A[Issue作成] --> B[ブランチ作成]
-    B --> C[実装]
-    C --> D[テスト]
-    D --> E[コミット]
-    E --> F[プッシュ]
-    F --> G[PR作成]
-    G --> H[レビュー]
-    H --> I[マージ]
-    I --> J[自動デプロイ]
-```
 
 1. **Issue 作成**: 実装する機能や修正するバグを Issue に記録
 2. **ブランチ作成**: `feature/xxx` または `fix/xxx` ブランチを作成
@@ -161,38 +172,6 @@ graph LR
 7. **マージ**: レビュー承認後にマージ
 8. **自動デプロイ**: GitHub Actions が自動的にデプロイ
 
-## コミットメッセージの規約
-
-```txt
-<type>: <subject>
-
-<body>
-
-<footer>
-```
-
-**Type**:
-
-- `feat`: 新機能
-- `fix`: バグ修正
-- `docs`: ドキュメント
-- `style`: コードスタイル
-- `refactor`: リファクタリング
-- `test`: テスト
-- `chore`: その他
-
-**例**:
-
-```txt
-feat: メンション応答型の実装
-
-- discord.pyを使用してメンション検知を実装
-- Gemini APIで応答を生成
-- 基本的なエラーハンドリングを追加
-
-Closes #1
-```
-
 ## トラブルシューティング
 
 問題が発生した場合は以下を確認してください:
@@ -201,7 +180,7 @@ Closes #1
 
    ```bash
    # 実行中のログを確認
-   tail -f logs/kotonoha.log
+   tail -f logs/run.log
    ```
 
 2. **環境変数の確認**
@@ -220,7 +199,7 @@ Closes #1
 4. **データベースのリセット**
 
    ```bash
-   rm data/kotonoha.db
+   rm data/sessions.db
    # 再起動すると自動で再作成されます
    ```
 
@@ -234,6 +213,17 @@ Closes #1
 
 ---
 
-**作成日**: 2026 年 1 月 14 日
-**最終更新日**: 2026 年 1 月 14 日
-**バージョン**: 1.0
+**作成日**: 2026 年 1 月 14 日  
+**最終更新日**: 2026 年 1 月 15 日  
+**バージョン**: 2.0
+
+## 更新履歴
+
+- **v2.0** (2026-01-15): 実際の実装に基づいて改訂
+  - Bot の起動方法を `python -m kotonoha_bot.main` に修正
+  - プロジェクト構造を実際の実装に合わせて更新
+  - プロンプトファイル名を実際の実装に合わせて更新
+  - データベースファイル名を `sessions.db` に修正
+  - ログファイルパスを `logs/run.log` に修正
+  - 環境変数の設定例を更新
+- **v1.0** (2026-01-14): 初版リリース

@@ -23,8 +23,8 @@ def mock_session_manager():
 def mock_ai_provider():
     """モックAIProvider"""
     provider = MagicMock()
-    # generate_responseは同期関数なので、通常のMagicMockを使用
-    provider.generate_response = MagicMock(return_value="YES")
+    # generate_responseは非同期関数なので、AsyncMockを使用
+    provider.generate_response = AsyncMock(return_value="YES")
     return provider
 
 
@@ -67,7 +67,7 @@ async def test_should_respond_empty_messages(llm_judge):
 @pytest.mark.asyncio
 async def test_should_respond_yes_response(llm_judge, recent_messages):
     """YES応答の場合、Trueを返す"""
-    llm_judge.ai_provider.generate_response = MagicMock(return_value="YES")
+    llm_judge.ai_provider.generate_response = AsyncMock(return_value="YES")
     # 会話状態分析をモック化
     with patch.object(
         llm_judge, "_analyze_conversation_state", new_callable=AsyncMock
@@ -91,7 +91,7 @@ async def test_should_respond_yes_response(llm_judge, recent_messages):
 @pytest.mark.asyncio
 async def test_should_respond_no_response(llm_judge, recent_messages):
     """NO応答の場合、Falseを返す"""
-    llm_judge.ai_provider.generate_response = MagicMock(return_value="NO")
+    llm_judge.ai_provider.generate_response = AsyncMock(return_value="NO")
     # 会話状態分析をモック化
     with patch.object(
         llm_judge, "_analyze_conversation_state", new_callable=AsyncMock
@@ -162,7 +162,7 @@ async def test_should_respond_conversation_not_changed(llm_judge, recent_message
 @pytest.mark.asyncio
 async def test_should_respond_error_handling(llm_judge, recent_messages):
     """エラーが発生した場合はFalseを返す"""
-    llm_judge.ai_provider.generate_response = MagicMock(
+    llm_judge.ai_provider.generate_response = AsyncMock(
         side_effect=Exception("テストエラー")
     )
     # 会話状態分析をモック化
@@ -205,7 +205,7 @@ async def test_generate_response_success(llm_judge, recent_messages):
         llm_judge, "should_respond", new_callable=AsyncMock
     ) as mock_should:
         mock_should.return_value = True
-        llm_judge.ai_provider.generate_response = MagicMock(
+        llm_judge.ai_provider.generate_response = AsyncMock(
             return_value="生成された応答"
         )
 
@@ -223,7 +223,7 @@ async def test_generate_response_error_handling(llm_judge, recent_messages):
         llm_judge, "should_respond", new_callable=AsyncMock
     ) as mock_should:
         mock_should.return_value = True
-        llm_judge.ai_provider.generate_response = MagicMock(
+        llm_judge.ai_provider.generate_response = AsyncMock(
             side_effect=Exception("テストエラー")
         )
 
@@ -283,7 +283,7 @@ async def test_get_intervention_context_with_history(llm_judge, recent_messages)
 @pytest.mark.asyncio
 async def test_analyze_conversation_state(llm_judge, recent_messages):
     """会話状態の分析が正しく動作する"""
-    llm_judge.ai_provider.generate_response = MagicMock(return_value="ACTIVE")
+    llm_judge.ai_provider.generate_response = AsyncMock(return_value="ACTIVE")
 
     state = await llm_judge._analyze_conversation_state(recent_messages)
 
@@ -295,7 +295,7 @@ async def test_analyze_conversation_state(llm_judge, recent_messages):
 @pytest.mark.asyncio
 async def test_analyze_conversation_state_ending(llm_judge, recent_messages):
     """会話が終了しようとしている場合、endingを返す"""
-    llm_judge.ai_provider.generate_response = MagicMock(return_value="ENDING")
+    llm_judge.ai_provider.generate_response = AsyncMock(return_value="ENDING")
 
     state = await llm_judge._analyze_conversation_state(recent_messages)
 
@@ -305,7 +305,7 @@ async def test_analyze_conversation_state_ending(llm_judge, recent_messages):
 @pytest.mark.asyncio
 async def test_analyze_conversation_state_error(llm_judge, recent_messages):
     """エラーが発生した場合、activeを返す（デフォルト）"""
-    llm_judge.ai_provider.generate_response = MagicMock(
+    llm_judge.ai_provider.generate_response = AsyncMock(
         side_effect=Exception("テストエラー")
     )
 
@@ -380,7 +380,7 @@ async def test_is_same_conversation(llm_judge):
     previous_log = "ユーザー1: こんにちは\nユーザー2: こんにちは"
     current_log = "ユーザー1: 元気ですか？\nユーザー2: はい、元気です"
 
-    llm_judge.ai_provider.generate_response = MagicMock(return_value="SAME")
+    llm_judge.ai_provider.generate_response = AsyncMock(return_value="SAME")
 
     result = await llm_judge._is_same_conversation(previous_log, current_log)
 
@@ -395,7 +395,7 @@ async def test_is_same_conversation_error(llm_judge):
     previous_log = "前回のログ"
     current_log = "現在のログ"
 
-    llm_judge.ai_provider.generate_response = MagicMock(
+    llm_judge.ai_provider.generate_response = AsyncMock(
         side_effect=Exception("テストエラー")
     )
 
@@ -410,7 +410,7 @@ async def test_check_conversation_situation_changed(llm_judge):
     last_intervention_log = "前回の介入時の会話ログ"
     current_log = "現在の会話ログ"
 
-    llm_judge.ai_provider.generate_response = MagicMock(return_value="CHANGED")
+    llm_judge.ai_provider.generate_response = AsyncMock(return_value="CHANGED")
 
     result = await llm_judge._check_conversation_situation_changed(
         last_intervention_log, current_log
@@ -427,7 +427,7 @@ async def test_check_conversation_situation_changed_unchanged(llm_judge):
     last_intervention_log = "前回の介入時の会話ログ"
     current_log = "現在の会話ログ"
 
-    llm_judge.ai_provider.generate_response = MagicMock(return_value="UNCHANGED")
+    llm_judge.ai_provider.generate_response = AsyncMock(return_value="UNCHANGED")
 
     result = await llm_judge._check_conversation_situation_changed(
         last_intervention_log, current_log
@@ -442,7 +442,7 @@ async def test_check_conversation_situation_changed_error(llm_judge):
     last_intervention_log = "前回の介入時の会話ログ"
     current_log = "現在の会話ログ"
 
-    llm_judge.ai_provider.generate_response = MagicMock(
+    llm_judge.ai_provider.generate_response = AsyncMock(
         side_effect=Exception("テストエラー")
     )
 

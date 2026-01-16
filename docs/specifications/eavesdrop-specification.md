@@ -9,6 +9,9 @@
 - **自動的な会話監視**: 有効なチャンネル内の全メッセージを監視
 - **LLM ベースの判定**: 会話の状況を理解し、適切なタイミングで介入
 - **介入履歴の管理**: チャンネルごとに介入履歴を追跡し、過度な介入を防止
+- **最小間隔チェック**: 最後の介入から一定時間（デフォルト: 10 分）経過していない場合は介入しない
+- **同じ会話判定**: 前回の介入時と同じ会話かどうかを LLM で判定
+- **会話状況変化判定**: 同じ会話でも状況が変わったかどうかを LLM で判定
 - **キャッシュ機能**: トークン消費を削減するためのキャッシュ機能
 
 ### 1.2 設計思想
@@ -26,6 +29,12 @@ MessageHandler
   └─ ConversationBuffer (会話ログバッファ)
   └─ LLMJudge (LLM判定機能)
       ├─ should_respond() (介入判定)
+      │   ├─ _analyze_conversation_state() (会話状態分析)
+      │   ├─ _has_conversation_changed_after_intervention() (会話状況変化チェック)
+      │   │   ├─ 最小間隔チェック
+      │   │   ├─ _is_same_conversation() (同じ会話判定)
+      │   │   └─ _check_conversation_situation_changed() (会話状況変化判定)
+      │   └─ LLM判定
       ├─ generate_response() (応答生成)
       └─ 介入履歴管理
 ```
@@ -41,8 +50,8 @@ ConversationBuffer に追加
   ↓
 LLMJudge.generate_response()
   ├─ should_respond() (介入判定)
-  │   ├─ 会話状態分析
-  │   ├─ 介入履歴取得
+  │   ├─ 会話状態分析（ENDING の場合は即座に False）
+  │   ├─ 会話状況変化チェック（最小間隔、同じ会話判定、状況変化判定）
   │   └─ LLM判定
   └─ 応答生成 (介入が必要な場合)
       └─ LLM応答生成
@@ -72,37 +81,54 @@ Discordチャンネルに投稿
 4. **LLM 判定の実行**
    - `LLMJudge.generate_response()` を呼び出し
 
+**実装ファイル**: `src/kotonoha_bot/bot/handlers.py` の `_process_eavesdrop` メソッド
+
 ### 3.2 介入判定の処理 (`should_respond`)
+
+**実装ファイル**: `src/kotonoha_bot/eavesdrop/llm_judge.py` の `should_respond` メソッド
 
 1. **基本チェック**
 
    - メッセージが空でないか確認
-   - 会話が終了しようとしている場合は介入しない
 
-2. **会話状態の分析（LLM 判定）**
+2. **会話状態の分析（LLM 判定、最優先）**
 
    - `_analyze_conversation_state()` で会話の状態を判定（非同期処理）
    - LLM 判定を使用して、会話の文脈と雰囲気を総合的に判断
    - 状態: `"active"`, `"ending"`, `"misunderstanding"`, `"conflict"`
-   - 会話が終了しようとしている場合（`"ending"`）は介入しない
+   - 会話が終了しようとしている場合（`"ending"`）は即座に `False` を返す
 
-3. **介入履歴の取得**
+3. **会話状況変化チェック（介入履歴がある場合）**
+
+   - `_has_conversation_changed_after_intervention()` を呼び出す
+   - この中で以下のチェックが行われる：
+     - **最小間隔チェック**: 最後の介入から
+       `EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES`（デフォルト: 10 分）
+       経過していない場合は `False` を返す
+     - **同じ会話判定**: `_is_same_conversation()` で前回の介入時と同じ会話かどうかを
+       LLM で判定
+     - **会話状況変化判定**: 同じ会話の場合、
+       `_check_conversation_situation_changed()` で会話の状況が変わったかどうかを
+       LLM で判定
+   - 会話状況が変わっていない場合は `False` を返す
+
+4. **介入履歴の取得**
 
    - `_get_intervention_context()` で介入履歴の情報を取得
    - 最後の介入からの経過時間、30 分以内の介入回数、最後の介入時の会話
 
-4. **会話ログのフォーマット**
+5. **会話ログのフォーマット**
 
    - `_format_conversation_log()` で会話ログを文字列に変換
    - 形式: `{author_name}: {content}`
 
-5. **LLM 判定**
+6. **LLM 判定**
 
    - 判定用プロンプトを作成（介入履歴の情報も含める）
    - 軽量モデル（`EAVESDROP_JUDGE_MODEL`）で判定
    - 応答: "YES" または "NO"
 
-6. **介入の記録**
+7. **介入の記録**
    - 介入が必要な場合、`_record_intervention()` で記録
    - 介入時の会話ログ（最新 5 メッセージ）を保存
 
@@ -124,7 +150,7 @@ Discordチャンネルに投稿
 
 4. **メッセージ投稿**
    - メッセージを分割（Discord の文字数制限対応）
-   - チャンネルに投稿
+   - チャンネルに投稿（最初のメッセージのみ Embed、残りは通常メッセージ）
 
 ## 4. 各コンポーネントの詳細
 
@@ -146,6 +172,8 @@ buffers: dict[int, deque[discord.Message]]
 - `get_recent_messages(channel_id, limit)`: 直近のメッセージを取得
 - `clear(channel_id)`: バッファをクリア
 
+**実装ファイル**: `src/kotonoha_bot/eavesdrop/conversation_buffer.py`
+
 ### 4.2 LLMJudge
 
 **役割**: LLM を使用した介入判定と応答生成
@@ -166,10 +194,17 @@ conversation_check_cache: dict[tuple[int, str], tuple[bool, datetime]]
 
 - `should_respond(channel_id, recent_messages)`: 介入が必要か判定（非同期）
 - `generate_response(channel_id, recent_messages)`: 応答を生成（非同期）
-- `_get_intervention_context(channel_id, recent_messages)`: 介入履歴の情報を取得
+- `_get_intervention_context(channel_id)`: 介入履歴の情報を取得
 - `_analyze_conversation_state(recent_messages)`: 会話の状態を分析（非同期、LLM 判定）
+- `_has_conversation_changed_after_intervention(channel_id, recent_messages)`: 介入後の会話状況が変わったか判定（非同期）
+- `_is_same_conversation(previous_log, current_log, cache_key)`:
+  同じ会話かどうかを判定（非同期、LLM 判定）
+- `_check_conversation_situation_changed(last_intervention_log, current_log)`:
+  会話の状況が変わったか判定（非同期、LLM 判定）
 - `_record_intervention(channel_id, recent_messages)`: 介入を記録
 - `_format_conversation_log(messages)`: 会話ログをフォーマット
+
+**実装ファイル**: `src/kotonoha_bot/eavesdrop/llm_judge.py`
 
 ### 4.3 会話状態の分析
 
@@ -210,7 +245,62 @@ conversation_check_cache: dict[tuple[int, str], tuple[bool, datetime]]
 - 非同期処理: `async def` で実装
 - エラーハンドリング: エラー時は安全側に倒して `"active"` を返す
 
-### 4.4 介入履歴の管理
+### 4.4 最小間隔チェック
+
+**実装**: `_has_conversation_changed_after_intervention` メソッド内
+
+**動作**:
+
+- 最後の介入から `EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES`
+  （デフォルト: 10 分）経過していない場合は、即座に `False` を返す
+- LLM 判定をスキップすることで、トークン消費を削減
+
+**設定**: 環境変数 `EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES`（デフォルト: 10 分）
+
+**実装状況**: ✅ 実装済み
+
+### 4.5 同じ会話判定
+
+**実装**: `_is_same_conversation` メソッド
+
+**動作**:
+
+- 前回の介入時の会話ログ（最新 5 メッセージ）と現在の会話ログ（最新 5 メッセージ）を比較
+- LLM 判定を使用して、同じ会話かどうかを判定
+- キャッシュ機能により、同じ会話ログの組み合わせで 5 分以内はキャッシュから取得
+
+**判定基準**:
+
+- **SAME**: トピックが同じ/関連、参加者が同じ/重複、時間が経過していても返信の場合は同じ会話
+- **DIFFERENT**: トピックが全く異なる、会話の文脈が切れている
+
+**プロンプト**: `eavesdrop_same_conversation_prompt.md`
+
+**最大トークン数**: 20（SAME/DIFFERENT のみなので短く）
+
+**実装状況**: ✅ 実装済み（`_has_conversation_changed_after_intervention` 内で使用）
+
+### 4.6 会話状況変化判定
+
+**実装**: `_check_conversation_situation_changed` メソッド
+
+**動作**:
+
+- 同じ会話の場合、会話の状況が変わったかどうかを LLM で判定
+- 前回の介入時の会話ログと現在の会話ログを比較
+
+**判定基準**:
+
+- **CHANGED**: 会話の状況が変わった（新しい問題が発生、状況が悪化、新しい参加者が加わったなど）
+- **UNCHANGED**: 会話の状況が変わっていない（同じ問題が継続、状況が改善されていないなど）
+
+**プロンプト**: `eavesdrop_conversation_situation_changed_prompt.md`
+
+**最大トークン数**: 20（CHANGED/UNCHANGED のみなので短く）
+
+**実装状況**: ✅ 実装済み（`_has_conversation_changed_after_intervention` 内で使用）
+
+### 4.7 介入履歴の管理
 
 **履歴の保持期間**:
 
@@ -232,12 +322,13 @@ conversation_check_cache: dict[tuple[int, str], tuple[bool, datetime]]
 
 ### 5.1 環境変数
 
-| 変数名                       | デフォルト値                   | 説明                                   |
-| ---------------------------- | ------------------------------ | -------------------------------------- |
-| `EAVESDROP_ENABLED_CHANNELS` | `""`                           | 有効なチャンネル ID（カンマ区切り）    |
-| `EAVESDROP_JUDGE_MODEL`      | `"anthropic/claude-haiku-4-5"` | 判定用モデル（軽量モデル）             |
-| `EAVESDROP_BUFFER_SIZE`      | `20`                           | 会話ログバッファの最大サイズ           |
-| `EAVESDROP_MIN_MESSAGES`     | `3`                            | 判定・応答生成に必要な最低メッセージ数 |
+| 変数名                                        | デフォルト値                   | 説明                                   |
+| --------------------------------------------- | ------------------------------ | -------------------------------------- |
+| `EAVESDROP_ENABLED_CHANNELS`                  | `""`                           | 有効なチャンネル ID（カンマ区切り）    |
+| `EAVESDROP_JUDGE_MODEL`                       | `"anthropic/claude-haiku-4-5"` | 判定用モデル（軽量モデル）             |
+| `EAVESDROP_BUFFER_SIZE`                       | `20`                           | 会話ログバッファの最大サイズ           |
+| `EAVESDROP_MIN_MESSAGES`                      | `3`                            | 判定・応答生成に必要な最低メッセージ数 |
+| `EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES` | `10`                           | 介入の最小間隔（分）                   |
 
 ### 5.2 内部設定
 
@@ -246,7 +337,8 @@ conversation_check_cache: dict[tuple[int, str], tuple[bool, datetime]]
 - **介入時の会話ログ保存件数**: 最新 5 メッセージ
 - **判定用モデルの最大トークン数**: 50
 - **会話状態判定用モデルの最大トークン数**: 20（ENDING/MISUNDERSTANDING/CONFLICT/ACTIVE のみ）
-- **同じ会話判定用モデルの最大トークン数**: 20
+- **同じ会話判定用モデルの最大トークン数**: 20（SAME/DIFFERENT のみ）
+- **会話状況変化判定用モデルの最大トークン数**: 20（CHANGED/UNCHANGED のみ）
 
 ## 6. プロンプト設計
 
@@ -334,7 +426,7 @@ conversation_check_cache: dict[tuple[int, str], tuple[bool, datetime]]
 - 同じ内容を繰り返し提案しない
 - 会話の流れに応じた応答
 
-### 6.3 同じ会話判定用プロンプト (`eavesdrop_same_conversation_prompt.md`)
+### 6.4 同じ会話判定用プロンプト (`eavesdrop_same_conversation_prompt.md`)
 
 **目的**: 前回の介入時の会話と現在の会話が同じかどうかを判定
 
@@ -356,7 +448,25 @@ conversation_check_cache: dict[tuple[int, str], tuple[bool, datetime]]
 2. 会話の文脈の連続性
 3. 時間的な間隔、参加者の変化（参考程度）
 
-**注意**: 現在は未使用（将来の拡張用）
+**実装状況**: ✅ 実装済み（`_has_conversation_changed_after_intervention` 内で使用）
+
+### 6.5 会話状況変化判定用プロンプト (`eavesdrop_conversation_situation_changed_prompt.md`)
+
+**目的**: 同じ会話でも会話の状況が変わったかどうかを判定
+
+**入力**:
+
+- 前回の介入時の会話（最新 5 メッセージ）
+- 現在の会話（最新 5 メッセージ）
+
+**出力**: "CHANGED" または "UNCHANGED"
+
+**判定基準**:
+
+- **CHANGED**: 会話の状況が変わった（新しい問題が発生、状況が悪化、新しい参加者が加わったなど）
+- **UNCHANGED**: 会話の状況が変わっていない（同じ問題が継続、状況が改善されていないなど）
+
+**実装状況**: ✅ 実装済み（`_has_conversation_changed_after_intervention` 内で使用）
 
 ## 7. データ構造
 
@@ -426,22 +536,46 @@ Kotonoha: イベント運営の基本ルールを整理しましょう
 
 ## 9. パフォーマンス最適化
 
-### 9.1 キャッシュ機能
+### 9.1 最小間隔チェック（最優先）
 
-- **目的**: トークン消費を削減
-- **有効期限**: 5 分
-- **効果**: 短時間内の連続した判定を約 80-90%削減
+**実装**: `_has_conversation_changed_after_intervention` メソッド内
 
-### 9.2 会話ログの制限
+**動作**:
+
+- 最後の介入から `EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES`
+  （デフォルト: 10 分）経過していない場合は、LLM 判定をスキップして
+  即座に `False` を返す
+- 早期に介入をブロックすることで、不要な LLM API 呼び出しを削減
+
+**効果**:
+
+- 短時間内の連続した LLM API 呼び出しを防止
+- トークン消費を大幅に削減
+
+**実装状況**: ✅ 実装済み
+
+### 9.2 キャッシュ機能
+
+**目的**: トークン消費を削減
+
+**有効期限**: 5 分
+
+**効果**: 短時間内の連続した判定を約 80-90%削減
+
+**注意**: 現在は結果をキャッシュに保存しているが、キャッシュから読み取って LLM 呼び出しをスキップする機能は未実装（将来の拡張）
+
+**実装状況**: ⚠️ 部分的（キャッシュへの保存は実装済み、読み取りは未実装）
+
+### 9.3 会話ログの制限
 
 - **バッファサイズ**: 最大 20 件（設定可能）
 - **介入時の会話ログ保存**: 最新 5 メッセージのみ
 - **介入履歴の保持期間**: 1 時間
 
-### 9.3 LLM 呼び出しの最適化
+### 9.4 LLM 呼び出しの最適化
 
 - **判定用モデル**: 軽量モデルを使用（`EAVESDROP_JUDGE_MODEL`）
-- **最大トークン数**: 判定用 50、同じ会話判定用 20
+- **最大トークン数**: 判定用 50、会話状態判定用 20、同じ会話判定用 20、会話状況変化判定用 20
 - **応答生成**: デフォルトモデルを使用
 
 ## 10. 制限事項と注意点
@@ -451,11 +585,12 @@ Kotonoha: イベント運営の基本ルールを整理しましょう
 - **チャンネルごとの有効化**: 環境変数で指定されたチャンネルのみ有効
 - **最低メッセージ数**: 3 件以上必要（会話の流れを理解するため）
 - **介入履歴の保持期間**: 1 時間以内
+- **最小介入間隔**: デフォルト 10 分（設定可能）
 
 ### 10.2 注意点
 
-- **トークン消費**: メッセージが送られるたびに LLM 判定が実行される可能性がある
-- **キャッシュの効果**: 同じ会話ログの組み合わせで 5 分以内はキャッシュから取得
+- **トークン消費**: メッセージが送られるたびに LLM 判定が実行される可能性がある（最小間隔チェックにより削減）
+- **キャッシュの効果**: 同じ会話ログの組み合わせで 5 分以内はキャッシュから取得（現在は保存のみ、読み取りは未実装）
 - **会話の状態判定**: LLM 判定を使用（キーワードリストベースから改善）
   - 文脈理解により、より正確な判定が可能
   - 表現のバリエーションに対応
@@ -465,9 +600,7 @@ Kotonoha: イベント運営の基本ルールを整理しましょう
 
 ### 11.1 未実装機能
 
-- **同じ会話判定**: `_is_same_conversation()` メソッドは実装されているが、現在は未使用
-- **最小間隔チェック**: 設定項目はあるが、LLM 判定に委ねられている
-- **最大介入回数チェック**: 設定項目はあるが、LLM 判定に委ねられている
+- **キャッシュからの読み取り**: キャッシュに保存された結果を読み取って LLM 呼び出しをスキップする機能（現在は保存のみ）
 
 ### 11.2 改善案
 
@@ -481,14 +614,17 @@ Kotonoha: イベント運営の基本ルールを整理しましょう
 
 - `src/kotonoha_bot/eavesdrop/llm_judge.py`: LLM 判定機能
 - `src/kotonoha_bot/eavesdrop/conversation_buffer.py`: 会話ログバッファ
-- `src/kotonoha_bot/bot/handlers.py`: メッセージハンドラー（`handle_eavesdrop`メソッド）
+- `src/kotonoha_bot/bot/handlers.py`: メッセージハンドラー
+  （`handle_eavesdrop` メソッド、`_process_eavesdrop` メソッド）
 
 ### 12.2 プロンプトファイル
 
 - `prompts/eavesdrop_judge_prompt.md`: 介入判定用プロンプト
 - `prompts/eavesdrop_conversation_state_prompt.md`: 会話状態判定用プロンプト（LLM 判定）
 - `prompts/eavesdrop_response_prompt.md`: 応答生成用プロンプト
-- `prompts/eavesdrop_same_conversation_prompt.md`: 同じ会話判定用プロンプト（未使用）
+- `prompts/eavesdrop_same_conversation_prompt.md`: 同じ会話判定用プロンプト ✅ 実装済み
+- `prompts/eavesdrop_conversation_situation_changed_prompt.md`:
+  会話状況変化判定用プロンプト ✅ 実装済み
 
 ### 12.3 設定ファイル
 
@@ -524,6 +660,28 @@ Kotonoha: お互いの認識を整理しましょう...
 → 介入なし（会話が終了しようとしている）
 ```
 
+### 13.4 最小間隔チェックの例
+
+```text
+ユーザー1: 問題が発生しています
+Kotonoha: 問題を整理しましょう...（介入）
+ユーザー2: ありがとうございます
+→ 介入なし（最小間隔 10 分未満のため）
+```
+
+### 13.5 同じ会話判定の例
+
+```text
+# 10 分経過後
+ユーザー1: 問題が発生しています
+Kotonoha: 問題を整理しましょう...（介入）
+ユーザー2: ありがとうございます
+ユーザー1: 追加の情報があります
+→ 同じ会話判定: SAME
+→ 会話状況変化判定: UNCHANGED
+→ 介入なし（会話状況が変わっていない）
+```
+
 ## 14. まとめ
 
 聞き耳型介入機能は、LLM を使用して会話の状況を判断し、適切なタイミングで自然に会話に参加する機能です。機械的なルールではなく、会話の内容と文脈を分析し、柔軟に対応します。
@@ -532,7 +690,10 @@ Kotonoha: お互いの認識を整理しましょう...
 
 - LLM ベースの判定
 - 介入履歴の管理
-- キャッシュ機能によるトークン消費削減
+- **最小間隔チェック**（デフォルト: 10 分）
+- **同じ会話判定**（LLM 判定）
+- **会話状況変化判定**（LLM 判定）
+- キャッシュ機能によるトークン消費削減（保存のみ、読み取りは未実装）
 - 会話の状況に応じた柔軟な対応
 - **会話状態判定の LLM 判定**（キーワードリストベースから改善）
 
@@ -540,15 +701,23 @@ Kotonoha: お互いの認識を整理しましょう...
 
 - チャンネルごとの有効化が必要
 - 最低メッセージ数が必要
-- トークン消費が発生する可能性
+- トークン消費が発生する可能性（最小間隔チェックにより削減）
 
 ## 15. 関連ドキュメント
 
 ### 実装ドキュメント
 
 - [会話状態判定の LLM 判定実装](../implementation/conversation_state_llm_judgment.md)
+
   - LLM 判定による会話状態判定の実装詳細
   - キーワードリストベースから LLM 判定への移行について
+
+- [介入改善の実装](../implementation/intervention_improvements.md)
+
+  - 最小間隔チェック、同じ会話判定、会話状況変化判定の実装詳細
+
+- [会話定義の実装](../implementation/conversation_definition.md)
+  - 同じ会話の定義と判定方法の詳細
 
 ### 評価・分析ドキュメント
 
@@ -566,3 +735,24 @@ Kotonoha: お互いの認識を整理しましょう...
 
 - [会話の契機の詳細説明](../requirements/conversation-triggers.md)
   - 聞き耳型を含む 3 つの会話方式の説明
+
+---
+
+**作成日**: 2026 年 1 月 15 日  
+**最終更新日**: 2026 年 1 月（現在の実装に基づいて改訂）  
+**バージョン**: 2.0  
+**作成者**: kotonoha-bot 開発チーム
+
+### 更新履歴
+
+- **v2.0** (2026-01): 現在の実装に基づいて改訂
+  - 最小間隔チェックの実装詳細を追加（`EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES`、デフォルト: 10 分）
+  - 同じ会話判定の実装詳細を追加（`_is_same_conversation` メソッド、キャッシュ機能）
+  - 会話状況変化判定の実装詳細を追加（`_check_conversation_situation_changed` メソッド）
+  - プロンプトファイルに `eavesdrop_conversation_situation_changed_prompt.md` を追加
+  - `should_respond` の処理フローを実装に合わせて更新（会話状態分析が最優先、会話状況変化チェックの追加）
+  - キャッシュ機能の実装状況を更新（保存は実装済み、読み取りは未実装）
+  - 実装ファイルのパスを追加
+  - 動作例に最小間隔チェックと同じ会話判定の例を追加
+  - パフォーマンス最適化セクションに最小間隔チェックを追加
+- **v1.0** (2026-01-15): 初版リリース

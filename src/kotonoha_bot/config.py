@@ -72,6 +72,15 @@ class Config:
         os.getenv("EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES", "10")
     )  # 介入の最小間隔（分）
 
+    # スレッド型設定
+    THREAD_AUTO_ARCHIVE_DURATION: int | None = (
+        int(os.getenv("THREAD_AUTO_ARCHIVE_DURATION"))
+        if os.getenv("THREAD_AUTO_ARCHIVE_DURATION")
+        else None
+    )  # スレッドの自動アーカイブ期間（分）
+    # 有効な値: 60 (1時間), 1440 (1日), 4320 (3日), 10080 (7日), 43200 (30日)
+    # None の場合はサーバーのデフォルト値を使用
+
     # レート制限設定
     RATE_LIMIT_CAPACITY: int = int(
         os.getenv("RATE_LIMIT_CAPACITY", "50")

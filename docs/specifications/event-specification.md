@@ -9,25 +9,22 @@
 **処理内容**:
 
 1. 接続状態の確認
-2. データベース接続の確認
-3. SQLite からのセッション復元（必要時）
-4. ログ出力（起動完了メッセージ）
-5. バックグラウンドタスクの開始
-   - セッションクリーンアップ（1 時間ごと）
-   - SQLite バッチ同期（5 分ごと）
-   - レート制限監視（1 分ごと）
+2. ログ出力（起動完了メッセージ）
+3. バックグラウンドタスクの開始
+   - セッションクリーンアップタスク（1 時間ごと）
+   - SQLite バッチ同期タスク（5 分ごと）
+   - リクエストキューの開始
 
 **ログ出力**:
 
 ```txt
-INFO: Bot is ready. Logged in as {bot.user.name} (ID: {bot.user.id})
-INFO: Connected to {len(bot.guilds)} guild(s)
-INFO: Database connection established
+INFO: Bot is ready! Logged in as {bot.user}
+INFO: Cleanup task started
+INFO: Batch sync task started
+INFO: Request queue started
 ```
 
-**エラーハンドリング**:
-
-- データベース接続エラー: エラーログを出力し、起動を継続（データベースなしでも動作可能）
+**実装場所**: `src/kotonoha_bot/bot/handlers.py` の `setup_handlers()` 関数内
 
 ---
 
@@ -39,15 +36,15 @@ INFO: Database connection established
 
 ```mermaid
 flowchart TD
-    A[メッセージ受信] --> B{Bot自身のメッセージ?}
-    B -->|Yes| Z[無視]
-    B -->|No| C{メンションされている?}
-    C -->|Yes| D[メンション応答型処理]
-    C -->|No| E{スレッド内?}
-    E -->|Yes| F[スレッド型処理]
-    E -->|No| G[聞き耳型判定]
-    G -->|No| I{聞き耳型有効?}
-    I -->|Yes| J[聞き耳型処理]
+    A[Message Received] --> B{Bot's own message?}
+    B -->|Yes| Z[Ignore]
+    B -->|No| C{Mentioned?}
+    C -->|Yes| D[Mention Response]
+    C -->|No| E{In Thread?}
+    E -->|Yes| F[Thread Processing]
+    E -->|No| G[Eavesdrop Judgment]
+    G -->|No| I{Eavesdrop Enabled?}
+    I -->|Yes| J[Eavesdrop Processing]
     I -->|No| Z
 ```
 
@@ -55,28 +52,26 @@ flowchart TD
 
 1. **メッセージ検証**
 
-   - Bot 自身のメッセージは無視
-   - 空のメッセージは無視
+   - Bot 自身のメッセージは無視（`message.author.bot` をチェック）
+   - Bot 自身のメッセージの場合はコマンド処理のみ実行
 
 2. **ルーティング**
 
    - Message Router にメッセージを渡す
-   - 会話の契機を判定
+   - 会話の契機を判定（mention, thread, eavesdrop）
 
-3. **セッション管理**
+3. **ハンドラー呼び出し**
 
-   - セッションキーの生成
-   - セッションの取得または作成
+   - 判定結果に応じて適切なハンドラーを呼び出し
+     - `mention`: `handle_mention()` を呼び出し
+     - `thread`: `handle_thread()` を呼び出し
+     - `eavesdrop`: `handle_eavesdrop()` を呼び出し
 
-4. **AI 応答生成**
+4. **コマンド処理**
 
-   - プロンプト生成
-   - API 呼び出し
-   - 応答送信
+   - メンションまたはスレッド型でない場合のみ、スラッシュコマンドを処理
 
-5. **履歴更新**
-   - 会話履歴に追加
-   - セッション更新
+**実装場所**: `src/kotonoha_bot/bot/handlers.py` の `setup_handlers()` 関数内
 
 **エラーハンドリング**:
 
@@ -86,121 +81,57 @@ flowchart TD
 
 ---
 
-### 1.3 `on_thread_create`
-
-**説明**: スレッドが作成された時に発火します。
-
-**処理内容**:
-
-1. スレッド情報の取得
-2. セッションキーの生成（`thread_id`）
-3. セッションの作成
-4. ログ出力
-
-**使用ケース**:
-
-- Bot が自動でスレッドを作成した場合
-- ユーザーが手動でスレッドを作成した場合（Bot が参加している場合）
-
----
-
-### 1.4 `on_thread_update`
+### 1.3 `on_thread_update`
 
 **説明**: スレッドが更新された時に発火します。
 
 **処理内容**:
 
-1. スレッドのアーカイブ状態を確認
+1. スレッドのアーカイブ状態を確認（`after.archived` と `before.archived` を比較）
 2. アーカイブされた場合:
+   - セッションキーを生成（`thread:{thread_id}`）
    - セッションを SQLite に保存
-   - メモリからセッションを削除
    - ログ出力
 
-**使用ケース**:
+**実装場所**: `src/kotonoha_bot/bot/handlers.py` の `setup_handlers()` 関数内
 
-- スレッドがアーカイブされた時
-- スレッド名が変更された時
-
----
-
-### 1.5 `on_thread_delete`
-
-**説明**: スレッドが削除された時に発火します。
-
-**処理内容**:
-
-1. セッションを SQLite に保存
-2. メモリからセッションを削除
-3. ログ出力
+**注意**: 現在の実装では、スレッドがアーカイブされた時のみ処理を行います。
+スレッド名の変更など、その他の更新は処理しません。
 
 ---
 
-### 1.6 `on_error`
+### 1.4 `on_error`
 
 **説明**: イベント処理中にエラーが発生した時に発火します。
 
 **処理内容**:
 
-1. エラーログの出力
+1. エラーログの出力（`logger.exception()` を使用）
 2. スタックトレースの記録
-3. 管理者への通知（CRITICAL エラーの場合）
 
-**エラーレベル**:
+**実装場所**: `src/kotonoha_bot/bot/client.py` の `KotonohaBot` クラス
 
-- **ERROR**: 通常のエラー（API エラーなど）
-- **CRITICAL**: 致命的なエラー（Bot の停止が必要な場合）
+**注意**: 現在の実装では、すべてのエラーをログに記録します。管理者への通知機能は未実装です。
 
 ---
 
-### 1.7 `on_rate_limit`
+## 2. リクエストキュー
 
-**説明**: Discord API のレート制限に達した時に発火します。
+### 2.1 リクエストキューの概要
 
-**処理内容**:
-
-1. レート制限情報のログ出力
-2. 警告メッセージの出力（使用率が高い場合）
-3. リトライ待機
-
----
-
-## 2. カスタムイベント
-
-### 2.1 `on_session_timeout`
-
-**説明**: セッションがタイムアウトした時に発火します（内部イベント）。
+**説明**: メッセージ処理を優先度順にキューイングし、レート制限を管理します。
 
 **処理内容**:
 
-1. セッション状態の更新（アクティブ → アイドル → 非アクティブ）
-2. SQLite への保存（アイドル状態になった時）
-3. メモリからの削除（24 時間経過時）
+1. リクエストのキューイング
+   - 優先度管理（メンション > スレッド > 聞き耳型）
+   - 非同期処理
+2. ワーカーループによる順次処理
+3. エラーハンドリング
 
-**発火タイミング**:
+**実装場所**: `src/kotonoha_bot/rate_limit/request_queue.py`
 
-- 5 分経過: アクティブ → アイドル
-- 30 分経過: アイドル → 非アクティブ
-- 24 時間経過: 削除
-
----
-
-### 2.2 `on_api_error`
-
-**説明**: AI API でエラーが発生した時に発火します（内部イベント）。
-
-**処理内容**:
-
-1. エラータイプの判定
-2. リトライロジックの実行
-3. フォールバック処理（必要時）
-4. エラーログの出力
-
-**エラータイプ**:
-
-- **429 Too Many Requests**: レート制限超過
-- **400 Bad Request**: 無効なリクエスト
-- **500 Internal Server Error**: サーバーエラー
-- **503 Service Unavailable**: サービス利用不可
+**開始タイミング**: `on_ready` イベントで開始
 
 ---
 
@@ -234,31 +165,38 @@ flowchart TD
 
 ---
 
-### 3.3 レート制限監視タスク
+### 3.3 レート制限監視（将来の拡張）
 
-**説明**: API のレート制限使用率を監視します。
+**説明**: API のレート制限使用率を監視する機能（将来の拡張として設計）。
 
-**実行頻度**: 1 分ごと
+**実装状況**: ⏳ 未実装
 
-**処理内容**:
-
-1. 各 API の使用率を計算
-2. 警告閾値（80%）を超えた場合に警告ログを出力
-3. 使用率の記録
+**注意**: `RateLimitMonitor` クラスは実装されていますが
+（`src/kotonoha_bot/rate_limit/monitor.py`）、定期タスクとして実行されていません。
+現在は `LiteLLMProvider` 内でリクエストを記録するのみです。
 
 ---
 
-### 3.4 データベースバックアップタスク
+### 3.4 データベースバックアップ（外部スクリプト）
 
-**説明**: 定期的にデータベースをバックアップします。
+**説明**: データベースをバックアップする機能。
 
-**実行頻度**: 1 日 1 回（深夜 0 時）
+**実装状況**: ✅ 実装済み（外部スクリプト）
+
+**実装場所**: `scripts/backup.sh`
+
+**実行方法**:
+
+- 手動実行: `docker exec kotonoha-bot /app/scripts/backup.sh`
+- cron による定期実行（NAS 上で設定）
 
 **処理内容**:
 
-1. データベースファイルのコピー
-2. バックアップファイル名にタイムスタンプを付与
-3. 7 日以上古いバックアップを削除
+1. SQLite のオンラインバックアップ（`.backup` コマンド）
+2. バックアップファイルの圧縮（gzip）
+3. 7 日以上古いバックアップの自動削除
+
+**注意**: 現在の実装では、Bot 内の定期タスクとして実行されていません。外部スクリプト（cron など）で実行する必要があります。
 
 ---
 
@@ -275,41 +213,56 @@ sequenceDiagram
     participant AI as AI Service
     participant DB as SQLite
 
-    Discord->>Bot: on_message イベント
-    Bot->>Bot: メッセージ検証
-    Bot->>Router: メッセージルーティング
-    Router->>Router: 会話の契機判定
-    Router->>Session: セッション取得/作成
-    Session->>DB: 履歴取得（必要時）
-    DB-->>Session: 会話履歴
-    Session-->>Router: セッション情報
-    Router->>AI: プロンプト生成・API呼び出し
-    AI-->>Router: AI応答
-    Router->>Session: 会話履歴更新
-    Session->>DB: 永続化（非同期）
-    Router->>Discord: 応答メッセージ送信
+    Discord->>Bot: on_message event
+    Bot->>Bot: Message validation
+    Bot->>Router: Message routing
+    Router->>Router: Conversation trigger judgment
+    Router->>Session: Get/Create session
+    Session->>DB: Get history (if needed)
+    DB-->>Session: Conversation history
+    Session-->>Router: Session information
+    Router->>AI: Generate prompt & API call
+    AI-->>Router: AI response
+    Router->>Session: Update conversation history
+    Session->>DB: Persist (async)
+    Router->>Discord: Send response message
 ```
 
 ### 4.2 エラー処理フロー
 
 ```mermaid
 flowchart TD
-    A[エラー発生] --> B{エラータイプ}
-    B -->|429 Rate Limit| C[待機してリトライ]
-    B -->|400 Bad Request| D[エラーログ出力]
-    B -->|500 Server Error| E[リトライ最大3回]
-    B -->|503 Service Unavailable| F[フォールバックAPI]
-    C --> G[リトライ]
+    A[Error Occurred] --> B{Error Type}
+    B -->|429 Rate Limit| C[Wait and Retry]
+    B -->|400 Bad Request| D[Error Log Output]
+    B -->|500 Server Error| E[Retry Max 3 Times]
+    B -->|503 Service Unavailable| F[Fallback API]
+    C --> G[Retry]
     E --> G
     F --> G
-    G --> H{成功?}
-    H -->|Yes| I[正常処理継続]
-    H -->|No| J[エラーメッセージ送信]
+    G --> H{Success?}
+    H -->|Yes| I[Continue Normal Processing]
+    H -->|No| J[Send Error Message]
     D --> J
 ```
 
 ---
 
-**作成日**: 2026 年 1 月 14 日
-**バージョン**: 1.0
+**作成日**: 2026 年 1 月 14 日  
+**最終更新日**: 2026 年 1 月 15 日  
+**バージョン**: 2.0  
 **作成者**: kotonoha-bot 開発チーム
+
+## 更新履歴
+
+- **v2.0** (2026-01-15): 実際の実装に基づいて改訂
+  - `on_ready` の処理内容を実装に合わせて更新
+  - `on_message` の処理フローを実装に合わせて更新
+  - `on_thread_update` の処理内容を実装に合わせて更新
+  - `on_thread_create`, `on_thread_delete` を削除（未実装）
+  - `on_rate_limit` を削除（未実装）
+  - カスタムイベントセクションを削除（未実装）
+  - リクエストキューセクションを追加
+  - レート制限監視タスクを「将来の拡張」に変更
+  - データベースバックアップタスクを外部スクリプトとして記載
+- **v1.0** (2026-01-14): 初版リリース

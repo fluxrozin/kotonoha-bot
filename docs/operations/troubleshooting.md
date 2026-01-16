@@ -23,17 +23,28 @@ Kotonoha Discord ボットの問題解決ガイド
 ERROR: discord.errors.LoginFailure: Improper token has been passed.
 ```
 
+または
+
+```txt
+ERROR: discord.errors.HTTPException: 401 Unauthorized
+```
+
 **原因**:
 
 - Discord Bot Token が正しく設定されていない
 - Token が無効または期限切れ
+- `.env` ファイルが読み込まれていない
 
 **解決方法**:
 
 1. **環境変数の確認**
 
    ```bash
+   # .env ファイルの確認
    cat .env | grep DISCORD_TOKEN
+
+   # コンテナ内の環境変数を確認
+   docker exec kotonoha-bot env | grep DISCORD_TOKEN
    ```
 
 2. **Token の再取得**
@@ -46,8 +57,10 @@ ERROR: discord.errors.LoginFailure: Improper token has been passed.
 3. **Bot の再起動**
 
    ```bash
-   docker-compose restart kotonoha
+   docker compose restart kotonoha-bot
    ```
+
+   **注意**: `.env` ファイルを更新した後は、コンテナを再起動する必要があります。
 
 ---
 
@@ -70,9 +83,18 @@ ERROR: discord.errors.LoginFailure: Improper token has been passed.
    - [Discord Developer Portal](https://discord.com/developers/applications) にアクセス
    - "Bot" タブを開く
    - 以下の Intents を有効化:
-     - PRESENCE INTENT
-     - SERVER MEMBERS INTENT
-     - MESSAGE CONTENT INTENT
+     - **MESSAGE CONTENT INTENT**（必須）
+     - PRESENCE INTENT（オプション）
+     - SERVER MEMBERS INTENT（オプション）
+
+   **実装箇所**: `src/kotonoha_bot/bot/client.py` (17-20 行目)
+
+   ```python
+   intents = discord.Intents.default()
+   intents.message_content = True  # メッセージ内容を読み取る権限
+   intents.messages = True
+   intents.guilds = True
+   ```
 
 2. **招待リンクの再生成**
 
@@ -117,10 +139,13 @@ ERROR: discord.errors.LoginFailure: Improper token has been passed.
 
 3. **コードの確認**
 
+   **実装箇所**: `src/kotonoha_bot/router/message_router.py`
+
+   Bot 自身のメッセージは自動的に無視されます：
+
    ```python
-   # bot.pyで以下を確認
-   if message.author == self.user:
-       return  # Bot自身のメッセージは無視
+   if message.author.bot:
+       return "none"
    ```
 
 ---
@@ -135,17 +160,28 @@ ERROR: discord.errors.LoginFailure: Improper token has been passed.
 ERROR: anthropic.AuthenticationError: 401 Invalid API key
 ```
 
+または LiteLLM 経由の場合:
+
+```txt
+ERROR: litellm.exceptions.AuthenticationError: Invalid API Key
+```
+
 **原因**:
 
 - Anthropic API Key が正しく設定されていない
 - API Key が無効または期限切れ
+- `.env` ファイルが読み込まれていない
 
 **解決方法**:
 
 1. **API Key の確認**
 
    ```bash
+   # .env ファイルの確認
    cat .env | grep ANTHROPIC_API_KEY
+
+   # コンテナ内の環境変数を確認
+   docker exec kotonoha-bot env | grep ANTHROPIC_API_KEY
    ```
 
 2. **API Key の再取得**
@@ -157,8 +193,10 @@ ERROR: anthropic.AuthenticationError: 401 Invalid API key
 3. **Bot の再起動**
 
    ```bash
-   docker-compose restart kotonoha
+   docker compose restart kotonoha-bot
    ```
+
+   **注意**: `.env` ファイルを更新した後は、コンテナを再起動する必要があります。
 
 ---
 
@@ -186,7 +224,7 @@ ERROR: litellm.RateLimitError: Rate limit exceeded
 1. **レート制限の確認**
 
    ```bash
-   docker logs kotonoha-bot | grep "rate limit"
+   docker logs kotonoha-bot | grep -i "rate limit"
    ```
 
 2. **一時的な対処**
@@ -195,9 +233,12 @@ ERROR: litellm.RateLimitError: Rate limit exceeded
    - 聞き耳型を無効化して負荷を軽減
 
 3. **恒久的な対処**
+
    - レート制限対応の実装を確認（トークンバケットアルゴリズム）
-   - 優先度管理の実装（ユーザー応答 > 聞き耳型判定）
+   - 優先度管理の実装（メンション > スレッド > 聞き耳型）
    - フォールバックモデルの設定（`LLM_FALLBACK_MODEL` 環境変数）
+
+   **実装箇所**: `src/kotonoha_bot/rate_limit/`
 
 ---
 
@@ -219,18 +260,19 @@ ERROR: litellm.RateLimitError: Rate limit exceeded
 
 1. **システムプロンプトの確認**
 
-   - `src/kotonoha_bot/ai/gemini.py` のシステムプロンプトを確認
+   - `prompts/` ディレクトリのプロンプトファイルを確認
    - 場面緘黙支援に適した表現になっているか確認
 
 2. **会話履歴の確認**
 
    ```bash
    # ログで会話履歴を確認
-   docker logs kotonoha-bot | grep "会話履歴"
+   docker logs kotonoha-bot | grep -i "会話履歴"
    ```
 
 3. **聞き耳型の判定プロンプトを最適化**
-   - `src/kotonoha_bot/eavesdrop/llm_judge.py` の判定プロンプトを調整
+
+   - `prompts/eavesdrop_judge_prompt.md` の判定プロンプトを調整
    - より厳格な判定基準を設定
 
 ---
@@ -243,6 +285,12 @@ ERROR: litellm.RateLimitError: Rate limit exceeded
 
 ```txt
 ERROR: sqlite3.OperationalError: unable to open database file
+```
+
+または
+
+```txt
+ERROR: Cannot write to database directory: /app/data
 ```
 
 **原因**:
@@ -273,6 +321,13 @@ ERROR: sqlite3.OperationalError: unable to open database file
    docker inspect kotonoha-bot | grep Mounts -A 10
    ```
 
+4. **データベースパスの確認**
+
+   **実装箇所**: `src/kotonoha_bot/config.py` (31-32 行目)
+
+   - デフォルト: `./data/sessions.db`
+   - 環境変数 `DATABASE_NAME` で変更可能（デフォルト: `sessions.db`）
+
 ---
 
 ### 問題: データベースが破損している
@@ -293,7 +348,8 @@ ERROR: sqlite3.DatabaseError: database disk image is malformed
 1. **データベースの整合性チェック**
 
    ```bash
-   docker exec kotonoha-bot sqlite3 /app/data/kotonoha.db "PRAGMA integrity_check;"
+   docker exec kotonoha-bot sqlite3 /app/data/sessions.db \
+     "PRAGMA integrity_check;"
    ```
 
 2. **バックアップからリストア**
@@ -303,19 +359,19 @@ ERROR: sqlite3.DatabaseError: database disk image is malformed
    ls -lt /volume1/docker/kotonoha/backups/
 
    # バックアップからリストア
-   cp /volume1/docker/kotonoha/backups/kotonoha_YYYYMMDD_HHMMSS.db \
-      /volume1/docker/kotonoha/data/kotonoha.db
+   cp /volume1/docker/kotonoha/backups/sessions_YYYYMMDD_HHMMSS.db \
+      /volume1/docker/kotonoha/data/sessions.db
 
    # コンテナ再起動
-   docker-compose restart kotonoha
+   docker compose restart kotonoha-bot
    ```
 
 3. **リストアできない場合**
 
    ```bash
    # データベースを削除して再作成
-   rm /volume1/docker/kotonoha/data/kotonoha.db
-   docker-compose restart kotonoha
+   rm /volume1/docker/kotonoha/data/sessions.db
+   docker compose restart kotonoha-bot
    # 注意: 会話履歴は失われます
    ```
 
@@ -338,19 +394,23 @@ ERROR: sqlite3.DatabaseError: database disk image is malformed
 1. **ログの確認**
 
    ```bash
-   docker logs kotonoha-bot | grep "session"
-   docker logs kotonoha-bot | grep "save"
+   docker logs kotonoha-bot | grep -i "session"
+   docker logs kotonoha-bot | grep -i "save"
    ```
 
 2. **データベースの確認**
 
    ```bash
-   docker exec kotonoha-bot sqlite3 /app/data/kotonoha.db "SELECT * FROM sessions LIMIT 5;"
+   docker exec kotonoha-bot sqlite3 /app/data/sessions.db \
+     "SELECT * FROM sessions LIMIT 5;"
    ```
 
 3. **同期機能の確認**
+
    - `src/kotonoha_bot/session/manager.py` の同期ロジックを確認
    - バッチ同期タスクが動作しているか確認
+
+   **実装箇所**: `src/kotonoha_bot/session/manager.py`
 
 ---
 
@@ -375,7 +435,7 @@ ERROR: sqlite3.DatabaseError: database disk image is malformed
 1. **レスポンスタイムの測定**
 
    ```bash
-   docker logs kotonoha-bot | grep "response time"
+   docker logs kotonoha-bot | grep -i "response time"
    ```
 
 2. **リソース使用状況の確認**
@@ -385,8 +445,9 @@ ERROR: sqlite3.DatabaseError: database disk image is malformed
    ```
 
 3. **最適化**
+
    - Flash モデルを優先的に使用
-   - セッション数を制限（最大 100）
+   - セッション数を制限（最大 100、`MAX_SESSIONS` 環境変数）
    - データベースクエリを最適化
 
 ---
@@ -410,15 +471,14 @@ WARNING: Memory usage: 800MB (limit: 1G)
 1. **セッション数の確認**
 
    ```bash
-   docker exec kotonoha-bot sqlite3 /app/data/kotonoha.db "SELECT COUNT(*) FROM sessions WHERE is_archived = 0;"
+   docker exec kotonoha-bot sqlite3 /app/data/sessions.db \
+     "SELECT COUNT(*) FROM sessions WHERE is_archived = 0;"
    ```
 
 2. **クリーンアップの実行**
 
-   ```bash
-   # 非アクティブセッションを強制削除
-   docker exec kotonoha-bot python -m kotonoha_bot.scripts.cleanup
-   ```
+   - 非アクティブセッションは自動的にクリーンアップされます
+   - `SESSION_TIMEOUT_HOURS` 環境変数でタイムアウト時間を調整可能
 
 3. **メモリ制限の調整**
 
@@ -518,7 +578,8 @@ docker login ghcr.io
   # ディレクトリを作成（存在しない場合）
   mkdir -p ~/.docker
 
-  # ファイルを作成（通常は docker login で自動作成されるため、この方法は推奨されません）
+  # ファイルを作成（通常は docker login で自動作成されるため、
+  # この方法は推奨されません）
   cat > ~/.docker/config.json << EOF
   {
     "auths": {
@@ -544,7 +605,8 @@ docker login ghcr.io
    cd /volume1/docker/kotonoha-bot
 
    # .env ファイルから環境変数を読み込む
-   eval $(grep '^[A-Z_].*=' .env | sed 's/#.*$//' | sed 's/[[:space:]]*$//' | sed 's/^/export /')
+   eval $(grep '^[A-Z_].*=' .env | sed 's/#.*$//' | \
+     sed 's/[[:space:]]*$//' | sed 's/^/export /')
 
    # GHCR にログイン（認証情報が ~/.docker/config.json に自動的に保存される）
    echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
@@ -585,7 +647,9 @@ docker login ghcr.io
 **症状**:
 
 ```txt
-watchtower | time="..." level=error msg="Error response from daemon: client version 1.25 is too old. Minimum supported API version is 1.44, please upgrade your client to a newer version"
+watchtower | time="..." level=error msg="Error response from daemon: \
+  client version 1.25 is too old. Minimum supported API version is 1.44, \
+  please upgrade your client to a newer version"
 watchtower exited with code 1 (restarting)
 ```
 
@@ -652,13 +716,13 @@ watchtower exited with code 1 (restarting)
 
    ```bash
    docker pull ghcr.io/your-org/kotonoha-bot:latest
-   docker-compose up -d kotonoha
+   docker compose up -d kotonoha-bot
    ```
 
 3. **Watchtower の再起動**
 
    ```bash
-   docker-compose restart watchtower
+   docker compose restart watchtower
    ```
 
 ---
@@ -728,7 +792,8 @@ ERROR: Cannot fix permissions automatically (not running as root).
 
 #### 方法 1: 自動パーミッション修正（推奨）
 
-このボットは起動時に自動的にパーミッションを修正する機能を搭載しています。`docker-compose.yml`を使用する場合、自動的に root で起動され、パーミッションが修正されます。
+このボットは起動時に自動的にパーミッションを修正する機能を搭載しています。
+`docker-compose.yml`を使用する場合、自動的に root で起動され、パーミッションが修正されます。
 
 1. **`docker-compose.yml`の確認**
 
@@ -774,7 +839,8 @@ ERROR: Cannot fix permissions automatically (not running as root).
    # 方法A: グループ書き込み権限を付与（推奨）
    chmod 775 data logs backups
 
-   # 方法B: 全員に書き込み権限を付与（セキュリティ上は推奨されないが、動作確認用）
+   # 方法B: 全員に書き込み権限を付与
+   # （セキュリティ上は推奨されないが、動作確認用）
    chmod 777 data logs backups
    ```
 
@@ -788,7 +854,7 @@ ERROR: Cannot fix permissions automatically (not running as root).
 4. **コンテナの再起動**
 
    ```bash
-   docker compose restart
+   docker compose restart kotonoha-bot
    ```
 
 #### 方法 3: 所有者を変更（UID 1000 のユーザーが存在する場合）
@@ -891,7 +957,7 @@ ERROR: Cannot fix permissions automatically (not running as root).
 LOG_LEVEL=DEBUG
 
 # コンテナ再起動
-docker-compose restart kotonoha
+docker compose restart kotonoha-bot
 ```
 
 ---
@@ -933,12 +999,18 @@ cat .env | sed 's/=.*/=***/' > env_info.txt
 
 ---
 
-**作成日**: 2026 年 1 月 14 日
-**最終更新日**: 2026 年 1 月 14 日
-**バージョン**: 1.1
+**作成日**: 2026 年 1 月 14 日  
+**最終更新日**: 2026 年 1 月（現在の実装に基づいて改訂）  
+**バージョン**: 2.0  
 **作成者**: kotonoha-bot 開発チーム
 
 ### 更新履歴
 
+- **v2.0** (2026-01): 現在の実装に基づいて改訂
+  - コンテナ名を `kotonoha-bot` に統一
+  - データベース名を `sessions.db` に修正
+  - `docker compose` コマンドに統一
+  - エラーメッセージを実装に合わせて更新
+  - 実装箇所の参照を追加
 - **v1.1** (2026-01-14): ディレクトリのパーミッションエラーのトラブルシューティングセクションを追加
 - **v1.0** (2026-01-14): 初版リリース

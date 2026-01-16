@@ -49,9 +49,13 @@ def test_save_session(session_manager, temp_db_path):
     from kotonoha_bot.db.sqlite import SQLiteDatabase
 
     new_db = SQLiteDatabase(db_path=temp_db_path)
-    loaded_session = new_db.load_session("test:123")
+    try:
+        loaded_session = new_db.load_session("test:123")
 
-    assert loaded_session is not None
-    assert loaded_session.session_key == "test:123"
-    assert len(loaded_session.messages) == 1
-    assert loaded_session.messages[0].content == "テストメッセージ"
+        assert loaded_session is not None
+        assert loaded_session.session_key == "test:123"
+        assert len(loaded_session.messages) == 1
+        assert loaded_session.messages[0].content == "テストメッセージ"
+    finally:
+        # テスト後にデータベース接続を明示的に閉じる
+        new_db.close()

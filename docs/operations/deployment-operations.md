@@ -5,8 +5,8 @@
 ### 1.1 CI/CD パイプライン
 
 ```mermaid
-graph LR
-    A[開発者PC] -->|git push| B[GitHub]
+graph TD
+    A[Developer PC] -->|git push| B[GitHub]
     B -->|Trigger| C[GitHub Actions]
     C -->|Build| D[Docker Image]
     D -->|Push| E[GHCR]
@@ -171,7 +171,7 @@ Watchtower から Discord に更新通知を送信するには、Discord Webhook
    # プロジェクトディレクトリで
    nano .env
    # または
-   vi .env
+   vim .env
    ```
 
 2. **Webhook URL から ID とトークンを抽出**
@@ -189,7 +189,9 @@ Watchtower から Discord に更新通知を送信するには、Discord Webhook
    ```
 
    - `WEBHOOK_ID`: `123456789012345678`（URL の `/webhooks/` の後）
-   - `WEBHOOK_TOKEN`: `abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ`（ID の後の `/` の後）
+   - `WEBHOOK_TOKEN`:
+     `abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ`
+     （ID の後の `/` の後）
 
 3. **`.env` ファイルに設定を追加**
 
@@ -211,10 +213,19 @@ Watchtower から Discord に更新通知を送信するには、Discord Webhook
    - 形式は `discord://TOKEN@ID` です（URL とは順序が逆）
    - `@` の前がトークン、`@` の後が ID です
 
-4. **コンテナを再起動**
+4. **コンテナを再起動して変更を反映**
+
+   `.env` ファイルを更新した後は、コンテナを再起動する必要があります。
 
    ```bash
-   docker-compose restart watchtower
+   # プロジェクトディレクトリで
+   docker compose restart kotonoha-bot
+   ```
+
+   **注意**: Watchtower の設定を変更した場合は、Watchtower も再起動してください。
+
+   ```bash
+   docker compose restart watchtower
    ```
 
 ##### 手順 3: 動作確認
@@ -366,7 +377,9 @@ chmod 600 .env
 
 **既に `.env` ファイルが存在する場合**:
 
-`.env` ファイルは一度作成すれば、Git で管理されていないため、リポジトリを更新しても上書きされません。ただし、`.env.example` が更新された場合（新しい環境変数が追加された場合）は、手動で `.env` に追加する必要があります。
+`.env` ファイルは一度作成すれば、Git で管理されていないため、
+リポジトリを更新しても上書きされません。ただし、`.env.example` が更新された場合
+（新しい環境変数が追加された場合）は、手動で `.env` に追加する必要があります。
 
 **`.env` ファイルの確認と更新**:
 
@@ -388,7 +401,8 @@ nano .env
 diff .env.example .env
 
 # または、.env.example にのみ存在する変数を確認
-comm -13 <(sort .env | grep -v '^#' | grep -v '^$' | cut -d= -f1) <(sort .env.example | grep -v '^#' | grep -v '^$' | cut -d= -f1)
+comm -13 <(sort .env | grep -v '^#' | grep -v '^$' | cut -d= -f1) \
+  <(sort .env.example | grep -v '^#' | grep -v '^$' | cut -d= -f1)
 
 # 新しい変数を .env に追加（例: GITHUB_TOKEN が追加された場合）
 # nano .env で手動で追加
@@ -412,7 +426,8 @@ ssh admin@nas-ip-address
 cd /volume1/docker/kotonoha-bot
 
 # .env ファイルから必要な変数のみ個別に設定してログイン
-GITHUB_USERNAME=$(grep '^GITHUB_USERNAME=' .env | sed 's/#.*$//' | cut -d= -f2 | sed 's/[[:space:]]*$//')
+GITHUB_USERNAME=$(grep '^GITHUB_USERNAME=' .env | sed 's/#.*$//' | \
+  cut -d= -f2 | sed 's/[[:space:]]*$//')
 GITHUB_TOKEN=$(grep '^GITHUB_TOKEN=' .env | sed 's/#.*$//' | cut -d= -f2 | sed 's/[[:space:]]*$//')
 echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
 
@@ -423,7 +438,9 @@ cat ~/.docker/config.json
 
 **ログイン成功時の警告について**:
 
-`WARNING! Your password will be stored unencrypted...` という警告が表示される場合がありますが、これは正常です。Synology NAS 上では、認証情報は `~/.docker/config.json` に保存され、Watchtower が自動的に使用します。
+`WARNING! Your password will be stored unencrypted...` という警告が表示される場合がありますが、
+これは正常です。Synology NAS 上では、認証情報は `~/.docker/config.json` に保存され、
+Watchtower が自動的に使用します。
 
 この警告を無視しても問題ありませんが、より安全に管理したい場合は、credential helper を設定することもできます（オプション）。
 
@@ -508,7 +525,9 @@ docker-compose restart watchtower
 
 - **`~/.docker/config.json` が存在しないエラー**:
 
-  詳細は [トラブルシューティングガイド](./troubleshooting.md#問題-watchtower-で-dockerconfigjson-が存在しないエラーが発生する) を参照してください。
+  詳細は
+  [トラブルシューティングガイド](./troubleshooting.md#問題-watchtower-で-dockerconfigjson-が存在しないエラーが発生する)
+  を参照してください。
 
 ---
 

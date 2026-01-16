@@ -214,3 +214,20 @@ class SQLiteDatabase:
                 conn.commit()
         except sqlite3.Error as e:
             raise DatabaseError(f"Failed to delete session: {e}") from e
+
+    def close(self) -> None:
+        """データベース接続を明示的に閉じる（テスト用）
+
+        通常は各メソッドでwith文により自動的に閉じられますが、
+        テスト環境でリソース警告を避けるために明示的に閉じることができます。
+        WALモードの接続を確実に閉じるために、一時的な接続を作成して閉じます。
+        """
+        # SQLiteの接続は通常with文で自動的に閉じられるため、
+        # このメソッドは主にテスト環境でのクリーンアップ用です。
+        # WALモードの接続を確実に閉じるために、一時的な接続を作成して閉じます。
+        try:
+            conn = self._get_connection()
+            conn.close()
+        except Exception:
+            # 接続が既に閉じられている場合は無視
+            pass

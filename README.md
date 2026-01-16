@@ -1,10 +1,13 @@
 # Discord Bot KOTONOHA（コトノハ）
 
-場面緘黙自助グループ運営支援のための Discord ボットです。Claude API を使用して、優しく思いやりのある AI アシスタントとして機能します。
+場面緘黙自助グループ運営支援のための Discord ボットです。
+Claude API を使用して、優しく思いやりのある AI アシスタントとして機能します。
 
 ## 概要
 
-KOTONOHA は、場面緘黙で困っている人々が安心してコミュニケーションできる環境を提供することを目的とした Discord ボットです。メンションされた時に Claude API 経由で応答を生成し、会話履歴を保持して継続的な対話をサポートします。
+KOTONOHA は、場面緘黙で困っている人々が安心してコミュニケーションできる環境を
+提供することを目的とした Discord ボットです。メンションされた時に Claude API 経由で
+応答を生成し、会話履歴を保持して継続的な対話をサポートします。
 
 ## 主な機能
 
@@ -14,17 +17,22 @@ KOTONOHA は、場面緘黙で困っている人々が安心してコミュニ�
 - ✅ **LiteLLM 統合**: 複数の LLM プロバイダーに対応（現在は Claude API）
 - ✅ **スレッド型**: メンション時に自動スレッド作成、スレッド内で会話継続
 - ✅ **聞き耳型**: LLM 判断による自然な会話参加
+- ✅ **レート制限**: リクエストキューとトークンバケットによるレート制限管理
+- ✅ **スラッシュコマンド**: `/chat reset`, `/chat status` コマンド
+- ✅ **エラーハンドリング**: ユーザーフレンドリーなエラーメッセージ
 
 ## 技術スタック
 
 - **Python**: 3.14
 - **Discord**: discord.py 2.6.4+
 - **LLM**: Claude API（LiteLLM 経由）
-  - 開発用: Claude 3 Haiku（レガシー、超低コスト）
-  - 本番用: Claude Opus 4.5
-- **データベース**: SQLite
+  - 開発用: Claude Haiku 4.5（最速・低コスト）
+  - 本番用: Claude Opus 4.5（最高品質）
+  - バランス型: Claude Sonnet 4.5
+- **データベース**: SQLite（将来 aiosqlite に移行予定）
 - **パッケージマネージャー**: uv
-- **デプロイ**: Docker（Phase 2 で実装予定）
+- **デプロイ**: Docker + Watchtower（自動更新）
+- **CI/CD**: GitHub Actions → GHCR → Watchtower
 
 ## クイックスタート
 
@@ -67,7 +75,7 @@ KOTONOHA は、場面緘黙で困っている人々が安心してコミュニ�
 4. **Bot の起動**
 
    ```bash
-   python -m src.kotonoha_bot.main
+   uv run python -m kotonoha_bot.main
    ```
 
 詳細なセットアップ手順は [Getting Started ガイド](./docs/getting-started.md) を参照してください。
@@ -77,17 +85,34 @@ KOTONOHA は、場面緘黙で困っている人々が安心してコミュニ�
 ```txt
 kotonoha-bot/
 ├── src/kotonoha_bot/      # ソースコード
+│   ├── main.py            # Bot エントリーポイント
 │   ├── bot/               # Discord Bot 関連
+│   │   ├── client.py      # Bot クライアント
+│   │   └── handlers.py    # イベントハンドラー
 │   ├── ai/                # AI プロバイダー（LiteLLM）
 │   ├── session/           # セッション管理
-│   └── db/                # データベース（SQLite）
+│   ├── db/                # データベース（SQLite）
+│   ├── router/            # メッセージルーティング
+│   ├── eavesdrop/         # 聞き耳型機能
+│   ├── commands/          # スラッシュコマンド
+│   ├── rate_limit/        # レート制限
+│   ├── errors/            # エラーハンドリング
+│   └── utils/             # ユーティリティ
 ├── prompts/               # プロンプトファイル（Markdown）
-│   ├── system_prompt.md                    # システムプロンプト
-│   ├── eavesdrop_judge_prompt.md           # 聞き耳型判定用プロンプト
-│   └── eavesdrop_response_prompt.md       # 聞き耳型応答生成用プロンプト
+│   ├── system_prompt.md                              # システムプロンプト
+│   ├── eavesdrop_judge_prompt.md                    # 聞き耳型判定用プロンプト
+│   ├── eavesdrop_response_prompt.md                 # 聞き耳型応答生成用プロンプト
+│   ├── eavesdrop_same_conversation_prompt.md        # 聞き耳型同一会話判定用プロンプト
+│   ├── eavesdrop_conversation_state_prompt.md       # 聞き耳型会話状態判定用プロンプト
+│   └── eavesdrop_conversation_situation_changed_prompt.md  # 聞き耳型会話状況変化判定用プロンプト
 ├── tests/                 # テスト
+│   ├── unit/              # 単体テスト
+│   └── integration/       # 統合テスト
 ├── docs/                  # ドキュメント
 ├── data/                  # データベースファイル（自動生成）
+│   └── sessions.db        # SQLite データベース
+├── logs/                  # ログファイル（自動生成）
+│   └── run.log            # 実行ログ
 └── pyproject.toml         # プロジェクト設定
 ```
 
@@ -104,9 +129,9 @@ kotonoha-bot/
 ### 主要ドキュメント
 
 - **[Getting Started](./docs/getting-started.md)**: 開発環境のセットアップガイド
-- **[実装ロードマップ](./docs/implementation/roadmap.md)**: 7 段階の実装計画
+- **[実装ロードマップ](./docs/implementation/roadmap.md)**: 11 段階の実装計画
 - **[システムアーキテクチャ](./docs/architecture/system-architecture.md)**: システム構成と技術スタック
-- **[Phase 1 実装完了報告](./docs/implementation/phases/phase1.md)**: MVP 実装の詳細
+- **[Phase 1-6 実装完了報告](./docs/implementation/phases/)**: 各 Phase の実装詳細
 
 ### ドキュメント一覧
 
@@ -135,12 +160,38 @@ kotonoha-bot/
 - データの永続化
 - バックアップ機能
 
+### Phase 3: CI/CD、テスト、コード品質 ✅ 完了
+
+- GitHub Actions による CI/CD
+- 自動テスト（pytest）
+- コード品質チェック（Ruff、ty）
+
+### Phase 4: メッセージ長制限、バッチ同期 ✅ 完了
+
+- メッセージ分割機能
+- バッチ同期によるセッション保存の最適化
+
 ### Phase 5: 会話の契機拡張 ✅ 完了
 
 - メッセージルーターによる会話の契機判定
 - スレッド型: メンション時に自動スレッド作成、スレッド内で会話継続
 - 聞き耳型: LLM 判断による自然な会話参加
 - 3 つの方式を統一的に扱うインターフェース
+
+### Phase 6: レート制限、コマンド、エラーハンドリング強化 ✅ 完了
+
+- リクエストキューによるレート制限管理
+- トークンバケットによる API レート制限対応
+- スラッシュコマンド（`/chat reset`, `/chat status`）
+- ユーザーフレンドリーなエラーメッセージ
+
+### Phase 7-11: 未実装
+
+- Phase 7: aiosqlite への移行（非同期化）
+- Phase 8: 完全リファクタリング
+- Phase 9: 高度な運用機能（モニタリング・設定管理・コスト管理）
+- Phase 10: 自動化・最適化機能
+- Phase 11: 監査機能
 
 詳細は [実装ロードマップ](./docs/implementation/roadmap.md) を参照してください。
 
@@ -163,7 +214,9 @@ docker compose up -d
 docker compose logs -f
 ```
 
-**重要**: 初回起動前に、ホスト側でディレクトリを作成し、適切な権限を設定してください。Docker が存在しないディレクトリを自動作成すると、`root:root` 所有になり、コンテナ内の `botuser` (UID 1000) が書き込めなくなります。
+**重要**: 初回起動前に、ホスト側でディレクトリを作成し、
+適切な権限を設定してください。Docker が存在しないディレクトリを自動作成すると、
+`root:root` 所有になり、コンテナ内の `botuser` (UID 1000) が書き込めなくなります。
 
 詳細は [Phase 2 実装ガイド](./docs/implementation/phases/phase2.md) を参照してください。
 
@@ -179,8 +232,14 @@ uv sync --group dev
 uv run ruff format .
 uv run ruff check .
 
+# 型チェック
+uv run ty check src/
+
 # テストの実行
 uv run pytest
+
+# カバレッジ付きでテスト実行
+uv run pytest --cov=src/kotonoha_bot --cov-report=html
 ```
 
 ## ライセンス

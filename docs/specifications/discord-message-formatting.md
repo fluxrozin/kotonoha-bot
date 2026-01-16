@@ -119,14 +119,42 @@ discord.Embed(
 
 現在、本プロジェクトでは応答メッセージに Embed を使用しています：
 
+**実装ファイル**: `src/kotonoha_bot/utils/message_formatter.py`
+
 ```python
-# utils/message_formatter.py
-embed = discord.Embed(
-    description=content,        # 応答テキスト
-    color=0x3498DB,             # 青色
-)
-embed.set_footer(text=f"モデル: {model_name}")  # フッターにモデル名
+def create_response_embed(
+    content: str, model_name: str, rate_limit_usage: float | None = None
+) -> discord.Embed:
+    """応答メッセージ用のEmbedを作成
+
+    Args:
+        content: 応答テキスト
+        model_name: 使用したモデル名（英語表記）
+        rate_limit_usage: レート制限の使用率（0.0-1.0、Noneの場合は表示しない）
+
+    Returns:
+        Embedオブジェクト
+    """
+    embed = discord.Embed(
+        description=content,        # 応答テキスト
+        color=0x3498DB,             # 青色
+    )
+    # フッターにモデル名とレート制限使用率を表示（英語表記）
+    footer_parts = [f"Model: {model_name}"]
+    if rate_limit_usage is not None:
+        usage_percent = rate_limit_usage * 100
+        footer_parts.append(f"Rate limit: {usage_percent:.1f}%")
+    embed.set_footer(text=" | ".join(footer_parts))
+    return embed
 ```
+
+**フッターの表示内容**:
+
+- モデル名: `Model: {model_name}`（英語表記、例: `Model: anthropic/claude-sonnet-4-5`）
+- レート制限使用率: `Rate limit: {usage_percent:.1f}%`（パーセンテージ形式、小数点以下 1 桁）
+- 区切り文字: `|`（パイプ文字）
+
+**実装状況**: ✅ Phase 6 で実装済み
 
 ---
 
@@ -142,6 +170,10 @@ embed.set_footer(text=f"モデル: {model_name}")  # フッターにモデル名
 
 - 本プロジェクトでは、2,000 文字を超える応答を自動的に分割しています
 - 分割時は連番を付与（`**(1/3)**` など）して送信します
+- Embed の最大長は 6,000 文字（`DISCORD_EMBED_MAX_LENGTH`）として定義されていますが、
+  実際の分割は通常メッセージの 2,000 文字制限に基づいて行われます
+
+**実装ファイル**: `src/kotonoha_bot/utils/message_splitter.py`
 
 ---
 
@@ -149,10 +181,28 @@ embed.set_footer(text=f"モデル: {model_name}")  # フッターにモデル名
 
 ### 5.1 メッセージ分割時の連番表示
 
+**実装ファイル**: `src/kotonoha_bot/utils/message_splitter.py`
+
 ```python
-# utils/message_splitter.py
-header = f"**({i}/{total})**\n\n"  # 太字で連番を表示
-formatted.append(header + chunk)
+def format_split_messages(chunks: list[str], total: int) -> list[str]:
+    """分割されたメッセージに連番を付与
+
+    Args:
+        chunks: 分割されたメッセージのリスト
+        total: 総メッセージ数
+
+    Returns:
+        連番が付与されたメッセージのリスト
+    """
+    if len(chunks) == 1:
+        return chunks
+
+    formatted = []
+    for i, chunk in enumerate(chunks, 1):
+        header = f"**({i}/{total})**\n\n"  # 太字で連番を表示
+        formatted.append(header + chunk)
+
+    return formatted
 ```
 
 **表示例**:
@@ -167,15 +217,31 @@ formatted.append(header + chunk)
 これは2番目のメッセージです...
 ```
 
+**分割ロジック**:
+
+メッセージは以下の優先順位で分割されます：
+
+1. 句点 + 改行（`。\n`）
+2. 句点（`。`）
+3. 段落区切り（空行、`\n\n`）
+4. 改行（`\n`）
+5. 読点（`、`、`，`）
+6. スペース（` `）
+
+分割位置が見つからない場合は、最大長（2,000 文字）で強制的に分割されます。
+
+**実装状況**: ✅ Phase 4 で実装済み
+
 ### 5.2 Embed での応答表示
 
+**実装ファイル**: `src/kotonoha_bot/utils/message_formatter.py`
+
 ```python
-# utils/message_formatter.py
 embed = discord.Embed(
     description="応答テキスト",
-    color=0x3498DB,
+    color=0x3498DB,  # 青色
 )
-embed.set_footer(text="モデル: anthropic/claude-3-haiku-20240307")
+embed.set_footer(text="Model: anthropic/claude-sonnet-4-5 | Rate limit: 45.2%")
 ```
 
 **表示例**:
@@ -186,10 +252,28 @@ embed.set_footer(text="モデル: anthropic/claude-3-haiku-20240307")
 │                                     │
 │                                     │
 │ ─────────────────────────────────  │
-│ モデル: anthropic/claude-3-haiku-  │
-│       20240307                      │
+│ Model: anthropic/claude-sonnet-4-5 │
+│ Rate limit: 45.2%                   │
 └─────────────────────────────────────┘
 ```
+
+**メッセージ分割時の対応**:
+
+- 最初のメッセージのみ Embed 形式で送信（フッターにモデル名とレート制限使用率を表示）
+- 2 番目以降のメッセージは通常メッセージ形式で送信（連番のみ表示）
+
+**実装状況**: ✅ Phase 6 で実装済み
+
+### 5.3 使用されるモデル名
+
+本プロジェクトで使用されるモデル名（フッターに表示される）:
+
+- **デフォルト**: `anthropic/claude-sonnet-4-5`
+- **判定用**: `anthropic/claude-haiku-4-5`
+- **フォールバック**: `anthropic/claude-3-haiku-20240307`
+- **本番用**: `anthropic/claude-opus-4-5`（環境変数で設定時）
+
+**注意**: モデル名は英語表記で表示されます。
 
 ---
 
@@ -222,7 +306,18 @@ embed.set_footer(text="モデル: anthropic/claude-3-haiku-20240307")
 
 ---
 
-**作成日**: 2026 年 1 月 15 日
-**最終更新日**: 2026 年 1 月 15 日
-**バージョン**: 1.0
+**作成日**: 2026 年 1 月 15 日  
+**最終更新日**: 2026 年 1 月（現在の実装に基づいて改訂）  
+**バージョン**: 2.0  
 **作成者**: kotonoha-bot 開発チーム
+
+### 更新履歴
+
+- **v2.0** (2026-01): 現在の実装に基づいて改訂
+  - Embed のフッター表示内容を実装に合わせて更新（モデル名とレート制限使用率、英語表記）
+  - メッセージ分割ロジックの詳細を追加（優先順位付き分割パターン）
+  - メッセージ分割時の対応を追加（最初のメッセージのみ Embed、残りは通常メッセージ）
+  - 使用されるモデル名の一覧を追加
+  - 実装ファイルのパスを追加
+  - 実装状況（Phase）を追加
+- **v1.0** (2026-01-15): 初版リリース

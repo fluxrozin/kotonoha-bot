@@ -11,19 +11,20 @@
 
 ## 2. 選定結果一覧
 
-| カテゴリ                   | 選定技術                             | 選定理由                                 | 代替候補            |
-| -------------------------- | ------------------------------------ | ---------------------------------------- | ------------------- |
-| **言語**                   | Python 3.14                          | 最新機能、discord.py との互換性          | Python 3.13         |
-| **パッケージ管理**         | uv                                   | 高速、モダンなパッケージ管理             | pip, poetry         |
-| **Discord フレームワーク** | discord.py                           | 最も一般的、豊富なドキュメント           | discord.js, disnake |
-| **AI 統合**                | LiteLLM                              | マルチプロバイダー統合、フェーズ別切替   | 各プロバイダー SDK  |
-| **AI（開発）**             | Anthropic Claude 3 Haiku（レガシー） | 超低コスト、開発・テスト用               | Google Gemini API   |
-| **AI（本番）**             | Anthropic Claude API                 | 最高品質、Claude Opus 4.5                | -                   |
-| **データベース**           | SQLite                               | 軽量、ファイルベース、永続化に適している | PostgreSQL, MySQL   |
-| **コンテナ**               | Docker                               | 標準的、Synology 対応                    | Podman              |
-| **CI/CD**                  | GitHub Actions                       | GitHub と統合、無料                      | GitLab CI, Jenkins  |
-| **コンテナレジストリ**     | GitHub Container Registry            | GitHub と統合、無料                      | Docker Hub          |
-| **自動更新**               | Watchtower                           | シンプル、Docker 統合                    | Ouroboros           |
+| カテゴリ                   | 選定技術                    | 選定理由                                 | 代替候補            |
+| -------------------------- | --------------------------- | ---------------------------------------- | ------------------- |
+| **言語**                   | Python 3.14                 | 最新機能、discord.py との互換性          | Python 3.13         |
+| **パッケージ管理**         | uv                          | 高速、モダンなパッケージ管理             | pip, poetry         |
+| **Discord フレームワーク** | discord.py                  | 最も一般的、豊富なドキュメント           | discord.js, disnake |
+| **AI 統合**                | LiteLLM                     | マルチプロバイダー統合、フェーズ別切替   | 各プロバイダー SDK  |
+| **AI（デフォルト）**       | Anthropic Claude Sonnet 4.5 | バランス型、デフォルトモデル             | -                   |
+| **AI（判定用）**           | Anthropic Claude Haiku 4.5  | 軽量・高速、判定用に最適                 | Google Gemini API   |
+| **AI（本番）**             | Anthropic Claude Opus 4.5   | 最高品質、本番運用                       | -                   |
+| **データベース**           | SQLite                      | 軽量、ファイルベース、永続化に適している | PostgreSQL, MySQL   |
+| **コンテナ**               | Docker                      | 標準的、Synology 対応                    | Podman              |
+| **CI/CD**                  | GitHub Actions              | GitHub と統合、無料                      | GitLab CI, Jenkins  |
+| **コンテナレジストリ**     | GitHub Container Registry   | GitHub と統合、無料                      | Docker Hub          |
+| **自動更新**               | Watchtower                  | シンプル、Docker 統合                    | Ouroboros           |
 
 ---
 
@@ -37,6 +38,11 @@
 - discord.py との互換性が高い
 - パフォーマンスの改善
 
+**実装状況**:
+
+- `pyproject.toml` で `requires-python = ">=3.14"` を指定
+- `Dockerfile` で `python:3.14-slim` を使用
+
 **代替候補**: Python 3.13（互換性の観点から）
 
 ---
@@ -48,6 +54,12 @@
 - 非常に高速なパッケージ管理
 - Rust で実装されており、パフォーマンスが高い
 - モダンな依存関係解決
+
+**実装状況**:
+
+- `pyproject.toml` で `build-backend = "uv_build"` を指定
+- `Dockerfile` で `ghcr.io/astral-sh/uv:latest` を使用
+- `uv.lock` ファイルで依存関係をロック
 
 **代替候補**:
 
@@ -65,6 +77,11 @@
 - 非同期処理に対応
 - スレッド機能をサポート
 
+**実装状況**:
+
+- `pyproject.toml` で `discord-py>=2.6.4` を指定
+- 実際のバージョンは `uv.lock` で管理
+
 **代替候補**:
 
 - **discord.js**: Node.js ベース（Python プロジェクトには不適切）
@@ -81,44 +98,74 @@
 - フォールバック機能でプロバイダー障害時の自動切り替え
 - コスト管理と使用量追跡が可能
 
+**実装状況**:
+
+- `pyproject.toml` で `litellm>=1.80.16` を指定
+- `src/kotonoha_bot/ai/litellm_provider.py` で実装
+- 長時間稼働時の接続プール問題に対処（24 時間ごとにリフレッシュ）
+
 **代替候補**:
 
-- **各プロバイダー SDK の直接使用**: シンプルだが、切り替えにコード変更が必要
+- **各プロバイダー SDK の直接使用**: シンプルだが、
+  切り替えにコード変更が必要
 
 ---
 
-### 3.5 Anthropic Claude 3 Haiku API（レガシー・開発用）
+### 3.5 Anthropic Claude Sonnet 4.5（デフォルト）
 
 **選定理由**:
 
-- 低コスト（入力 $1/100 万トークン、出力 $5/100 万トークン）
-- 月 1,000 回で約$3（約 450 円）と非常に低コスト
-- 無料枠の制限がない
-- 開発から本番まで同じプロバイダーで統一可能
-- 日本語対応が優秀（Claude の強み）
-- Sonnet 4 と近いコーディング性能
+- バランス型の品質とコスト
+- デフォルトモデルとして使用
+- 日本語対応が優秀
 
-**用途**: 開発・テストフェーズ
+**実装状況**:
+
+- `config.py` で `LLM_MODEL` のデフォルト値として設定
+- デフォルト: `anthropic/claude-sonnet-4-5`
+
+**用途**: デフォルトモデル（品質調整・プロンプト最適化）
 
 ---
 
-### 3.6 Anthropic Claude API（本番用）
+### 3.6 Anthropic Claude Haiku 4.5（判定用）
+
+**選定理由**:
+
+- 軽量・高速で判定用に最適
+- 低コスト（入力 $1.00/100 万トークン、出力 $5.00/100 万トークン）
+- 判定タスクに十分な精度
+
+**実装状況**:
+
+- `config.py` で `EAVESDROP_JUDGE_MODEL` のデフォルト値として設定
+- デフォルト: `anthropic/claude-haiku-4-5`
+- 聞き耳型の判定用に使用
+
+**用途**: 聞き耳型の判定（介入判定、会話状態判定、同じ会話判定など）
+
+---
+
+### 3.7 Anthropic Claude Opus 4.5（本番用）
 
 **選定理由**:
 
 - 最高品質の日本語応答
 - 場面緘黙支援に必要な繊細で優しい表現が可能
 - 長いコンテキストウィンドウ
-- Claude Opus 4.5 は最高品質のモデル
 
-**用途**:
+**実装状況**:
 
-- **Claude Sonnet 4.5**: 調整フェーズ（品質調整・プロンプト最適化）
-- **Claude Opus 4.5**: 本番フェーズ（最高品質の運用）
+- 環境変数 `LLM_MODEL` で設定可能
+- フォールバックモデルとしても設定可能（`LLM_FALLBACK_MODEL`）
+
+**用途**: 本番フェーズ（最高品質の運用）
+
+**注意**: `google-generativeai` は依存関係に含まれているが、現在の実装では使用されていない（LiteLLM 経由で使用可能）
 
 ---
 
-### 3.7 SQLite
+### 3.8 SQLite
 
 **選定理由**:
 
@@ -126,6 +173,12 @@
 - セットアップが不要
 - 単一サーバー運用に適している
 - 永続化に十分
+
+**実装状況**:
+
+- Python 標準ライブラリの `sqlite3` を使用
+- `src/kotonoha_bot/db/sqlite.py` で実装
+- WAL モードを有効化（長時間稼働時のファイルロック問題を回避）
 
 **代替候補**:
 
@@ -136,7 +189,7 @@
 
 ---
 
-### 3.8 Docker
+### 3.9 Docker
 
 **選定理由**:
 
@@ -144,11 +197,17 @@
 - Synology Container Manager でサポート
 - 豊富なドキュメント
 
+**実装状況**:
+
+- `Dockerfile` でマルチステージビルドを実装
+- `docker-compose.yml` でコンテナ管理
+- `python:3.14-slim` をベースイメージとして使用
+
 **代替候補**:
 
 - **Podman**: Docker 互換だが、Synology でサポートが限定的
 
-#### 3.8.1 Docker ベースイメージの選択
+#### 3.9.1 Docker ベースイメージの選択
 
 **選定**: `python:3.14-slim`
 
@@ -181,13 +240,18 @@
 
 ---
 
-### 3.9 GitHub Actions
+### 3.10 GitHub Actions
 
 **選定理由**:
 
 - GitHub と統合
 - 無料で利用可能
 - 設定が簡単
+
+**実装状況**:
+
+- `.github/workflows/build.yml`: ビルドワークフロー
+- `.github/workflows/ci.yml`: CI ワークフロー
 
 **代替候補**:
 
@@ -196,7 +260,7 @@
 
 ---
 
-### 3.10 GitHub Container Registry (GHCR)
+### 3.11 GitHub Container Registry (GHCR)
 
 **選定理由**:
 
@@ -204,19 +268,29 @@
 - 無料で利用可能
 - Watchtower と連携可能
 
+**実装状況**:
+
+- `docker-compose.yml` で
+  `ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest` を指定
+
 **代替候補**:
 
 - **Docker Hub**: 一般的だが、レート制限がある
 
 ---
 
-### 3.11 Watchtower
+### 3.12 Watchtower
 
 **選定理由**:
 
 - シンプルで使いやすい
 - Docker コンテナの自動更新
 - 設定が簡単
+
+**実装状況**:
+
+- `docker-compose.yml` で `containrrr/watchtower:latest` を使用
+- 環境変数 `WATCHTOWER_ENABLED` で有効/無効を切り替え可能
 
 **代替候補**:
 
@@ -239,15 +313,28 @@
 
 ```txt
 Python 3.14
-├── discord.py
+├── discord.py (>=2.6.4)
 │   └── aiohttp (非同期 HTTP)
-├── litellm
+├── litellm (>=1.80.16)
 │   ├── openai (内部依存)
 │   └── httpx (HTTP クライアント)
-├── aiosqlite
-│   └── sqlite3 (標準ライブラリ)
-└── python-dotenv
+├── google-generativeai (>=0.8.6)
+│   └── LiteLLM 経由で使用可能（現在は未使用）
+├── pynacl (>=1.6.2)
+│   └── discord.py の依存関係
+├── python-dotenv (>=1.2.1)
+│   └── 環境変数管理
+└── sqlite3 (標準ライブラリ)
+    └── データベース
 ```
+
+**開発依存関係**:
+
+- `pytest` (>=9.0.2): テストフレームワーク
+- `pytest-asyncio` (>=1.3.0): 非同期テスト
+- `pytest-cov` (>=7.0.0): カバレッジ測定
+- `ruff` (>=0.14.11): リンター・フォーマッター
+- `ty` (>=0.0.11): 型チェック
 
 ---
 
@@ -272,7 +359,6 @@ Python 3.14
 | **discord.py**  | 100    | 85             | 95     | 100    | 85     | 93   |
 | **LiteLLM**     | 100    | 90             | 90     | 95     | 95     | 93   |
 | **Claude API**  | 70     | 100            | 95     | 95     | 90     | 88   |
-| **Gemini API**  | 100    | 90             | 95     | 90     | 85     | 93   |
 | **SQLite**      | 100    | 85             | 95     | 90     | 70     | 90   |
 
 ---
@@ -291,6 +377,30 @@ Python 3.14
 
 ---
 
-**作成日**: 2026 年 1 月 14 日
-**バージョン**: 1.0
+## 7. 実装状況
+
+### 7.1 実装済み
+
+- ✅ Python 3.14
+- ✅ uv パッケージ管理
+- ✅ discord.py 2.6.4+
+- ✅ LiteLLM 1.80.16+
+- ✅ Anthropic Claude API（Sonnet 4.5 デフォルト、Haiku 4.5 判定用）
+- ✅ SQLite
+- ✅ Docker（マルチステージビルド）
+- ✅ Docker Compose
+- ✅ GitHub Actions（CI/CD）
+- ✅ GitHub Container Registry
+- ✅ Watchtower（自動更新）
+
+### 7.2 未実装（将来の拡張）
+
+- ⏳ Google Gemini API（依存関係は含まれているが、現在は未使用）
+- ⏳ その他の LLM プロバイダー（LiteLLM 経由で使用可能）
+
+---
+
+**作成日**: 2026 年 1 月 14 日  
+**最終更新**: 2026 年 1 月（現在の実装に基づいて改訂）  
+**バージョン**: 2.0  
 **作成者**: kotonoha-bot 開発チーム

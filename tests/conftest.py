@@ -45,7 +45,10 @@ def temp_db_path():
 @pytest.fixture
 def db(temp_db_path):
     """SQLite データベースのフィクスチャ"""
-    return SQLiteDatabase(db_path=temp_db_path)
+    database = SQLiteDatabase(db_path=temp_db_path)
+    yield database
+    # テスト後にデータベース接続を明示的に閉じる
+    database.close()
 
 
 @pytest.fixture
@@ -60,7 +63,9 @@ def session_manager(temp_db_path):
     manager.db = temp_db
     # セッション辞書をクリア（_load_active_sessions で読み込まれたセッションを削除）
     manager.sessions = {}
-    return manager
+    yield manager
+    # テスト後にデータベース接続を明示的に閉じる
+    manager.db.close()
 
 
 @pytest.fixture(autouse=True)
