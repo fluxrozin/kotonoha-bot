@@ -214,7 +214,19 @@ class MessageHandler:
             else:
                 # メンション検知時の新規スレッド作成
                 if self.bot.user in message.mentions:
-                    await self._create_thread_and_respond(message)
+                    # _create_thread_and_respond 内でエラーを処理するため、
+                    # ここでは成功/失敗を確認してからエラーメッセージを送信
+                    success = await self._create_thread_and_respond(message)
+                    if not success:
+                        # エラーが発生し、_create_thread_and_respond 内で処理されなかった場合のみ
+                        # エラーメッセージを送信（通常は発生しない）
+                        logger.warning(
+                            f"Thread creation failed for message {message.id}, but error was not handled"
+                        )
+                        await message.reply(
+                            "すみません。一時的に反応できませんでした。\n"
+                            "少し時間をおいて、もう一度試してみてください。"
+                        )
 
         except Exception as e:
             logger.exception(f"Error handling thread: {e}")
@@ -223,21 +235,41 @@ class MessageHandler:
                 "少し時間をおいて、もう一度試してみてください。"
             )
 
-    async def _create_thread_and_respond(self, message: discord.Message):
-        """スレッドを作成して応答"""
-        # スレッド名を生成（メッセージの最初の100文字）
-        user_message = message.content
+    async def _create_thread_and_respond(self, message: discord.Message) -> bool:
+        """スレッドを作成して応答
+
+        Returns:
+            bool: 処理が成功した場合 True、失敗した場合 False
+        """
+        # スレッド名を生成（ユーザーの質問から端的で短い名前を生成）
+        user_message = message.content or ""
         for mention in message.mentions:
             user_message = user_message.replace(f"<@{mention.id}>", "").strip()
 
-        thread_name = user_message[:100] if user_message else "会話"
-        if len(thread_name) < 10:
+        # スレッド名を生成（端的で短い名前、最大50文字）
+        # 空になるケース: メンションのみ（@bot だけ）、空白のみ、message.content が None
+        if user_message and len(user_message.strip()) >= 1:
+            # 改行文字や制御文字を除去し、複数の空白を1つにまとめる
+            cleaned_message = " ".join(user_message.split())
+            # 端的な名前を生成（最大50文字、文の区切りで切る）
+            thread_name = cleaned_message[:50].strip()
+            # 文の区切り（。、！、？）で切る
+            for delimiter in ["。", "！", "？", ".", "!", "?"]:
+                if delimiter in thread_name:
+                    thread_name = thread_name.split(delimiter)[0].strip()
+                    break
+            # スレッド名が短すぎる場合はデフォルト名を使用
+            if len(thread_name) < 1:
+                thread_name = "会話"
+        else:
+            # メンションのみや空白のみの場合のデフォルト名
             thread_name = "会話"
 
         # 既存のスレッドがあるかチェック（race condition対策）
+        # 既存スレッドの名前は固定のため更新しない
         if message.thread:
             logger.info(
-                f"Thread already exists for message {message.id}, using existing thread"
+                f"Thread already exists for message {message.id}, using existing thread (name: {message.thread.name})"
             )
             thread = message.thread
         else:
@@ -252,7 +284,7 @@ class MessageHandler:
                     f"No permission to create thread in channel {message.channel.id}, falling back to mention mode"
                 )
                 await self.handle_mention(message)
-                return
+                return True  # メンション応答型にフォールバックしたので成功として扱う
             except discord.errors.HTTPException as e:
                 if e.code == 160004:
                     # すでにスレッドが作成されている場合は既存のスレッドを使用
@@ -265,92 +297,133 @@ class MessageHandler:
                         )
                         if updated_message.thread:
                             logger.info(
-                                f"Thread already exists for message {message.id}, using existing thread (after retry)"
+                                f"Thread already exists for message {message.id}, using existing thread (after retry, name: {updated_message.thread.name})"
                             )
                             thread = updated_message.thread
+                            # 既存スレッドの名前は固定のため更新しない
                         else:
                             logger.warning(
                                 f"Thread already exists but not accessible for message {message.id}"
                             )
-                            return
-                    except Exception:
+                            # エラーメッセージを送信してから return
+                            await message.reply(
+                                "すみません。一時的に反応できませんでした。\n"
+                                "少し時間をおいて、もう一度試してみてください。"
+                            )
+                            return False
+                    except Exception as fetch_error:
                         logger.warning(
-                            f"Failed to fetch message {message.id} after thread creation error"
+                            f"Failed to fetch message {message.id} after thread creation error: {fetch_error}"
                         )
-                        return
+                        # エラーメッセージを送信してから return
+                        await message.reply(
+                            "すみません。一時的に反応できませんでした。\n"
+                            "少し時間をおいて、もう一度試してみてください。"
+                        )
+                        return False
                 else:
-                    raise
+                    # その他のHTTPExceptionは再発生させる
+                    logger.error(f"HTTPException during thread creation: {e}")
+                    await message.reply(
+                        "すみません。一時的に反応できませんでした。\n"
+                        "少し時間をおいて、もう一度試してみてください。"
+                    )
+                    return False
+            except Exception as e:
+                # 予期しないエラー
+                logger.exception(f"Unexpected error during thread creation: {e}")
+                await message.reply(
+                    "すみません。一時的に反応できませんでした。\n"
+                    "少し時間をおいて、もう一度試してみてください。"
+                )
+                return False
 
-        # スレッドを記録
-        self.router.register_bot_thread(thread.id)
+        try:
+            # スレッドを記録
+            self.router.register_bot_thread(thread.id)
 
-        # セッションキーを生成
-        session_key = f"thread:{thread.id}"
+            # セッションキーを生成
+            session_key = f"thread:{thread.id}"
 
-        # セッションを取得または作成
-        session = self.session_manager.get_session(session_key)
-        if not session:
-            session = self.session_manager.create_session(
-                session_key=session_key,
-                session_type="thread",
-                channel_id=message.channel.id,
-                thread_id=thread.id,
-                user_id=message.author.id,
-            )
-            logger.info(f"Created new thread session: {session_key}")
+            # セッションを取得または作成
+            session = self.session_manager.get_session(session_key)
+            if not session:
+                session = self.session_manager.create_session(
+                    session_key=session_key,
+                    session_type="thread",
+                    channel_id=message.channel.id,
+                    thread_id=thread.id,
+                    user_id=message.author.id,
+                )
+                logger.info(f"Created new thread session: {session_key}")
 
-        # ユーザーメッセージを追加
-        self.session_manager.add_message(
-            session_key=session_key,
-            role=MessageRole.USER,
-            content=user_message,
-        )
-
-        # AI応答を生成
-        async with thread.typing():
-            # 現在の日付情報を含むシステムプロンプトを生成
-            now = datetime.now()
-            weekday_names = ["月", "火", "水", "木", "金", "土", "日"]
-            current_date_info = (
-                f"\n\n【現在の日付情報】\n"
-                f"現在の日時: {now.strftime('%Y年%m月%d日 %H:%M:%S')}\n"
-                f"今日の曜日: {weekday_names[now.weekday()]}曜日\n"
-                f"日付や曜日に関する質問には、この情報を基に具体的に回答してください。"
-            )
-            system_prompt = DEFAULT_SYSTEM_PROMPT + current_date_info
-
-            # AI応答を生成
-            response_text = self.ai_provider.generate_response(
-                messages=session.get_conversation_history(),
-                system_prompt=system_prompt,
-            )
-
-            # アシスタントメッセージを追加
+            # ユーザーメッセージを追加
             self.session_manager.add_message(
                 session_key=session_key,
-                role=MessageRole.ASSISTANT,
-                content=response_text,
+                role=MessageRole.USER,
+                content=user_message,
             )
 
-            # セッションを保存
-            self.session_manager.save_session(session_key)
+            # AI応答を生成
+            async with thread.typing():
+                # 現在の日付情報を含むシステムプロンプトを生成
+                now = datetime.now()
+                weekday_names = ["月", "火", "水", "木", "金", "土", "日"]
+                current_date_info = (
+                    f"\n\n【現在の日付情報】\n"
+                    f"現在の日時: {now.strftime('%Y年%m月%d日 %H:%M:%S')}\n"
+                    f"今日の曜日: {weekday_names[now.weekday()]}曜日\n"
+                    f"日付や曜日に関する質問には、この情報を基に具体的に回答してください。"
+                )
+                system_prompt = DEFAULT_SYSTEM_PROMPT + current_date_info
 
-            # スレッド内で返信（メッセージ分割対応）
-            response_chunks = split_message(response_text)
-            formatted_chunks = format_split_messages(
-                response_chunks, len(response_chunks)
+                # AI応答を生成
+                response_text = self.ai_provider.generate_response(
+                    messages=session.get_conversation_history(),
+                    system_prompt=system_prompt,
+                )
+
+                # アシスタントメッセージを追加
+                self.session_manager.add_message(
+                    session_key=session_key,
+                    role=MessageRole.ASSISTANT,
+                    content=response_text,
+                )
+
+                # セッションを保存
+                self.session_manager.save_session(session_key)
+
+                # スレッド内で返信（メッセージ分割対応）
+                response_chunks = split_message(response_text)
+                formatted_chunks = format_split_messages(
+                    response_chunks, len(response_chunks)
+                )
+
+                # 最初のメッセージは reply で送信
+                if formatted_chunks:
+                    await thread.send(formatted_chunks[0])
+
+                    # 残りのメッセージは順次送信
+                    for chunk in formatted_chunks[1:]:
+                        await thread.send(chunk)
+                        await asyncio.sleep(0.5)
+
+                logger.info(f"Sent response in thread: {thread.id}")
+                return True
+
+        except Exception as e:
+            logger.exception(
+                f"Error in _create_thread_and_respond after thread creation: {e}"
             )
-
-            # 最初のメッセージは reply で送信
-            if formatted_chunks:
-                await thread.send(formatted_chunks[0])
-
-                # 残りのメッセージは順次送信
-                for chunk in formatted_chunks[1:]:
-                    await thread.send(chunk)
-                    await asyncio.sleep(0.5)
-
-            logger.info(f"Sent response in thread: {thread.id}")
+            # エラーメッセージを送信
+            try:
+                await message.reply(
+                    "すみません。一時的に反応できませんでした。\n"
+                    "少し時間をおいて、もう一度試してみてください。"
+                )
+            except Exception as reply_error:
+                logger.error(f"Failed to send error message: {reply_error}")
+            return False
 
     async def _handle_thread_message(self, message: discord.Message):
         """既存スレッド内でのメッセージ処理"""

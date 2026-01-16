@@ -247,10 +247,31 @@ async def handle_thread(self, message: discord.Message):
 
 async def _create_thread_and_respond(self, message: discord.Message):
     """スレッドを作成して応答"""
-    # スレッド名を生成（メッセージの最初の100文字）
-    thread_name = message.content[:100] if message.content else "会話"
-    if len(thread_name) < 10:
+    # スレッド名を生成（ユーザーの質問から端的で短い名前を生成）
+    user_message = message.content or ""
+    for mention in message.mentions:
+        user_message = user_message.replace(f"<@{mention.id}>", "").strip()
+
+    # スレッド名を生成（端的で短い名前、最大50文字）
+    # 空になるケース: メンションのみ（@bot だけ）、空白のみ、message.content が None
+    if user_message and len(user_message.strip()) >= 1:
+        # 改行文字や制御文字を除去し、複数の空白を1つにまとめる
+        cleaned_message = " ".join(user_message.split())
+        # 端的な名前を生成（最大50文字、文の区切りで切る）
+        thread_name = cleaned_message[:50].strip()
+        # 文の区切り（。、！、？）で切る
+        for delimiter in ["。", "！", "？", ".", "!", "?"]:
+            if delimiter in thread_name:
+                thread_name = thread_name.split(delimiter)[0].strip()
+                break
+        # スレッド名が短すぎる場合はデフォルト名を使用
+        if len(thread_name) < 1:
+            thread_name = "会話"
+    else:
+        # メンションのみや空白のみの場合のデフォルト名
         thread_name = "会話"
+
+    # 注意: 既存スレッドの名前は固定のため更新しない
 
     # スレッドを作成
     thread = await message.create_thread(name=thread_name, auto_archive_duration=60)
