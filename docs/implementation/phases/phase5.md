@@ -1,16 +1,17 @@
-# Phase 5 実装計画 - 会話の契機拡張（スレッド型・聞き耳型）
+# Phase 5 実装完了報告 - 会話の契機拡張（スレッド型・聞き耳型）
 
-Kotonoha Discord Bot の Phase 5（会話の契機拡張：スレッド型・聞き耳型）の実装計画書
+Kotonoha Discord Bot の Phase 5（会話の契機拡張：スレッド型・聞き耳型）の実装完了報告書
 
 ## 目次
 
 1. [Phase 5 の目標](#phase-5-の目標)
-2. [前提条件](#前提条件)
-3. [実装ステップ](#実装ステップ)
-4. [完了基準](#完了基準)
-5. [技術仕様](#技術仕様)
-6. [リスク管理](#リスク管理)
-7. [次のフェーズへ](#次のフェーズへ)
+2. [実装状況](#実装状況)
+3. [前提条件](#前提条件)
+4. [実装ステップ（参考情報）](#実装ステップ参考情報)
+5. [完了基準](#完了基準)
+6. [技術仕様](#技術仕様)
+7. [リスク管理](#リスク管理)
+8. [次のフェーズへ](#次のフェーズへ)
 
 ---
 
@@ -32,6 +33,98 @@ Kotonoha Discord Bot の Phase 5（会話の契機拡張：スレッド型・聞
 - スラッシュコマンド（Phase 6 で実装予定）
 - 高度なレート制限管理（Phase 6 で実装予定）
 - ルールベース判断機能（聞き耳型のアプローチ 2、オプション）
+
+---
+
+## 実装状況
+
+### ✅ 実装完了（2026 年 1 月）
+
+Phase 5 の実装は完了しています。以下の機能が実装されています:
+
+**実装済み機能**:
+
+- ✅ メッセージルーター（会話の契機判定）
+- ✅ スレッド型（メンション時に自動スレッド作成、スレッド内で会話継続）
+- ✅ 聞き耳型（LLM 判断による自然な会話参加）
+- ✅ 統一インターフェース（3 つの方式を統一的に扱う）
+- ✅ テスト実装（49 テストケース、すべて通過）
+
+**実装されたファイル構造**:
+
+```txt
+src/kotonoha_bot/
+├── router/                    # ✅ 新規作成
+│   ├── __init__.py           # ✅ 実装済み
+│   └── message_router.py     # ✅ 実装済み（メッセージルーター）
+├── eavesdrop/                 # ✅ 新規作成
+│   ├── __init__.py           # ✅ 実装済み
+│   ├── llm_judge.py          # ✅ 実装済み（LLM 判断機能）
+│   └── conversation_buffer.py # ✅ 実装済み（会話ログバッファ）
+├── bot/
+│   └── handlers.py           # ✅ 更新（スレッド型・聞き耳型ハンドラー追加）
+└── config.py                  # ✅ 更新（聞き耳型設定追加）
+
+tests/unit/
+├── test_message_router.py     # ✅ 実装済み（9 テストケース）
+├── test_thread_handler.py     # ✅ 実装済み（10 テストケース）
+├── test_llm_judge.py          # ✅ 実装済み（24 テストケース）
+└── test_conversation_buffer.py # ✅ 実装済み（6 テストケース）
+
+prompts/
+├── eavesdrop_judge_prompt.md                    # ✅ 実装済み
+├── eavesdrop_response_prompt.md                 # ✅ 実装済み
+├── eavesdrop_same_conversation_prompt.md        # ✅ 実装済み
+├── eavesdrop_conversation_state_prompt.md       # ✅ 実装済み
+└── eavesdrop_conversation_situation_changed_prompt.md # ✅ 実装済み
+```
+
+**メッセージルーター**:
+
+- ✅ メンション応答型、スレッド型、聞き耳型の判定ロジック
+- ✅ 各方式へのルーティング
+- ✅ Bot が作成したスレッドの記録機能
+- ✅ チャンネルごとの有効/無効設定
+
+**スレッド型**:
+
+- ✅ メンション検知時の自動スレッド作成
+- ✅ スレッド名の生成（メッセージの最初の 50 文字、文の区切りで切る）
+- ✅ スレッド内での会話継続（メンション不要）
+- ✅ スレッドアーカイブ検知（`on_thread_update` イベント）
+- ✅ アーカイブ時のセッション保存
+- ✅ エラーハンドリング（権限がない場合はメンション応答型にフォールバック）
+
+**聞き耳型**:
+
+- ✅ LLM 判断機能（判定フェーズ・発言生成フェーズ）
+- ✅ 会話ログの一時保存（直近 20 件、デフォルト）
+- ✅ 最低メッセージ数のチェック（`EAVESDROP_MIN_MESSAGES`）
+- ✅ 介入履歴の追跡（同じ会話への重複介入を防止）
+- ✅ 会話状態の分析（終了、誤解、対立などの検出）
+- ✅ チャンネルごとの有効/無効設定
+- ✅ メインチャンネルへの直接投稿
+- ✅ 開発用コマンド（`!eavesdrop clear`、`!eavesdrop status`）
+
+**統一インターフェース**:
+
+- ✅ `on_message` イベントでメッセージルーターを使用
+- ✅ 各方式のハンドラーを呼び出し（`handle_mention`、`handle_thread`、`handle_eavesdrop`）
+- ✅ セッションキーの統一管理
+  - メンション応答型: `mention:{user_id}`
+  - スレッド型: `thread:{thread_id}`
+  - 聞き耳型: `eavesdrop:{channel_id}`
+- ✅ 各方式で会話履歴が正しく管理される
+
+**Phase 5 完了後の確認事項**:
+
+- ✅ メッセージルーターが正常に動作する（テスト通過: 9/9）
+- ✅ スレッド型が正常に動作する（テスト通過: 10/10）
+- ✅ 聞き耳型が正常に動作する（テスト通過: 30/30）
+- ✅ すべてのテストが通過する（49/49）
+- ✅ コード品質チェックが通過する（Ruff、ty）
+- ✅ ドキュメントが更新されている（README.md、.env.example）
+- ✅ Phase 6（高度な機能）の実装準備が整っている
 
 ---
 
@@ -73,7 +166,9 @@ Kotonoha Discord Bot の Phase 5（会話の契機拡張：スレッド型・聞
 
 ---
 
-## 実装ステップ
+## 実装ステップ（参考情報）
+
+> **注意**: 以下の実装ステップは参考情報です。実装は完了しています。
 
 ### Step 1: メッセージルーターの実装 (2-3 日)
 
@@ -96,8 +191,6 @@ from typing import Literal
 
 import discord
 
-from ..bot.handlers import MessageHandler
-
 logger = logging.getLogger(__name__)
 
 ConversationTrigger = Literal["mention", "thread", "eavesdrop", "none"]
@@ -109,9 +202,14 @@ class MessageRouter:
     メッセージを受信し、会話の契機を判定して適切なハンドラーにルーティングする。
     """
 
-    def __init__(self, handler: MessageHandler):
-        self.handler = handler
-        self.bot = handler.bot
+    def __init__(self, bot: discord.Client):
+        self.bot = bot
+        # スレッド型を有効にするチャンネル（将来的には設定ファイルから読み込む）
+        self.thread_enabled_channels: set[int] = set()
+        # 聞き耳型を有効にするチャンネル
+        self.eavesdrop_enabled_channels: set[int] = set()
+        # Botが作成したスレッドのIDを記録
+        self.bot_threads: set[int] = set()
 
     async def route(self, message: discord.Message) -> ConversationTrigger:
         """メッセージをルーティング
@@ -167,9 +265,28 @@ class MessageRouter:
         Returns:
             Botによって作成されたスレッドの場合 True
         """
-        # スレッドの作成者を確認
-        # または、スレッド名に特定のプレフィックスがあるか確認
-        # TODO: 実装
+        # 記録されたスレッドIDを確認
+        if thread.id in self.bot_threads:
+            return True
+
+        # スレッドの作成者を確認（owner_id が利用可能な場合）
+        if (
+            hasattr(thread, "owner_id")
+            and thread.owner_id is not None
+            and self.bot.user
+            and self.bot.user.id
+        ):
+            return thread.owner_id == self.bot.user.id
+
+        # owner_id が None の場合は、owner 属性を確認
+        if (
+            hasattr(thread, "owner")
+            and thread.owner
+            and self.bot.user
+            and self.bot.user.id
+        ):
+            return thread.owner.id == self.bot.user.id
+
         return False
 
     async def _should_eavesdrop(self, message: discord.Message) -> bool:
@@ -181,9 +298,53 @@ class MessageRouter:
         Returns:
             聞き耳型を有効にする場合 True
         """
-        # TODO: チャンネルごとの設定から読み込む
-        # デフォルト: False（聞き耳型は明示的に有効化が必要）
-        return False
+        # チャンネルごとの設定を確認
+        return message.channel.id in self.eavesdrop_enabled_channels
+
+    def register_bot_thread(self, thread_id: int) -> None:
+        """Botが作成したスレッドを記録
+
+        Args:
+            thread_id: スレッドID
+        """
+        self.bot_threads.add(thread_id)
+        logger.debug(f"Registered bot thread: {thread_id}")
+
+    def enable_thread_for_channel(self, channel_id: int) -> None:
+        """チャンネルでスレッド型を有効化
+
+        Args:
+            channel_id: チャンネルID
+        """
+        self.thread_enabled_channels.add(channel_id)
+        logger.info(f"Enabled thread mode for channel: {channel_id}")
+
+    def disable_thread_for_channel(self, channel_id: int) -> None:
+        """チャンネルでスレッド型を無効化
+
+        Args:
+            channel_id: チャンネルID
+        """
+        self.thread_enabled_channels.discard(channel_id)
+        logger.info(f"Disabled thread mode for channel: {channel_id}")
+
+    def enable_eavesdrop_for_channel(self, channel_id: int) -> None:
+        """チャンネルで聞き耳型を有効化
+
+        Args:
+            channel_id: チャンネルID
+        """
+        self.eavesdrop_enabled_channels.add(channel_id)
+        logger.info(f"Enabled eavesdrop mode for channel: {channel_id}")
+
+    def disable_eavesdrop_for_channel(self, channel_id: int) -> None:
+        """チャンネルで聞き耳型を無効化
+
+        Args:
+            channel_id: チャンネルID
+        """
+        self.eavesdrop_enabled_channels.discard(channel_id)
+        logger.info(f"Disabled eavesdrop mode for channel: {channel_id}")
 ```
 
 #### 1.2 ハンドラーの統合
@@ -198,12 +359,12 @@ class MessageRouter:
 
 #### Step 1 完了チェックリスト
 
-- [ ] `src/kotonoha_bot/router/__init__.py` が作成されている
-- [ ] `src/kotonoha_bot/router/message_router.py` が作成されている
-- [ ] メッセージルーターが実装されている
-- [ ] 会話の契機判定ロジックが実装されている
-- [ ] `handlers.py` に統合されている
-- [ ] メンション応答型が正常に動作する（既存機能の維持）
+- [x] `src/kotonoha_bot/router/__init__.py` が作成されている
+- [x] `src/kotonoha_bot/router/message_router.py` が作成されている
+- [x] メッセージルーターが実装されている
+- [x] 会話の契機判定ロジックが実装されている
+- [x] `handlers.py` に統合されている
+- [x] メンション応答型が正常に動作する（既存機能の維持）
 
 ---
 
@@ -245,8 +406,12 @@ async def handle_thread(self, message: discord.Message):
             "少し時間をおいて、もう一度試してみてください。"
         )
 
-async def _create_thread_and_respond(self, message: discord.Message):
-    """スレッドを作成して応答"""
+async def _create_thread_and_respond(self, message: discord.Message) -> bool:
+    """スレッドを作成して応答
+
+    Returns:
+        bool: 処理が成功した場合 True、失敗した場合 False
+    """
     # スレッド名を生成（ユーザーの質問から端的で短い名前を生成）
     user_message = message.content or ""
     for mention in message.mentions:
@@ -271,10 +436,61 @@ async def _create_thread_and_respond(self, message: discord.Message):
         # メンションのみや空白のみの場合のデフォルト名
         thread_name = "会話"
 
-    # 注意: 既存スレッドの名前は固定のため更新しない
+    # 既存のスレッドがあるかチェック（race condition対策）
+    # 既存スレッドの名前は固定のため更新しない
+    if message.thread:
+        logger.info(
+            f"Thread already exists for message {message.id}, using existing thread"
+        )
+        thread = message.thread
+    else:
+        # スレッドを作成
+        try:
+            thread = await message.create_thread(
+                name=thread_name, auto_archive_duration=60
+            )
+        except discord.errors.Forbidden:
+            # スレッド作成権限がない場合はメンション応答型にフォールバック
+            logger.warning(
+                f"No permission to create thread in channel {message.channel.id}, "
+                "falling back to mention mode"
+            )
+            await self.handle_mention(message)
+            return True  # メンション応答型にフォールバックしたので成功として扱う
+        except discord.errors.HTTPException as e:
+            if e.code == 160004:
+                # すでにスレッドが作成されている場合は既存のスレッドを使用
+                # 少し待ってからmessage.threadを再取得
+                await asyncio.sleep(0.5)
+                updated_message = await message.channel.fetch_message(message.id)
+                if updated_message.thread:
+                    thread = updated_message.thread
+                else:
+                    await message.reply(
+                        "すみません。一時的に反応できませんでした。\n"
+                        "少し時間をおいて、もう一度試してみてください。"
+                    )
+                    return False
+            else:
+                # その他のHTTPExceptionはエラーメッセージを送信
+                logger.error(f"HTTPException during thread creation: {e}")
+                await message.reply(
+                    "すみません。一時的に反応できませんでした。\n"
+                    "少し時間をおいて、もう一度試してみてください。"
+                )
+                return False
+        except Exception as e:
+            # 予期しないエラー
+            logger.exception(f"Unexpected error during thread creation: {e}")
+            await message.reply(
+                "すみません。一時的に反応できませんでした。\n"
+                "少し時間をおいて、もう一度試してみてください。"
+            )
+            return False
 
-    # スレッドを作成
-    thread = await message.create_thread(name=thread_name, auto_archive_duration=60)
+    try:
+        # スレッドを記録
+        self.router.register_bot_thread(thread.id)
 
     # セッションキーを生成
     session_key = f"thread:{thread.id}"
@@ -448,12 +664,12 @@ async def on_thread_update(before: discord.Thread, after: discord.Thread):
 
 #### Step 2 完了チェックリスト
 
-- [ ] メンション検知時の自動スレッド作成が実装されている
-- [ ] スレッド名の生成が実装されている
-- [ ] スレッド内での会話継続が実装されている（メンション不要）
-- [ ] スレッドアーカイブ検知が実装されている
-- [ ] アーカイブ時のセッション保存が実装されている
-- [ ] スレッド型が正常に動作する（動作確認済み）
+- [x] メンション検知時の自動スレッド作成が実装されている
+- [x] スレッド名の生成が実装されている
+- [x] スレッド内での会話継続が実装されている（メンション不要）
+- [x] スレッドアーカイブ検知が実装されている
+- [x] アーカイブ時のセッション保存が実装されている
+- [x] スレッド型が正常に動作する（動作確認済み）
 
 ---
 
@@ -494,8 +710,8 @@ class LLMJudge:
     def __init__(self, session_manager: SessionManager, ai_provider: LiteLLMProvider):
         self.session_manager = session_manager
         self.ai_provider = ai_provider
-        # 判定用の軽量モデル（Gemini Flash など）
-        self.judge_model = "google/gemini-2.0-flash-exp"
+        # 判定用の軽量モデル（Claude Haiku など）
+        self.judge_model = Config.EAVESDROP_JUDGE_MODEL
         # 応答生成用の通常モデル
         self.response_model = None  # デフォルトモデルを使用
 
@@ -511,24 +727,69 @@ class LLMJudge:
         Returns:
             発言すべき場合 True
         """
+        if not recent_messages:
+            return False
+
+        # 会話の状態を判定（終了しようとしている場合は介入しない）
+        conversation_state = await self._analyze_conversation_state(recent_messages)
+        if conversation_state == "ending":
+            logger.debug(
+                f"Intervention blocked for channel {channel_id}: conversation is ending"
+            )
+            return False
+
+        # 介入履歴がある場合、会話状況が変わったかをチェック
+        if channel_id in self.intervention_history:
+            has_changed = await self._has_conversation_changed_after_intervention(
+                channel_id, recent_messages
+            )
+            if not has_changed:
+                logger.debug(
+                    f"Intervention blocked for channel {channel_id}: "
+                    "conversation situation has not changed after last intervention"
+                )
+                return False
+
+        # 介入履歴を取得（LLM判定に渡すため）
+        intervention_context = self._get_intervention_context(channel_id)
+
         # 会話ログをフォーマット
         conversation_log = self._format_conversation_log(recent_messages)
 
-        # 判定用プロンプト
-        judge_prompt = self._create_judge_prompt(conversation_log)
+        # 会話の状態を判定（LLM判定を使用）
+        # 場が荒れている、誤解が発生しているなどの状態を検出
+        conversation_state = await self._analyze_conversation_state(recent_messages)
+        if conversation_state in ("conflict", "misunderstanding"):
+            logger.debug(
+                f"Conversation state detected: {conversation_state}, "
+                "proceeding to LLM judgment"
+            )
+
+        # 判定用プロンプト（介入履歴の情報も含める）
+        judge_prompt = self._create_judge_prompt(conversation_log, intervention_context)
 
         try:
             # 判定用 AI に問い合わせ（軽量モデルを使用）
+            judge_message = Message(role=MessageRole.USER, content=judge_prompt)
             response = self.ai_provider.generate_response(
-                messages=[{"role": "user", "content": judge_prompt}],
+                messages=[judge_message],
                 system_prompt="",
                 model=self.judge_model,
-                max_tokens=10,  # YES/NO のみなので短く
+                max_tokens=50,  # 会話の雰囲気を理解するため、少し余裕を持たせる
             )
 
             # 応答を解析
             response_upper = response.strip().upper()
-            return response_upper.startswith("YES")
+            should_respond = response_upper.startswith("YES")
+
+            if should_respond:
+                logger.debug("LLM judge determined that response is needed")
+                # 介入を記録（会話ログも保存）
+                self._record_intervention(channel_id, recent_messages)
+            else:
+                logger.debug("LLM judge determined that response is not needed")
+
+            return should_respond
 
         except Exception as e:
             logger.error(f"Error in judge phase: {e}")
@@ -557,8 +818,9 @@ class LLMJudge:
 
         try:
             # 通常の AI で応答を生成
+            response_message = Message(role=MessageRole.USER, content=response_prompt)
             response = self.ai_provider.generate_response(
-                messages=[{"role": "user", "content": response_prompt}],
+                messages=[response_message],
                 system_prompt=DEFAULT_SYSTEM_PROMPT,
                 model=self.response_model,  # デフォルトモデル
             )
@@ -898,18 +1160,18 @@ async def eavesdrop_command(ctx, action: str | None = None):
 
 #### Step 3 完了チェックリスト
 
-- [ ] `src/kotonoha_bot/eavesdrop/__init__.py` が作成されている
-- [ ] `src/kotonoha_bot/eavesdrop/llm_judge.py` が作成されている
-- [ ] `src/kotonoha_bot/eavesdrop/conversation_buffer.py` が作成されている
-- [ ] 会話ログの一時保存が実装されている
-- [ ] 判定フェーズ（裁判官）が実装されている
-- [ ] 発言生成フェーズ（演者）が実装されている
-- [ ] 判定用プロンプトが最適化されている（会話の雰囲気を理解できるように改善）
-- [ ] チャンネルごとの有効/無効設定が実装されている
-- [ ] メインチャンネルへの直接投稿が実装されている
-- [ ] 最低メッセージ数のチェックが実装されている（`EAVESDROP_MIN_MESSAGES`）
-- [ ] 開発用コマンド（`!eavesdrop`）が実装されている
-- [ ] 聞き耳型が正常に動作する（動作確認済み）
+- [x] `src/kotonoha_bot/eavesdrop/__init__.py` が作成されている
+- [x] `src/kotonoha_bot/eavesdrop/llm_judge.py` が作成されている
+- [x] `src/kotonoha_bot/eavesdrop/conversation_buffer.py` が作成されている
+- [x] 会話ログの一時保存が実装されている
+- [x] 判定フェーズ（裁判官）が実装されている
+- [x] 発言生成フェーズ（演者）が実装されている
+- [x] 判定用プロンプトが最適化されている（会話の雰囲気を理解できるように改善）
+- [x] チャンネルごとの有効/無効設定が実装されている
+- [x] メインチャンネルへの直接投稿が実装されている
+- [x] 最低メッセージ数のチェックが実装されている（`EAVESDROP_MIN_MESSAGES`）
+- [x] 開発用コマンド（`!eavesdrop`）が実装されている
+- [x] 聞き耳型が正常に動作する（動作確認済み）
 
 ---
 
@@ -964,11 +1226,11 @@ async def on_message(message: discord.Message):
 
 #### Step 4 完了チェックリスト
 
-- [ ] 3 つの方式を統一的に扱うインターフェースが実装されている
-- [ ] セッションキーの統一管理が実装されている
-- [ ] 各方式で会話履歴が正しく管理される
-- [ ] エラーハンドリングが統一されている
-- [ ] すべての方式が正常に動作する（動作確認済み）
+- [x] 3 つの方式を統一的に扱うインターフェースが実装されている
+- [x] セッションキーの統一管理が実装されている
+- [x] 各方式で会話履歴が正しく管理される
+- [x] エラーハンドリングが統一されている
+- [x] すべての方式が正常に動作する（動作確認済み）
 
 ---
 
@@ -1007,11 +1269,11 @@ async def on_message(message: discord.Message):
 
 #### Step 5 完了チェックリスト
 
-- [ ] メッセージルーターのテストが実装されている
-- [ ] スレッド型のテストが実装されている
-- [ ] 聞き耳型のテストが実装されている
-- [ ] すべてのテストが通過する
-- [ ] テストカバレッジが適切である
+- [x] メッセージルーターのテストが実装されている
+- [x] スレッド型のテストが実装されている
+- [x] 聞き耳型のテストが実装されている
+- [x] すべてのテストが通過する（49/49 テスト通過）
+- [x] テストカバレッジが適切である
 
 ---
 
@@ -1021,40 +1283,40 @@ async def on_message(message: discord.Message):
 
 1. **メンション応答型**
 
-   - [ ] メンション時に正常に応答する（既存機能の維持）
-   - [ ] 会話履歴が正しく管理される
+   - [x] メンション時に正常に応答する（既存機能の維持）
+   - [x] 会話履歴が正しく管理される
 
 2. **スレッド型**
 
-   - [ ] メンション時に自動スレッドが作成される
-   - [ ] スレッド内で会話が継続する（メンション不要）
-   - [ ] スレッドアーカイブ時にセッションが保存される
+   - [x] メンション時に自動スレッドが作成される
+   - [x] スレッド内で会話が継続する（メンション不要）
+   - [x] スレッドアーカイブ時にセッションが保存される
 
 3. **聞き耳型**
 
-   - [ ] 有効なチャンネルで聞き耳型が動作する
-   - [ ] 適切なタイミングで会話に参加する（会話の雰囲気を理解してから）
-   - [ ] 不適切なタイミングでは発言しない
-   - [ ] 最低メッセージ数が溜まってから判定・応答生成を行う
-   - [ ] 開発用コマンド（`!eavesdrop clear`、`!eavesdrop status`）が動作する
+   - [x] 有効なチャンネルで聞き耳型が動作する
+   - [x] 適切なタイミングで会話に参加する（会話の雰囲気を理解してから）
+   - [x] 不適切なタイミングでは発言しない
+   - [x] 最低メッセージ数が溜まってから判定・応答生成を行う
+   - [x] 開発用コマンド（`!eavesdrop clear`、`!eavesdrop status`）が動作する
 
 4. **統合動作**
 
-   - [ ] 3 つの方式が同時に動作する
-   - [ ] セッションキーが正しく管理される
-   - [ ] エラーハンドリングが適切に動作する
+   - [x] 3 つの方式が同時に動作する
+   - [x] セッションキーが正しく管理される
+   - [x] エラーハンドリングが適切に動作する
 
 #### 6.2 ドキュメント更新
 
-- [ ] `.env.example` に聞き耳型の設定を追加
-- [ ] README に Phase 5 の機能を追加
-- [ ] 実装ロードマップを更新
+- [x] `.env.example` に聞き耳型の設定を追加
+- [x] README に Phase 5 の機能を追加
+- [x] 実装ロードマップを更新
 
 #### Step 6 完了チェックリスト
 
-- [ ] すべての動作確認項目が完了
-- [ ] ドキュメントが更新されている
-- [ ] 問題が発生した場合はトラブルシューティングを実施
+- [x] すべての動作確認項目が完了
+- [x] ドキュメントが更新されている
+- [x] 問題が発生した場合はトラブルシューティングを実施
 
 ---
 
@@ -1066,38 +1328,38 @@ async def on_message(message: discord.Message):
 
 1. **メッセージルーター**
 
-   - [ ] メッセージルーターが実装されている
-   - [ ] 会話の契機判定ロジックが実装されている
-   - [ ] 各方式へのルーティングが正常に動作する
+   - [x] メッセージルーターが実装されている
+   - [x] 会話の契機判定ロジックが実装されている
+   - [x] 各方式へのルーティングが正常に動作する
 
 2. **スレッド型**
 
-   - [ ] メンション検知時の自動スレッド作成が動作する
-   - [ ] スレッド内での会話継続が動作する（メンション不要）
-   - [ ] スレッドアーカイブ検知が動作する
-   - [ ] アーカイブ時のセッション保存が動作する
+   - [x] メンション検知時の自動スレッド作成が動作する
+   - [x] スレッド内での会話継続が動作する（メンション不要）
+   - [x] スレッドアーカイブ検知が動作する
+   - [x] アーカイブ時のセッション保存が動作する
 
 3. **聞き耳型（アプローチ 1）**
 
-   - [ ] LLM 判断機能が実装されている
-   - [ ] 会話ログの一時保存が動作する
-   - [ ] 判定フェーズ（裁判官）が動作する
-   - [ ] 発言生成フェーズ（演者）が動作する
-   - [ ] チャンネルごとの有効/無効設定が動作する
-   - [ ] メインチャンネルへの直接投稿が動作する
+   - [x] LLM 判断機能が実装されている
+   - [x] 会話ログの一時保存が動作する
+   - [x] 判定フェーズ（裁判官）が動作する
+   - [x] 発言生成フェーズ（演者）が動作する
+   - [x] チャンネルごとの有効/無効設定が動作する
+   - [x] メインチャンネルへの直接投稿が動作する
 
 4. **統一インターフェース**
 
-   - [ ] 3 つの方式を統一的に扱うインターフェースが実装されている
-   - [ ] セッションキーの統一管理が実装されている
-   - [ ] 各方式で会話履歴が正しく管理される
+   - [x] 3 つの方式を統一的に扱うインターフェースが実装されている
+   - [x] セッションキーの統一管理が実装されている
+   - [x] 各方式で会話履歴が正しく管理される
 
 5. **テスト**
 
-   - [ ] メッセージルーターのテストが実装されている
-   - [ ] スレッド型のテストが実装されている
-   - [ ] 聞き耳型のテストが実装されている
-   - [ ] すべてのテストが通過する
+   - [x] メッセージルーターのテストが実装されている
+   - [x] スレッド型のテストが実装されている
+   - [x] 聞き耳型のテストが実装されている
+   - [x] すべてのテストが通過する（49/49 テスト通過）
 
 ---
 
@@ -1152,7 +1414,7 @@ async def on_message(message: discord.Message):
 
 ### スレッド作成設定
 
-- スレッド名: メッセージの最初の 100 文字
+- スレッド名: メッセージの最初の 50 文字（文の区切りで切る）
 - 自動アーカイブ: 60 分（デフォルト）
 - スレッド作成権限: Bot に必要
 
@@ -1244,11 +1506,61 @@ Phase 5 が完了したら、以下の機能拡張を検討:
 
 ---
 
+## Phase 5 完了報告
+
+**完了日**: 2026 年 1 月 15 日
+
+### 実装サマリー
+
+Phase 5（会話の契機拡張）のすべての目標を達成しました。
+
+| カテゴリ             | 状態    | 備考                                 |
+| -------------------- | ------- | ------------------------------------ |
+| メッセージルーター   | ✅ 完了 | 会話の契機判定とルーティング         |
+| スレッド型           | ✅ 完了 | 自動スレッド作成、スレッド内会話継続 |
+| 聞き耳型             | ✅ 完了 | LLM 判断による自然な会話参加         |
+| 統一インターフェース | ✅ 完了 | 3 つの方式を統一的に扱う             |
+| テスト               | ✅ 完了 | 49 テストケース、すべて通過          |
+
+### 実装された追加機能
+
+Phase 5 の計画書には記載されていないが、実装されている追加機能:
+
+1. **介入履歴の追跡**:
+
+   - 同じ会話への重複介入を防止
+   - 会話状況が変わったかを判定
+
+2. **会話状態の分析**:
+
+   - 会話が終了しようとしている場合の検出
+   - 誤解や対立の検出
+
+3. **キャッシュ機能**:
+
+   - 同じ会話判定のキャッシュ（トークン消費を削減）
+
+4. **エラーハンドリング**:
+   - スレッド作成権限がない場合のフォールバック
+   - 詳細なエラーログ
+
+### テスト実装完了
+
+以下のテストファイルが実装され、すべてのテストが通過しています：
+
+- **`tests/unit/test_message_router.py`**: 9 テストケース
+- **`tests/unit/test_thread_handler.py`**: 10 テストケース
+- **`tests/unit/test_llm_judge.py`**: 24 テストケース
+- **`tests/unit/test_conversation_buffer.py`**: 6 テストケース
+
+**合計**: 49 テストケース、すべて通過
+
+---
+
 **作成日**: 2026 年 1 月 15 日
-**最終更新日**: 2026 年 1 月 15 日（開発用コマンド追加、判定プロンプト改善）
+**最終更新日**: 2026 年 1 月 15 日（実装完了）
 **対象フェーズ**: Phase 5（会話の契機拡張）
-**実装状況**: ⏳ 未実装
+**実装状況**: ✅ 完了
 **前提条件**: Phase 1, 2, 3, 4 完了済み ✅
 **次のフェーズ**: Phase 6（高度な機能）
 **バージョン**: 1.0
-**見積もり期間**: 約 10-14 日
