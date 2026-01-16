@@ -239,6 +239,21 @@ class MessageHandler:
             thread = await message.create_thread(
                 name=thread_name, auto_archive_duration=60
             )
+        except discord.errors.HTTPException as e:
+            if e.code == 160004:
+                # すでにスレッドが作成されている場合は既存のスレッドを使用
+                if message.thread:
+                    logger.info(
+                        f"Thread already exists for message {message.id}, using existing thread"
+                    )
+                    thread = message.thread
+                else:
+                    logger.warning(
+                        f"Thread already exists but not accessible for message {message.id}"
+                    )
+                    return
+            else:
+                raise
         except discord.errors.Forbidden:
             # スレッド作成権限がない場合はメンション応答型にフォールバック
             logger.warning(
