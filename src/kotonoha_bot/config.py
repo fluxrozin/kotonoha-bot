@@ -72,6 +72,20 @@ class Config:
         os.getenv("EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES", "10")
     )  # 介入の最小間隔（分）
 
+    # レート制限設定
+    RATE_LIMIT_CAPACITY: int = int(
+        os.getenv("RATE_LIMIT_CAPACITY", "50")
+    )  # レート制限の上限値（1分間に50リクエストまで）
+    RATE_LIMIT_REFILL: float = float(
+        os.getenv("RATE_LIMIT_REFILL", "0.8")
+    )  # 補充レート（リクエスト/秒、1分間に約48リクエスト）
+    RATE_LIMIT_WINDOW: int = int(
+        os.getenv("RATE_LIMIT_WINDOW", "60")
+    )  # 監視ウィンドウ（秒）
+    RATE_LIMIT_THRESHOLD: float = float(
+        os.getenv("RATE_LIMIT_THRESHOLD", "0.9")
+    )  # 警告閾値（0.0-1.0）
+
     @classmethod
     def validate(cls, skip_in_test: bool = False) -> None:
         """設定の検証

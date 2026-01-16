@@ -12,9 +12,19 @@ from ..ai.prompts import DEFAULT_SYSTEM_PROMPT
 from ..config import Config
 from ..eavesdrop.conversation_buffer import ConversationBuffer
 from ..eavesdrop.llm_judge import LLMJudge
+from ..errors.database_errors import (
+    classify_database_error,
+    get_database_error_message,
+)
+from ..errors.discord_errors import (
+    classify_discord_error,
+    get_user_friendly_message,
+)
+from ..rate_limit.request_queue import RequestPriority, RequestQueue
 from ..router.message_router import MessageRouter
 from ..session.manager import SessionManager
 from ..session.models import MessageRole
+from ..utils.message_formatter import create_response_embed
 from ..utils.message_splitter import format_split_messages, split_message
 from .client import KotonohaBot
 
@@ -35,6 +45,8 @@ class MessageHandler:
             max_size=Config.EAVESDROP_BUFFER_SIZE
         )
         self.llm_judge = LLMJudge(self.session_manager, self.ai_provider)
+        # リクエストキュー
+        self.request_queue = RequestQueue(max_size=100)
         # タスクは on_ready イベントで開始する（イベントループが必要なため）
         # 聞き耳型の有効化（環境変数から読み込み）
         self._load_eavesdrop_channels()
@@ -107,7 +119,7 @@ class MessageHandler:
                 logger.info(f"Loaded eavesdrop channel from config: {channel_id}")
 
     async def handle_mention(self, message: discord.Message):
-        """メンション時の処理"""
+        """メンション時の処理（リクエストキューに追加）"""
         # Bot自身のメッセージは無視
         if message.author.bot:
             return
@@ -118,6 +130,25 @@ class MessageHandler:
 
         logger.info(f"Mention from {message.author} in {message.channel}")
 
+        # リクエストキューに追加（優先度: MENTION）
+        try:
+            future = await self.request_queue.enqueue(
+                RequestPriority.MENTION,
+                self._process_mention,
+                message,
+            )
+            # 結果を待機（エラーハンドリングは内部で行う）
+            await future
+        except Exception as e:
+            logger.exception(f"Error enqueuing mention request: {e}")
+            # キューが満杯などの場合のフォールバック
+            try:
+                await self._process_mention(message)
+            except Exception as inner_e:
+                logger.exception(f"Error in fallback mention processing: {inner_e}")
+
+    async def _process_mention(self, message: discord.Message) -> None:
+        """メンション処理の実装"""
         try:
             # タイピングインジケーターを表示
             async with message.channel.typing():
@@ -160,7 +191,7 @@ class MessageHandler:
                 system_prompt = DEFAULT_SYSTEM_PROMPT + current_date_info
 
                 # AI応答を生成
-                response_text = self.ai_provider.generate_response(
+                response_text = await self.ai_provider.generate_response(
                     messages=session.get_conversation_history(),
                     system_prompt=system_prompt,
                 )
@@ -181,9 +212,17 @@ class MessageHandler:
                     response_chunks, len(response_chunks)
                 )
 
-                # 最初のメッセージは reply で送信
+                # 使用モデル名とレート制限使用率を取得
+                model_name = self.ai_provider.get_last_used_model()
+                rate_limit_usage = self.ai_provider.get_rate_limit_usage()
+
+                # 最初のメッセージは reply で送信（フッター付き）
                 if formatted_chunks:
-                    await message.reply(formatted_chunks[0])
+                    # 最初のメッセージのみEmbedで送信（フッター付き）
+                    embed = create_response_embed(
+                        formatted_chunks[0], model_name, rate_limit_usage
+                    )
+                    await message.reply(embed=embed)
 
                     # 残りのメッセージは順次送信
                     for chunk in formatted_chunks[1:]:
@@ -193,47 +232,80 @@ class MessageHandler:
 
                 logger.info(f"Sent response to {message.author}")
 
+        except discord.errors.DiscordException as e:
+            logger.exception(f"Discord error handling mention: {e}")
+            error_type = classify_discord_error(e)
+            error_message = get_user_friendly_message(error_type)
+            await message.reply(error_message)
         except Exception as e:
             logger.exception(f"Error handling mention: {e}")
-            await message.reply(
-                "すみません。一時的に反応できませんでした。\n"
-                "少し時間をおいて、もう一度試してみてください。"
-            )
+            # データベースエラーの可能性をチェック
+            if "sqlite" in str(type(e)).lower() or "database" in str(e).lower():
+                error_type = classify_database_error(e)
+                error_message = get_database_error_message(error_type)
+                await message.reply(error_message)
+            else:
+                await message.reply(
+                    "すみません。一時的に反応できませんでした。\n"
+                    "少し時間をおいて、もう一度試してみてください。"
+                )
 
     async def handle_thread(self, message: discord.Message):
-        """スレッド型の処理"""
+        """スレッド型の処理（リクエストキューに追加）"""
         # Bot自身のメッセージは無視
         if message.author.bot:
             return
 
+        logger.info(f"Thread message from {message.author} in {message.channel}")
+
+        # リクエストキューに追加（優先度: THREAD）
         try:
             # 既存スレッド内での会話か、新規スレッド作成か判定
             if isinstance(message.channel, discord.Thread):
                 # 既存スレッド内での会話
-                await self._handle_thread_message(message)
+                future = await self.request_queue.enqueue(
+                    RequestPriority.THREAD,
+                    self._process_thread_message,
+                    message,
+                )
             else:
                 # メンション検知時の新規スレッド作成
                 if self.bot.user in message.mentions:
-                    # _create_thread_and_respond 内でエラーを処理するため、
-                    # ここでは成功/失敗を確認してからエラーメッセージを送信
-                    success = await self._create_thread_and_respond(message)
-                    if not success:
-                        # エラーが発生し、_create_thread_and_respond 内で処理されなかった場合のみ
-                        # エラーメッセージを送信（通常は発生しない）
-                        logger.warning(
-                            f"Thread creation failed for message {message.id}, but error was not handled"
-                        )
-                        await message.reply(
-                            "すみません。一時的に反応できませんでした。\n"
-                            "少し時間をおいて、もう一度試してみてください。"
-                        )
+                    future = await self.request_queue.enqueue(
+                        RequestPriority.THREAD,
+                        self._process_thread_creation,
+                        message,
+                    )
+                else:
+                    return  # メンションされていない場合は処理しない
 
+            # 結果を待機（エラーハンドリングは内部で行う）
+            await future
         except Exception as e:
-            logger.exception(f"Error handling thread: {e}")
-            await message.reply(
-                "すみません。一時的に反応できませんでした。\n"
-                "少し時間をおいて、もう一度試してみてください。"
+            logger.exception(f"Error enqueuing thread request: {e}")
+            # キューが満杯などの場合のフォールバック
+            try:
+                if isinstance(message.channel, discord.Thread):
+                    await self._process_thread_message(message)
+                elif self.bot.user in message.mentions:
+                    await self._process_thread_creation(message)
+            except Exception as inner_e:
+                logger.exception(f"Error in fallback thread processing: {inner_e}")
+
+    async def _process_thread_creation(self, message: discord.Message) -> None:
+        """スレッド作成処理の実装"""
+        success = await self._create_thread_and_respond(message)
+        if not success:
+            logger.warning(
+                f"Thread creation failed for message {message.id}, but error was not handled"
             )
+            try:
+                await message.reply(
+                    "すみません。一時的に反応できませんでした。\n"
+                    "少し時間をおいて、もう一度試してみてください。"
+                )
+            except Exception as e:
+                logger.exception(f"Error sending fallback error message: {e}")
 
     async def _create_thread_and_respond(self, message: discord.Message) -> bool:
         """スレッドを作成して応答
@@ -378,7 +450,7 @@ class MessageHandler:
                 system_prompt = DEFAULT_SYSTEM_PROMPT + current_date_info
 
                 # AI応答を生成
-                response_text = self.ai_provider.generate_response(
+                response_text = await self.ai_provider.generate_response(
                     messages=session.get_conversation_history(),
                     system_prompt=system_prompt,
                 )
@@ -399,9 +471,17 @@ class MessageHandler:
                     response_chunks, len(response_chunks)
                 )
 
-                # 最初のメッセージは reply で送信
+                # 使用モデル名とレート制限使用率を取得
+                model_name = self.ai_provider.get_last_used_model()
+                rate_limit_usage = self.ai_provider.get_rate_limit_usage()
+
+                # 最初のメッセージは reply で送信（フッター付き）
                 if formatted_chunks:
-                    await thread.send(formatted_chunks[0])
+                    # 最初のメッセージのみEmbedで送信（フッター付き）
+                    embed = create_response_embed(
+                        formatted_chunks[0], model_name, rate_limit_usage
+                    )
+                    await thread.send(embed=embed)
 
                     # 残りのメッセージは順次送信
                     for chunk in formatted_chunks[1:]:
@@ -425,8 +505,8 @@ class MessageHandler:
                 logger.error(f"Failed to send error message: {reply_error}")
             return False
 
-    async def _handle_thread_message(self, message: discord.Message):
-        """既存スレッド内でのメッセージ処理"""
+    async def _process_thread_message(self, message: discord.Message) -> None:
+        """既存スレッド内でのメッセージ処理の実装"""
         # message.channel は既に Thread 型であることが確認済み
         if not isinstance(message.channel, discord.Thread):
             logger.error(f"Expected Thread but got {type(message.channel)}")
@@ -457,52 +537,87 @@ class MessageHandler:
         )
 
         # AI応答を生成
-        async with thread.typing():
-            # 現在の日付情報を含むシステムプロンプトを生成
-            now = datetime.now()
-            weekday_names = ["月", "火", "水", "木", "金", "土", "日"]
-            current_date_info = (
-                f"\n\n【現在の日付情報】\n"
-                f"現在の日時: {now.strftime('%Y年%m月%d日 %H:%M:%S')}\n"
-                f"今日の曜日: {weekday_names[now.weekday()]}曜日\n"
-            )
-            system_prompt = DEFAULT_SYSTEM_PROMPT + current_date_info
+        try:
+            async with thread.typing():
+                # 現在の日付情報を含むシステムプロンプトを生成
+                now = datetime.now()
+                weekday_names = ["月", "火", "水", "木", "金", "土", "日"]
+                current_date_info = (
+                    f"\n\n【現在の日付情報】\n"
+                    f"現在の日時: {now.strftime('%Y年%m月%d日 %H:%M:%S')}\n"
+                    f"今日の曜日: {weekday_names[now.weekday()]}曜日\n"
+                )
+                system_prompt = DEFAULT_SYSTEM_PROMPT + current_date_info
 
-            # AI応答を生成
-            response_text = self.ai_provider.generate_response(
-                messages=session.get_conversation_history(),
-                system_prompt=system_prompt,
-            )
+                # AI応答を生成
+                response_text = await self.ai_provider.generate_response(
+                    messages=session.get_conversation_history(),
+                    system_prompt=system_prompt,
+                )
 
-            # アシスタントメッセージを追加
-            self.session_manager.add_message(
-                session_key=session_key,
-                role=MessageRole.ASSISTANT,
-                content=response_text,
-            )
+                # アシスタントメッセージを追加
+                self.session_manager.add_message(
+                    session_key=session_key,
+                    role=MessageRole.ASSISTANT,
+                    content=response_text,
+                )
 
-            # セッションを保存
-            self.session_manager.save_session(session_key)
+                # セッションを保存
+                self.session_manager.save_session(session_key)
 
-            # スレッド内で返信（メッセージ分割対応）
-            response_chunks = split_message(response_text)
-            formatted_chunks = format_split_messages(
-                response_chunks, len(response_chunks)
-            )
+                # 使用モデル名とレート制限使用率を取得
+                model_name = self.ai_provider.get_last_used_model()
+                rate_limit_usage = self.ai_provider.get_rate_limit_usage()
 
-            # 最初のメッセージは reply で送信
-            if formatted_chunks:
-                await message.reply(formatted_chunks[0])
+                # スレッド内で返信（メッセージ分割対応）
+                response_chunks = split_message(response_text)
+                formatted_chunks = format_split_messages(
+                    response_chunks, len(response_chunks)
+                )
 
-                # 残りのメッセージは順次送信
-                for chunk in formatted_chunks[1:]:
-                    await thread.send(chunk)
-                    await asyncio.sleep(0.5)
+                # 最初のメッセージのみEmbedで送信（フッター付き）
+                if formatted_chunks:
+                    embed = create_response_embed(
+                        formatted_chunks[0], model_name, rate_limit_usage
+                    )
+                    await message.reply(embed=embed)
 
-            logger.info(f"Sent response in thread: {thread.id}")
+                    # 残りのメッセージは順次送信
+                    for chunk in formatted_chunks[1:]:
+                        await thread.send(chunk)
+                        await asyncio.sleep(0.5)
+
+                logger.info(f"Sent response in thread: {thread.id}")
+
+        except discord.errors.DiscordException as e:
+            logger.exception(f"Discord error handling thread message: {e}")
+            error_type = classify_discord_error(e)
+            error_message = get_user_friendly_message(error_type)
+            try:
+                await message.reply(error_message)
+            except Exception as reply_error:
+                logger.error(f"Failed to send error message: {reply_error}")
+        except Exception as e:
+            logger.exception(f"Error handling thread message: {e}")
+            # データベースエラーの可能性をチェック
+            if "sqlite" in str(type(e)).lower() or "database" in str(e).lower():
+                error_type = classify_database_error(e)
+                error_message = get_database_error_message(error_type)
+                try:
+                    await message.reply(error_message)
+                except Exception as reply_error:
+                    logger.error(f"Failed to send error message: {reply_error}")
+            else:
+                try:
+                    await message.reply(
+                        "すみません。一時的に反応できませんでした。\n"
+                        "少し時間をおいて、もう一度試してみてください。"
+                    )
+                except Exception as reply_error:
+                    logger.error(f"Failed to send error message: {reply_error}")
 
     async def handle_eavesdrop(self, message: discord.Message):
-        """聞き耳型の処理"""
+        """聞き耳型の処理（リクエストキューに追加）"""
         # Bot自身のメッセージは無視
         if message.author.bot:
             return
@@ -511,6 +626,27 @@ class MessageHandler:
         if message.channel.id not in self.router.eavesdrop_enabled_channels:
             return
 
+        logger.debug(f"Eavesdrop message from {message.author} in {message.channel}")
+
+        # リクエストキューに追加（優先度: EAVESDROP - 最高優先度）
+        try:
+            future = await self.request_queue.enqueue(
+                RequestPriority.EAVESDROP,
+                self._process_eavesdrop,
+                message,
+            )
+            # 結果を待機（エラーハンドリングは内部で行う）
+            await future
+        except Exception as e:
+            logger.exception(f"Error enqueuing eavesdrop request: {e}")
+            # キューが満杯などの場合のフォールバック
+            try:
+                await self._process_eavesdrop(message)
+            except Exception as inner_e:
+                logger.exception(f"Error in fallback eavesdrop processing: {inner_e}")
+
+    async def _process_eavesdrop(self, message: discord.Message) -> None:
+        """聞き耳型処理の実装"""
         try:
             # 会話ログに追加
             self.conversation_buffer.add_message(message.channel.id, message)
@@ -564,9 +700,17 @@ class MessageHandler:
                     response_chunks, len(response_chunks)
                 )
 
-                # 最初のメッセージを送信
+                # 使用モデル名とレート制限使用率を取得
+                model_name = self.ai_provider.get_last_used_model()
+                rate_limit_usage = self.ai_provider.get_rate_limit_usage()
+
+                # 最初のメッセージを送信（フッター付き）
                 if formatted_chunks:
-                    await message.channel.send(formatted_chunks[0])
+                    # 最初のメッセージのみEmbedで送信（フッター付き）
+                    embed = create_response_embed(
+                        formatted_chunks[0], model_name, rate_limit_usage
+                    )
+                    await message.channel.send(embed=embed)
 
                     # 残りのメッセージは順次送信
                     for chunk in formatted_chunks[1:]:
@@ -595,6 +739,9 @@ def setup_handlers(bot: KotonohaBot):
         if not handler.batch_sync_task.is_running():
             handler.batch_sync_task.start()
             logger.info("Batch sync task started")
+        # リクエストキューを開始
+        await handler.request_queue.start()
+        logger.info("Request queue started")
 
     @bot.event
     async def on_message(message: discord.Message):

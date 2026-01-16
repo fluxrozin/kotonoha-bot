@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .bot.client import KotonohaBot
 from .bot.handlers import setup_handlers
+from .commands.chat import setup as setup_chat_commands
 from .config import Config
 from .health import HealthCheckServer
 
@@ -70,6 +71,9 @@ async def async_main():
 
     # イベントハンドラーのセットアップ
     handler = setup_handlers(bot)
+
+    # スラッシュコマンドを登録
+    await setup_chat_commands(bot, handler)
 
     # ヘルスチェックサーバーの準備（まだ起動しない）
     health_server = HealthCheckServer()

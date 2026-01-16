@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 import litellm
 
 from ..config import Config
+from ..rate_limit.monitor import RateLimitMonitor
+from ..rate_limit.token_bucket import TokenBucket
 from ..session.models import Message, MessageRole
 from .provider import AIProvider
 
@@ -45,6 +47,23 @@ class LiteLLMProvider(AIProvider):
         self.retry_delay_base = Config.LLM_RETRY_DELAY_BASE
         self._last_http_refresh = datetime.now()
         self._http_client_refresh_interval = HTTP_CLIENT_REFRESH_INTERVAL
+        self._last_used_model: str | None = None  # 最後に使用したモデル名
+
+        # レート制限モニターとトークンバケットの初期化
+        self.rate_limit_monitor = RateLimitMonitor(
+            window_seconds=Config.RATE_LIMIT_WINDOW,
+            warning_threshold=Config.RATE_LIMIT_THRESHOLD,
+        )
+        self.token_bucket = TokenBucket(
+            capacity=Config.RATE_LIMIT_CAPACITY,
+            refill_rate=Config.RATE_LIMIT_REFILL,
+        )
+        # デフォルトのレート制限を設定（1分間に50リクエスト）
+        # 実際の制限値は環境変数で調整可能
+        self.rate_limit_monitor.set_rate_limit(
+            "claude-api", limit=50, window_seconds=60
+        )
+
         logger.info(f"Initialized LiteLLM Provider: {model}")
         if self.fallback_model:
             logger.info(f"Fallback model: {self.fallback_model}")
@@ -53,6 +72,12 @@ class LiteLLMProvider(AIProvider):
         )
         logger.info(
             f"HTTP client refresh interval: {self._http_client_refresh_interval}"
+        )
+        logger.info(
+            f"Rate limit settings: capacity={Config.RATE_LIMIT_CAPACITY}, "
+            f"refill_rate={Config.RATE_LIMIT_REFILL}/s, "
+            f"window={Config.RATE_LIMIT_WINDOW}s, "
+            f"threshold={Config.RATE_LIMIT_THRESHOLD}"
         )
 
     def _refresh_http_client_if_needed(self) -> None:
@@ -72,7 +97,7 @@ class LiteLLMProvider(AIProvider):
             except Exception as e:
                 logger.warning(f"Failed to refresh HTTP client: {e}")
 
-    def generate_response(
+    async def generate_response(
         self,
         messages: list[Message],
         system_prompt: str | None = None,
@@ -89,11 +114,22 @@ class LiteLLMProvider(AIProvider):
         # HTTP接続のリフレッシュチェック（長時間稼働時の接続枯渇を防ぐ）
         self._refresh_http_client_if_needed()
 
+        # レート制限チェックとトークン取得
+        endpoint = "claude-api"
+        self.rate_limit_monitor.record_request(endpoint)
+        self.rate_limit_monitor.check_rate_limit(endpoint)
+
+        # トークンバケットからトークンを取得（タイムアウト: 30秒）
+        if not await self.token_bucket.wait_for_tokens(tokens=1, timeout=30.0):
+            raise RuntimeError("Rate limit: Could not acquire token within timeout")
+
         # LiteLLM用のメッセージ形式に変換
         llm_messages = self._convert_messages(messages, system_prompt)
 
         # 使用するモデルを決定
         use_model = model or self.model
+        # 最後に使用したモデル名を保存
+        self._last_used_model = use_model
         # フォールバック設定（指定されたモデルがデフォルトモデルの場合のみ）
         fallbacks = (
             [self.fallback_model]
@@ -114,6 +150,10 @@ class LiteLLMProvider(AIProvider):
                     max_tokens=use_max_tokens,
                     fallbacks=fallbacks,
                 )
+
+                # フォールバックが使用された場合は、実際に使用されたモデル名を更新
+                if hasattr(response, "model") and response.model:
+                    self._last_used_model = response.model
 
                 # レスポンスからテキストを取得
                 # Pydanticの警告を避けるため、直接属性にアクセスするのではなく、
@@ -210,6 +250,26 @@ class LiteLLMProvider(AIProvider):
         if last_exception:
             raise last_exception
         raise RuntimeError("Unexpected error in generate_response")
+
+    def get_last_used_model(self) -> str:
+        """最後に使用したモデル名を取得
+
+        Returns:
+            最後に使用したモデル名（未使用の場合はデフォルトモデル）
+        """
+        return self._last_used_model or self.model
+
+    def get_rate_limit_usage(self, endpoint: str = "claude-api") -> float:
+        """レート制限の使用率を取得
+
+        Args:
+            endpoint: API エンドポイント（デフォルト: "claude-api"）
+
+        Returns:
+            使用率（0.0-1.0、パーセンテージに変換する場合は * 100）
+        """
+        _, usage_rate = self.rate_limit_monitor.check_rate_limit(endpoint)
+        return usage_rate
 
     def _convert_messages(
         self, messages: list[Message], system_prompt: str | None

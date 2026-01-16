@@ -37,6 +37,7 @@
 - [API 仕様書](./specifications/api-specification.md): Discord API（WebSocket/HTTP）、Claude API、内部 API の詳細仕様とリクエスト・レスポンス形式
 - [コマンド仕様書](./specifications/command-specification.md): スラッシュコマンド（/chat start, reset, status, /settings）の仕様と使用例
 - [イベント処理仕様書](./specifications/event-specification.md): Discord イベント（message, thread, ready）の処理フローとカスタムイベント
+- [Discord メッセージフォーマット仕様](./specifications/discord-message-formatting.md): Discord のメッセージフォーマット（Markdown、Embed など）の詳細
 
 ### 実装
 

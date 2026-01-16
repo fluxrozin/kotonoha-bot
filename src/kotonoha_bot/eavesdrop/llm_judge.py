@@ -150,7 +150,7 @@ class LLMJudge:
         try:
             # 判定用 AI に問い合わせ（軽量モデルを使用）
             judge_message = Message(role=MessageRole.USER, content=judge_prompt)
-            response = self.ai_provider.generate_response(
+            response = await self.ai_provider.generate_response(
                 messages=[judge_message],
                 system_prompt="",
                 model=self.judge_model,
@@ -198,7 +198,7 @@ class LLMJudge:
         try:
             # 通常の AI で応答を生成
             response_message = Message(role=MessageRole.USER, content=response_prompt)
-            response = self.ai_provider.generate_response(
+            response = await self.ai_provider.generate_response(
                 messages=[response_message],
                 system_prompt=DEFAULT_SYSTEM_PROMPT,
                 model=self.response_model,  # デフォルトモデル
@@ -285,7 +285,7 @@ class LLMJudge:
         try:
             # 判定用 AI に問い合わせ（軽量モデルを使用）
             judge_message = Message(role=MessageRole.USER, content=prompt)
-            response = self.ai_provider.generate_response(
+            response = await self.ai_provider.generate_response(
                 messages=[judge_message],
                 system_prompt="",
                 model=self.judge_model,
@@ -406,7 +406,7 @@ class LLMJudge:
         try:
             # 判定用 AI に問い合わせ（軽量モデルを使用）
             judge_message = Message(role=MessageRole.USER, content=prompt)
-            response = self.ai_provider.generate_response(
+            response = await self.ai_provider.generate_response(
                 messages=[judge_message],
                 system_prompt="",
                 model=self.judge_model,
@@ -457,7 +457,7 @@ class LLMJudge:
         try:
             # 判定用 AI に問い合わせ（軽量モデルを使用）
             judge_message = Message(role=MessageRole.USER, content=state_prompt)
-            response = self.ai_provider.generate_response(
+            response = await self.ai_provider.generate_response(
                 messages=[judge_message],
                 system_prompt="",
                 model=self.judge_model,
