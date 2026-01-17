@@ -77,7 +77,9 @@ class SessionManager:
 
         return session
 
-    async def add_message(self, session_key: str, role: MessageRole, content: str) -> None:
+    async def add_message(
+        self, session_key: str, role: MessageRole, content: str
+    ) -> None:
         """セッションにメッセージを追加"""
         session = await self.get_session(session_key)
         if not session:
