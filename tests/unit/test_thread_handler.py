@@ -21,10 +21,10 @@ def mock_bot():
 def mock_session_manager():
     """モックSessionManager"""
     manager = MagicMock()
-    manager.get_session = MagicMock(return_value=None)
-    manager.create_session = MagicMock(return_value=MagicMock())
-    manager.add_message = MagicMock()
-    manager.save_session = MagicMock()
+    manager.get_session = AsyncMock(return_value=None)
+    manager.create_session = AsyncMock(return_value=MagicMock())
+    manager.add_message = AsyncMock()
+    manager.save_session = AsyncMock()
     return manager
 
 

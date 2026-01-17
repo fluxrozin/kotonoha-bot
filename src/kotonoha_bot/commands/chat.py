@@ -38,7 +38,7 @@ class ChatCommands(commands.Cog):
                 session_key = f"mention:{interaction.user.id}"
 
             # セッションを取得
-            session = self.handler.session_manager.get_session(session_key)
+            session = await self.handler.session_manager.get_session(session_key)
             if not session:
                 await interaction.followup.send(
                     "会話履歴が見つかりませんでした。", ephemeral=True
@@ -48,7 +48,7 @@ class ChatCommands(commands.Cog):
             # 会話履歴をクリア（messagesリストを空にする）
             session.messages.clear()
             session.last_active_at = datetime.now()  # 最終アクセス時刻を更新
-            self.handler.session_manager.save_session(session_key)
+            await self.handler.session_manager.save_session(session_key)
 
             await interaction.followup.send(
                 "会話履歴をリセットしました。新しい会話として始めましょう。",
@@ -83,7 +83,7 @@ class ChatCommands(commands.Cog):
                 session_type = "メンション応答型"
 
             # セッションを取得
-            session = self.handler.session_manager.get_session(session_key)
+            session = await self.handler.session_manager.get_session(session_key)
             if not session:
                 await interaction.followup.send(
                     "セッションが見つかりませんでした。", ephemeral=True

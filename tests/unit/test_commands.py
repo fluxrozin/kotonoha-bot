@@ -24,6 +24,8 @@ def mock_handler():
     """モックMessageHandler"""
     handler = MagicMock()
     handler.session_manager = MagicMock()
+    handler.session_manager.get_session = AsyncMock()
+    handler.session_manager.save_session = AsyncMock()
     handler.router = MagicMock()
     handler.router.register_bot_thread = MagicMock()
     return handler

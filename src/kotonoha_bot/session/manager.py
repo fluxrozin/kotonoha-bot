@@ -19,12 +19,19 @@ class SessionManager:
     def __init__(self):
         self.sessions: dict[str, ChatSession] = {}
         self.db = SQLiteDatabase()
-        self._load_active_sessions()
+        self._initialized = False
 
-    def _load_active_sessions(self) -> None:
+    async def initialize(self) -> None:
+        """セッション管理の初期化（非同期）"""
+        if not self._initialized:
+            await self.db.initialize()
+            await self._load_active_sessions()
+            self._initialized = True
+
+    async def _load_active_sessions(self) -> None:
         """アクティブなセッションをSQLiteから読み込み"""
         try:
-            all_sessions = self.db.load_all_sessions()
+            all_sessions = await self.db.load_all_sessions()
             now = datetime.now()
             timeout = timedelta(hours=Config.SESSION_TIMEOUT_HOURS)
 
@@ -38,7 +45,7 @@ class SessionManager:
         except Exception as e:
             logger.error(f"Failed to load sessions: {e}")
 
-    def get_session(self, session_key: str) -> ChatSession | None:
+    async def get_session(self, session_key: str) -> ChatSession | None:
         """セッションを取得
 
         メモリ内にあればそれを返し、なければSQLiteから復元を試みる。
@@ -48,7 +55,7 @@ class SessionManager:
             return self.sessions[session_key]
 
         # SQLiteから復元を試みる
-        session = self.db.load_session(session_key)
+        session = await self.db.load_session(session_key)
         if session:
             self.sessions[session_key] = session
             logger.info(f"Restored session from DB: {session_key}")
@@ -56,7 +63,7 @@ class SessionManager:
 
         return None
 
-    def create_session(
+    async def create_session(
         self, session_key: str, session_type: SessionType, **kwargs
     ) -> ChatSession:
         """新しいセッションを作成"""
@@ -65,41 +72,41 @@ class SessionManager:
         )
 
         self.sessions[session_key] = session
-        self.db.save_session(session)
+        await self.db.save_session(session)
         logger.info(f"Created session: {session_key}")
 
         return session
 
-    def add_message(self, session_key: str, role: MessageRole, content: str) -> None:
+    async def add_message(self, session_key: str, role: MessageRole, content: str) -> None:
         """セッションにメッセージを追加"""
-        session = self.get_session(session_key)
+        session = await self.get_session(session_key)
         if not session:
             raise KeyError(f"Session not found: {session_key}")
 
         session.add_message(role, content)
         logger.debug(f"Added message to session: {session_key}")
 
-    def save_session(self, session_key: str) -> None:
+    async def save_session(self, session_key: str) -> None:
         """セッションをSQLiteに保存"""
         session = self.sessions.get(session_key)
         if not session:
             raise KeyError(f"Session not found: {session_key}")
 
-        self.db.save_session(session)
+        await self.db.save_session(session)
         logger.debug(f"Saved session to DB: {session_key}")
 
-    def save_all_sessions(self) -> None:
+    async def save_all_sessions(self) -> None:
         """全セッションをSQLiteに保存"""
         for session_key, session in self.sessions.items():
             try:
-                self.db.save_session(session)
+                await self.db.save_session(session)
                 logger.debug(f"Saved session: {session_key}")
             except Exception as e:
                 logger.error(f"Failed to save session {session_key}: {e}")
 
         logger.info(f"Saved {len(self.sessions)} sessions")
 
-    def cleanup_old_sessions(self) -> None:
+    async def cleanup_old_sessions(self) -> None:
         """古いセッションをメモリから削除"""
         now = datetime.now()
         timeout = timedelta(hours=Config.SESSION_TIMEOUT_HOURS)
@@ -109,7 +116,7 @@ class SessionManager:
             if now - session.last_active_at > timeout:
                 # SQLiteに保存してからメモリから削除
                 try:
-                    self.db.save_session(session)
+                    await self.db.save_session(session)
                     to_remove.append(session_key)
                 except Exception as e:
                     logger.error(f"Failed to save session before removal: {e}")

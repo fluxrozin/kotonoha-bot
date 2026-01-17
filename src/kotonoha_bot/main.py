@@ -143,7 +143,7 @@ async def shutdown_gracefully(
         health_server.stop()
 
         # セッションを保存
-        handler.session_manager.save_all_sessions()
+        await handler.session_manager.save_all_sessions()
 
         # Botを切断
         if not bot.is_closed():

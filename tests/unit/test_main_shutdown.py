@@ -31,7 +31,7 @@ def mock_handler():
     """モックハンドラー"""
     handler = MagicMock()
     handler.session_manager = MagicMock()
-    handler.session_manager.save_all_sessions = Mock()
+    handler.session_manager.save_all_sessions = AsyncMock()
     handler.session_manager.sessions = {}
     return handler
 

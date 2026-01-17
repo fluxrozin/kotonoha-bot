@@ -62,7 +62,7 @@ class MessageHandler:
         """定期的なセッションクリーンアップ"""
         try:
             logger.info("Running scheduled session cleanup...")
-            self.session_manager.cleanup_old_sessions()
+            await self.session_manager.cleanup_old_sessions()
             logger.info("Session cleanup completed")
         except Exception as e:
             logger.error(f"Error during session cleanup: {e}")
@@ -88,7 +88,7 @@ class MessageHandler:
                 time_since_activity = now - session.last_active_at
                 if time_since_activity >= idle_threshold:
                     try:
-                        self.session_manager.save_session(session_key)
+                        await self.session_manager.save_session(session_key)
                         saved_count += 1
                         logger.debug(f"Saved idle session: {session_key}")
                     except Exception as e:
@@ -157,9 +157,9 @@ class MessageHandler:
                 session_key = f"mention:{message.author.id}"
 
                 # セッションを取得または作成
-                session = self.session_manager.get_session(session_key)
+                session = await self.session_manager.get_session(session_key)
                 if not session:
-                    session = self.session_manager.create_session(
+                    session = await self.session_manager.create_session(
                         session_key=session_key,
                         session_type="mention",
                         channel_id=message.channel.id,
@@ -173,7 +173,7 @@ class MessageHandler:
                     user_message = user_message.replace(f"<@{mention.id}>", "").strip()
 
                 # ユーザーメッセージを追加
-                self.session_manager.add_message(
+                await self.session_manager.add_message(
                     session_key=session_key,
                     role=MessageRole.USER,
                     content=user_message,
@@ -198,14 +198,14 @@ class MessageHandler:
                 )
 
                 # アシスタントメッセージを追加
-                self.session_manager.add_message(
+                await self.session_manager.add_message(
                     session_key=session_key,
                     role=MessageRole.ASSISTANT,
                     content=response_text,
                 )
 
                 # セッションを保存
-                self.session_manager.save_session(session_key)
+                await self.session_manager.save_session(session_key)
 
                 # 返信（メッセージ分割対応）
                 response_chunks = split_message(response_text)
@@ -429,9 +429,9 @@ class MessageHandler:
             session_key = f"thread:{thread.id}"
 
             # セッションを取得または作成
-            session = self.session_manager.get_session(session_key)
+            session = await self.session_manager.get_session(session_key)
             if not session:
-                session = self.session_manager.create_session(
+                session = await self.session_manager.create_session(
                     session_key=session_key,
                     session_type="thread",
                     channel_id=message.channel.id,
@@ -441,7 +441,7 @@ class MessageHandler:
                 logger.info(f"Created new thread session: {session_key}")
 
             # ユーザーメッセージを追加
-            self.session_manager.add_message(
+            await self.session_manager.add_message(
                 session_key=session_key,
                 role=MessageRole.USER,
                 content=user_message,
@@ -467,14 +467,14 @@ class MessageHandler:
                 )
 
                 # アシスタントメッセージを追加
-                self.session_manager.add_message(
+                await self.session_manager.add_message(
                     session_key=session_key,
                     role=MessageRole.ASSISTANT,
                     content=response_text,
                 )
 
                 # セッションを保存
-                self.session_manager.save_session(session_key)
+                await self.session_manager.save_session(session_key)
 
                 # スレッド内で返信（メッセージ分割対応）
                 response_chunks = split_message(response_text)
@@ -527,11 +527,11 @@ class MessageHandler:
         session_key = f"thread:{thread.id}"
 
         # セッションを取得または作成
-        session = self.session_manager.get_session(session_key)
+        session = await self.session_manager.get_session(session_key)
         if not session:
             # スレッドが既に存在する場合、会話履歴を復元
             parent_id = thread.parent_id if thread.parent_id else None
-            session = self.session_manager.create_session(
+            session = await self.session_manager.create_session(
                 session_key=session_key,
                 session_type="thread",
                 channel_id=parent_id,
@@ -541,7 +541,7 @@ class MessageHandler:
             logger.info(f"Created thread session from existing thread: {session_key}")
 
         # ユーザーメッセージを追加
-        self.session_manager.add_message(
+        await self.session_manager.add_message(
             session_key=session_key,
             role=MessageRole.USER,
             content=message.content,
@@ -567,14 +567,14 @@ class MessageHandler:
                 )
 
                 # アシスタントメッセージを追加
-                self.session_manager.add_message(
+                await self.session_manager.add_message(
                     session_key=session_key,
                     role=MessageRole.ASSISTANT,
                     content=response_text,
                 )
 
                 # セッションを保存
-                self.session_manager.save_session(session_key)
+                await self.session_manager.save_session(session_key)
 
                 # 使用モデル名とレート制限使用率を取得
                 model_name = self.ai_provider.get_last_used_model()
@@ -686,9 +686,9 @@ class MessageHandler:
                 session_key = f"eavesdrop:{message.channel.id}"
 
                 # セッションを取得または作成
-                session = self.session_manager.get_session(session_key)
+                session = await self.session_manager.get_session(session_key)
                 if not session:
-                    session = self.session_manager.create_session(
+                    session = await self.session_manager.create_session(
                         session_key=session_key,
                         session_type="eavesdrop",
                         channel_id=message.channel.id,
@@ -696,14 +696,14 @@ class MessageHandler:
                     logger.info(f"Created new eavesdrop session: {session_key}")
 
                 # アシスタントメッセージを追加
-                self.session_manager.add_message(
+                await self.session_manager.add_message(
                     session_key=session_key,
                     role=MessageRole.ASSISTANT,
                     content=response_text,
                 )
 
                 # セッションを保存
-                self.session_manager.save_session(session_key)
+                await self.session_manager.save_session(session_key)
 
                 # メインチャンネルに直接投稿（メッセージ分割対応）
                 response_chunks = split_message(response_text)
@@ -743,6 +743,9 @@ def setup_handlers(bot: KotonohaBot):
     async def on_ready():
         """Bot起動完了時"""
         logger.info(f"Bot is ready! Logged in as {bot.user}")
+        # セッション管理の初期化
+        await handler.session_manager.initialize()
+        logger.info("Session manager initialized")
         # イベントループが実行されている状態でタスクを開始
         if not handler.cleanup_task.is_running():
             handler.cleanup_task.start()
@@ -785,7 +788,7 @@ def setup_handlers(bot: KotonohaBot):
             session_key = f"thread:{after.id}"
             try:
                 # セッションを保存
-                handler.session_manager.save_session(session_key)
+                await handler.session_manager.save_session(session_key)
                 logger.info(f"Saved session on thread archive: {session_key}")
             except Exception as e:
                 logger.error(f"Failed to save session on thread archive: {e}")

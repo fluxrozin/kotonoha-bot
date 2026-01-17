@@ -25,10 +25,10 @@ def mock_session_manager():
     manager = MagicMock()
     session = MagicMock()
     session.get_conversation_history = MagicMock(return_value=[])
-    manager.get_session = MagicMock(return_value=session)
-    manager.create_session = MagicMock(return_value=session)
-    manager.add_message = MagicMock()
-    manager.save_session = MagicMock()
+    manager.get_session = AsyncMock(return_value=session)
+    manager.create_session = AsyncMock(return_value=session)
+    manager.add_message = AsyncMock()
+    manager.save_session = AsyncMock()
     return manager
 
 

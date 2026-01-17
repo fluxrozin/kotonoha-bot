@@ -43,16 +43,16 @@ def temp_db_path():
 
 
 @pytest.fixture
-def db(temp_db_path):
+async def db(temp_db_path):
     """SQLite データベースのフィクスチャ"""
     database = SQLiteDatabase(db_path=temp_db_path)
+    await database.initialize()
     yield database
-    # テスト後にデータベース接続を明示的に閉じる
-    database.close()
+    # aiosqlite は接続プールを自動管理するため、明示的な close は不要
 
 
 @pytest.fixture
-def session_manager(temp_db_path):
+async def session_manager(temp_db_path):
     """SessionManager のフィクスチャ"""
     # 一時的なデータベースを使用
     # SessionManager の初期化前にデータベースパスを設定する必要があるため、
@@ -63,9 +63,9 @@ def session_manager(temp_db_path):
     manager.db = temp_db
     # セッション辞書をクリア（_load_active_sessions で読み込まれたセッションを削除）
     manager.sessions = {}
+    await manager.initialize()
     yield manager
-    # テスト後にデータベース接続を明示的に閉じる
-    manager.db.close()
+    # aiosqlite は接続プールを自動管理するため、明示的な close は不要
 
 
 @pytest.fixture(autouse=True)

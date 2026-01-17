@@ -1,9 +1,12 @@
 """データベースのテスト"""
 
+import pytest
+
 from kotonoha_bot.session.models import ChatSession, MessageRole
 
 
-def test_save_and_load_session(db):
+@pytest.mark.asyncio
+async def test_save_and_load_session(db):
     """セッションの保存と読み込みができることを確認"""
     session = ChatSession(
         session_key="test:123",
@@ -14,10 +17,10 @@ def test_save_and_load_session(db):
     session.add_message(MessageRole.ASSISTANT, "こんにちは！")
 
     # 保存
-    db.save_session(session)
+    await db.save_session(session)
 
     # 読み込み
-    loaded = db.load_session("test:123")
+    loaded = await db.load_session("test:123")
     assert loaded is not None
     assert loaded.session_key == "test:123"
     assert loaded.session_type == "mention"
@@ -27,25 +30,27 @@ def test_save_and_load_session(db):
     assert loaded.messages[1].content == "こんにちは！"
 
 
-def test_load_nonexistent_session(db):
+@pytest.mark.asyncio
+async def test_load_nonexistent_session(db):
     """存在しないセッションの読み込みが None を返すことを確認"""
-    loaded = db.load_session("nonexistent:123")
+    loaded = await db.load_session("nonexistent:123")
     assert loaded is None
 
 
-def test_delete_session(db):
+@pytest.mark.asyncio
+async def test_delete_session(db):
     """セッションの削除ができることを確認"""
     session = ChatSession(
         session_key="test:delete",
         session_type="mention",
     )
-    db.save_session(session)
+    await db.save_session(session)
 
     # 削除前は存在する
-    assert db.load_session("test:delete") is not None
+    assert await db.load_session("test:delete") is not None
 
     # 削除
-    db.delete_session("test:delete")
+    await db.delete_session("test:delete")
 
     # 削除後は存在しない
-    assert db.load_session("test:delete") is None
+    assert await db.load_session("test:delete") is None
