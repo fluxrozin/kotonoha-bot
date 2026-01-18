@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Literal, cast
 
 import discord
@@ -35,9 +35,16 @@ logger = logging.getLogger(__name__)
 class MessageHandler:
     """メッセージハンドラー"""
 
-    def __init__(self, bot: KotonohaBot):
+    def __init__(
+        self,
+        bot: KotonohaBot,
+        embedding_processor=None,
+        session_archiver=None,
+        db=None,
+    ):
         self.bot = bot
-        self.session_manager = SessionManager()
+        # DBインスタンスが渡された場合は使用（Alembicマイグレーションの重複を防ぐ）
+        self.session_manager = SessionManager(db=db)
         self.ai_provider = LiteLLMProvider()
         # メッセージルーター
         self.router = MessageRouter(bot)
@@ -52,10 +59,18 @@ class MessageHandler:
         # 聞き耳型の有効化（環境変数から読み込み）
         self._load_eavesdrop_channels()
 
+        # 依存性注入（main.pyから渡される）
+        self.embedding_processor = embedding_processor
+        self.session_archiver = session_archiver
+
     def cog_unload(self):
-        """クリーンアップタスクを停止"""
+        """クリーンアップタスクを停止（Graceful Shutdown）"""
         self.cleanup_task.cancel()
         self.batch_sync_task.cancel()
+
+        # Graceful Shutdown: 処理中のタスクが完了するまで待機
+        # 注意: このメソッドは同期的なので、実際のGraceful Shutdownは
+        # main.pyのshutdown_gracefully関数で実行されます
 
     @tasks.loop(hours=1)  # 1時間ごとに実行
     async def cleanup_task(self):
@@ -80,12 +95,15 @@ class MessageHandler:
 
             # アイドル状態のセッションを保存
             # 最後のアクティビティから5分以上経過しているセッションを保存
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             idle_threshold = timedelta(minutes=5)
 
             saved_count = 0
             for session_key, session in self.session_manager.sessions.items():
-                time_since_activity = now - session.last_active_at
+                last_active = session.last_active_at
+                if last_active.tzinfo is None:
+                    last_active = last_active.replace(tzinfo=timezone.utc)
+                time_since_activity = now - last_active
                 if time_since_activity >= idle_threshold:
                     try:
                         await self.session_manager.save_session(session_key)
@@ -747,9 +765,26 @@ class MessageHandler:
             # 聞き耳型ではエラーメッセージを送信しない（自然な会話参加のため）
 
 
-def setup_handlers(bot: KotonohaBot):
-    """イベントハンドラーをセットアップ"""
-    handler = MessageHandler(bot)
+def setup_handlers(
+    bot: KotonohaBot,
+    embedding_processor=None,
+    session_archiver=None,
+    db=None,
+):
+    """イベントハンドラーをセットアップ
+
+    Args:
+        bot: KotonohaBotインスタンス
+        embedding_processor: EmbeddingProcessorインスタンス（依存性注入）
+        session_archiver: SessionArchiverインスタンス（依存性注入）
+        db: PostgreSQLDatabaseインスタンス（依存性注入、Alembic重複防止）
+    """
+    handler = MessageHandler(
+        bot,
+        embedding_processor=embedding_processor,
+        session_archiver=session_archiver,
+        db=db,
+    )
 
     @bot.event
     async def on_ready():
@@ -768,6 +803,17 @@ def setup_handlers(bot: KotonohaBot):
         # リクエストキューを開始
         await handler.request_queue.start()
         logger.info("Request queue started")
+
+        # バックグラウンドタスクを開始（EmbeddingProcessor, SessionArchiver）
+        # ⚠️ 重要: bot.start() はブロッキング呼び出しのため、
+        # main.py の bot.start() 後のコードは実行されません。
+        # そのため、バックグラウンドタスクは on_ready で開始する必要があります。
+        if handler.embedding_processor is not None:
+            handler.embedding_processor.start()
+            logger.info("Embedding processor background task started")
+        if handler.session_archiver is not None:
+            handler.session_archiver.start()
+            logger.info("Session archiver background task started")
 
     @bot.event
     async def on_message(message: discord.Message):

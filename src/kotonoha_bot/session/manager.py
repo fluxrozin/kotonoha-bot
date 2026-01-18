@@ -1,9 +1,9 @@
 """セッション管理"""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
-from ..config import Config, settings
+from ..config import settings
 from ..db.postgres import PostgreSQLDatabase
 from .models import ChatSession, MessageRole, SessionType
 
@@ -16,30 +16,50 @@ class SessionManager:
     メモリ内のセッションとPostgreSQLの同期を管理する。
     """
 
-    def __init__(self):
+    def __init__(self, db: PostgreSQLDatabase | None = None):
+        """セッションマネージャーの初期化
+
+        Args:
+            db: 既存のPostgreSQLDatabaseインスタンス（省略時は新規作成）
+        """
         self.sessions: dict[str, ChatSession] = {}
-        # PostgreSQL接続設定
-        if settings.database_url:
-            self.db = PostgreSQLDatabase(connection_string=settings.database_url)
-        elif settings.postgres_host and settings.postgres_db and settings.postgres_user and settings.postgres_password:
-            self.db = PostgreSQLDatabase(
-                host=settings.postgres_host,
-                port=settings.postgres_port,
-                database=settings.postgres_db,
-                user=settings.postgres_user,
-                password=settings.postgres_password,
-            )
+
+        if db is not None:
+            # 既存のDBインスタンスを使用（推奨）
+            self.db = db
+            self._owns_db = False
         else:
-            raise ValueError(
-                "Either DATABASE_URL or (POSTGRES_HOST, POSTGRES_DB, "
-                "POSTGRES_USER, POSTGRES_PASSWORD) must be set"
-            )
+            # 後方互換性のため、DBインスタンスを新規作成
+            if settings.database_url:
+                self.db = PostgreSQLDatabase(connection_string=settings.database_url)
+            elif (
+                settings.postgres_host
+                and settings.postgres_db
+                and settings.postgres_user
+                and settings.postgres_password
+            ):
+                self.db = PostgreSQLDatabase(
+                    host=settings.postgres_host,
+                    port=settings.postgres_port,
+                    database=settings.postgres_db,
+                    user=settings.postgres_user,
+                    password=settings.postgres_password,
+                )
+            else:
+                raise ValueError(
+                    "Either DATABASE_URL or (POSTGRES_HOST, POSTGRES_DB, "
+                    "POSTGRES_USER, POSTGRES_PASSWORD) must be set"
+                )
+            self._owns_db = True
+
         self._initialized = False
 
     async def initialize(self) -> None:
         """セッション管理の初期化（非同期）"""
         if not self._initialized:
-            await self.db.initialize()
+            # 自身でDBを作成した場合のみ初期化
+            if self._owns_db:
+                await self.db.initialize()
             await self._load_active_sessions()
             self._initialized = True
 
@@ -47,12 +67,17 @@ class SessionManager:
         """アクティブなセッションをPostgreSQLから読み込み"""
         try:
             all_sessions = await self.db.load_all_sessions()
-            now = datetime.now()
+            now = datetime.now(UTC)
             timeout = timedelta(hours=settings.session_timeout_hours)
 
             for session in all_sessions:
                 # タイムアウトしていないセッションのみメモリに読み込む
-                if now - session.last_active_at < timeout:
+                # last_active_at がタイムゾーン付きの場合はそのまま比較
+                # タイムゾーンなしの場合は UTC として扱う
+                last_active = session.last_active_at
+                if last_active.tzinfo is None:
+                    last_active = last_active.replace(tzinfo=UTC)
+                if now - last_active < timeout:
                     self.sessions[session.session_key] = session
                     logger.info(f"Loaded session: {session.session_key}")
 
@@ -125,12 +150,15 @@ class SessionManager:
 
     async def cleanup_old_sessions(self) -> None:
         """古いセッションをメモリから削除"""
-        now = datetime.now()
+        now = datetime.now(UTC)
         timeout = timedelta(hours=settings.session_timeout_hours)
 
         to_remove = []
         for session_key, session in self.sessions.items():
-            if now - session.last_active_at > timeout:
+            last_active = session.last_active_at
+            if last_active.tzinfo is None:
+                last_active = last_active.replace(tzinfo=UTC)
+            if now - last_active > timeout:
                 # PostgreSQLに保存してからメモリから削除
                 try:
                     await self.db.save_session(session)

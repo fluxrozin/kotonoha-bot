@@ -1,5 +1,5 @@
+import logging
 import os
-from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
@@ -8,33 +8,53 @@ from sqlalchemy import engine_from_config, pool
 # access to the values within the .ini file in use.
 config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
+# ⚠️ 重要: fileConfig()はアプリケーションのログ設定を上書きするため、
+# アプリケーションから呼ばれる場合はスキップする。
+# postgres.py から command.upgrade() が呼ばれる場合、すでにログ設定済みなので、
+# Alembicのログ設定で上書きしない。
+# コマンドラインから直接 alembic upgrade head を実行する場合のみログ設定を適用。
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # ルートロガーにハンドラーがすでに設定されているかチェック
+    # （アプリケーションから呼ばれた場合はハンドラーが存在する）
+    root_logger = logging.getLogger()
+    if not root_logger.handlers:
+        # コマンドラインから直接実行された場合のみfileConfigを適用
+        from logging.config import fileConfig
+        fileConfig(config.config_file_name)
 
-# 環境変数から接続文字列を取得
-# Alembicは同期接続を使用するため、psycopg2を使用
-database_url = os.getenv("DATABASE_URL")
-if database_url:
-    # asyncpgの接続文字列をpsycopg2形式に変換
-    # postgresql://user:pass@host:port/db -> postgresql+psycopg2://...
-    # または単に postgresql:// のまま（psycopg2がデフォルト）
-    sqlalchemy_url = database_url.replace("postgresql://", "postgresql+psycopg2://")
-    config.set_main_option("sqlalchemy.url", sqlalchemy_url)
+# 接続文字列の設定
+# postgres.py から alembic.command.upgrade() を呼ぶ際に設定されている場合はそれを使用
+# その場合、asyncpg形式をpsycopg2形式に変換する必要がある
+existing_url = config.get_main_option("sqlalchemy.url")
+if existing_url and existing_url != "driver://user:pass@localhost/dbname":
+    # postgres.py から設定された URL がある場合
+    # asyncpg形式をpsycopg2形式に変換（Alembicは同期接続を使用するため）
+    if "+asyncpg" in existing_url:
+        sqlalchemy_url = existing_url.replace("+asyncpg", "+psycopg2")
+        config.set_main_option("sqlalchemy.url", sqlalchemy_url)
+    # それ以外（すでにpsycopg2形式など）はそのまま使用
 else:
-    # 個別パラメータから接続文字列を構築
-    postgres_host = os.getenv("POSTGRES_HOST", "localhost")
-    postgres_port = os.getenv("POSTGRES_PORT", "5432")
-    postgres_db = os.getenv("POSTGRES_DB", "kotonoha")
-    postgres_user = os.getenv("POSTGRES_USER", "kotonoha")
-    postgres_password = os.getenv("POSTGRES_PASSWORD", "password")
+    # 環境変数から接続文字列を取得
+    # Alembicは同期接続を使用するため、psycopg2を使用
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        # asyncpgの接続文字列をpsycopg2形式に変換
+        # postgresql://user:pass@host:port/db -> postgresql+psycopg2://...
+        sqlalchemy_url = database_url.replace("postgresql://", "postgresql+psycopg2://")
+        config.set_main_option("sqlalchemy.url", sqlalchemy_url)
+    else:
+        # 個別パラメータから接続文字列を構築
+        postgres_host = os.getenv("POSTGRES_HOST", "localhost")
+        postgres_port = os.getenv("POSTGRES_PORT", "5432")
+        postgres_db = os.getenv("POSTGRES_DB", "kotonoha")
+        postgres_user = os.getenv("POSTGRES_USER", "kotonoha")
+        postgres_password = os.getenv("POSTGRES_PASSWORD", "password")
 
-    sqlalchemy_url = (
-        f"postgresql+psycopg2://{postgres_user}:{postgres_password}@"
-        f"{postgres_host}:{postgres_port}/{postgres_db}"
-    )
-    config.set_main_option("sqlalchemy.url", sqlalchemy_url)
+        sqlalchemy_url = (
+            f"postgresql+psycopg2://{postgres_user}:{postgres_password}@"
+            f"{postgres_host}:{postgres_port}/{postgres_db}"
+        )
+        config.set_main_option("sqlalchemy.url", sqlalchemy_url)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
@@ -85,11 +105,15 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
-    with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+    try:
+        with connectable.connect() as connection:
+            context.configure(connection=connection, target_metadata=target_metadata)
 
-        with context.begin_transaction():
-            context.run_migrations()
+            with context.begin_transaction():
+                context.run_migrations()
+    finally:
+        # 確実にエンジンを破棄（接続プールがNullPoolでも明示的に閉じる）
+        connectable.dispose()
 
 
 if context.is_offline_mode():

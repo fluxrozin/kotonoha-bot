@@ -75,8 +75,18 @@ class KnowledgeBaseProtocol(ABC):
         query_embedding: list[float],
         top_k: int = 10,
         filters: dict | None = None,
+        similarity_threshold: float | None = None,
+        apply_threshold: bool = True,
     ) -> list[SearchResult]:
-        """類似度検索を実行"""
+        """類似度検索を実行
+        
+        Args:
+            query_embedding: クエリのベクトル
+            top_k: 取得する結果の数
+            filters: フィルタ条件
+            similarity_threshold: 類似度閾値（Noneの場合は設定値を使用）
+            apply_threshold: 閾値フィルタリングを適用するか（Falseの場合は生の類似度スコアを返す）
+        """
         pass
 
     @abstractmethod

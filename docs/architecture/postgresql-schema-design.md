@@ -984,6 +984,68 @@ LIMIT 10;
 
 **使用例**: `$2 = ['web_page', 'document_file']` を指定すると、WebページとPDFファイルの両方から検索します。
 
+#### Python API での使用例
+
+```python
+from kotonoha_bot.db.postgres import PostgreSQLDatabase
+
+# データベースの初期化
+db = PostgreSQLDatabase(connection_string=settings.database_url)
+await db.initialize()
+
+# 基本的な類似度検索（閾値フィルタリングあり）
+query_embedding = [0.1] * 1536  # 1536次元のベクトル
+results = await db.similarity_search(
+    query_embedding=query_embedding,
+    top_k=10
+)
+
+# カスタム閾値を指定
+results = await db.similarity_search(
+    query_embedding=query_embedding,
+    top_k=10,
+    similarity_threshold=0.8  # より厳しい閾値
+)
+
+# 閾値フィルタリングを無効化（生の類似度スコアを取得）
+results_raw = await db.similarity_search(
+    query_embedding=query_embedding,
+    top_k=10,
+    apply_threshold=False  # 閾値フィルタリングを無効化
+)
+
+# フィルタ付き検索
+results = await db.similarity_search(
+    query_embedding=query_embedding,
+    top_k=10,
+    filters={
+        "source_type": "discord_session",
+        "channel_id": 123456789
+    }
+)
+
+# 複数のソースタイプを指定
+results = await db.similarity_search(
+    query_embedding=query_embedding,
+    top_k=10,
+    filters={
+        "source_types": ["discord_session", "document_file"]
+    }
+)
+```
+
+**パラメータ説明**:
+
+- `query_embedding` (list[float]): クエリのベクトル（1536次元）
+- `top_k` (int): 取得する結果の数（デフォルト: 10）
+- `filters` (dict | None): フィルタ条件
+  - `source_type`: 単一のソースタイプを指定
+  - `source_types`: 複数のソースタイプを指定（リスト）
+  - `channel_id`: チャンネルIDでフィルタ
+  - `user_id`: ユーザーIDでフィルタ
+- `similarity_threshold` (float | None): 類似度閾値。`None`の場合は設定値（デフォルト0.7）を使用
+- `apply_threshold` (bool): 閾値フィルタリングを適用するか。`False`の場合は閾値フィルタリングを無効化し、生の類似度スコアを返す（デフォルト: `True`）
+
 ### 8.4 バッチ処理用クエリ
 
 #### 処理待ちのソース検索
