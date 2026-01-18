@@ -3,7 +3,7 @@
 **作成日**: 2026年1月19日  
 **バージョン**: 1.2  
 **対象プロジェクト**: kotonoha-bot v0.8.0  
-**データベース**: PostgreSQL 16 + pgvector
+**データベース**: PostgreSQL 18 + pgvector 0.8.1
 
 ---
 
@@ -44,8 +44,8 @@
 
 ### 1.3 技術スタック
 
-- **データベース**: PostgreSQL 16
-- **ベクトル拡張**: pgvector 0.5.0以降（HNSWインデックス対応）
+- **データベース**: PostgreSQL 18
+- **ベクトル拡張**: pgvector 0.8.1（HNSWインデックス対応、PostgreSQL 18 サポート）
 - **非同期ライブラリ**: asyncpg 0.29.0以降
 - **Embeddingモデル**: OpenAI text-embedding-3-small (1536次元)
 
@@ -118,7 +118,7 @@ erDiagram
 CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
-**要件**: pgvector 0.5.0以降（HNSWインデックスを使用するため）
+**要件**: pgvector 0.8.1（PostgreSQL 18 サポート、HNSWインデックス対応）
 
 ### 3.2 ENUM型定義
 

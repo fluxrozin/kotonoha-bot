@@ -35,6 +35,8 @@
 | **Phase 6**  | 段階 6            | ✅ 完了   | 実装済み | レート制限、コマンド、エラーハンドリング強化         |
 | **Phase 7**  | -                 | ✅ 完了   | 実装済み | aiosqlite への移行（非同期化）                       |
 | **Phase 8**  | -                 | ⏳ 未実装 | 10-15 日 | PostgreSQL への移行（pgvector 対応）                 |
+| **Phase 8.5**| -                 | ⏳ 未実装 | 2-3 日   | ハイブリッド検索（pg_trgm）                           |
+| **Phase 8.6**| -                 | ⏳ 未実装 | 2-3 日   | Reranking（オプション）                               |
 | **Phase 9**  | -                 | ⏳ 未実装 | 10-15 日 | 完全リファクタリング（非同期コードの整理を含む）     |
 | **Phase 10** | -                 | ⏳ 未実装 | 12-18 日 | 高度な運用機能（モニタリング・設定管理・コスト管理） |
 | **Phase 11** | -                 | ⏳ 未実装 | 5-8 日   | 自動化・最適化機能                                   |
@@ -698,7 +700,18 @@
 
 ## Phase 8: PostgreSQL への移行 ⏳ 未実装
 
-**目標**: SQLite から PostgreSQL + pgvector に移行し、ベクトル検索機能とスケーラビリティを実現する
+**目標**: PostgreSQL 18 + pgvector 0.8.1 を新規実装し、ベクトル検索機能とスケーラビリティを実現する
+
+**設計思想**（[PostgreSQL スキーマ設計書](../architecture/postgresql-schema-design.md) に基づく）:
+
+- **短期記憶（Sessions）**: Discord Botがリアルタイムに読み書きする場所。
+  高速動作優先。`sessions` テーブルで管理。
+- **長期記憶（Knowledge）**: AI検索用。あらゆるデータ（会話、ファイル、Web）を
+  「Source」と「Chunk」に抽象化して管理。
+- **Source-Chunk構造**: すべてのデータを「Source（親）」と「Chunk（子）」に
+  抽象化することで、将来の機能拡張（動画検索など）にも柔軟に対応。
+- **データフロー**: `sessions` テーブルの非アクティブなセッションは、
+  バッチ処理によって `knowledge_sources` と `knowledge_chunks` に変換される。
 
 **期間**: 約 10-15 日
 
@@ -706,58 +719,155 @@
 
 **実装優先度**: **高**（ベクトル検索・RAG機能の前提条件）
 
-**詳細**: [ADR-0007: PostgreSQL への移行](../architecture/adr/0007-migrate-to-postgresql.md)
+**詳細**:
+
+- [Phase 8 詳細実装計画](./phases/phase8.md)
+- [PostgreSQL スキーマ設計書](../architecture/postgresql-schema-design.md)
+
+### Step 0: 依存関係の確認と設計レビュー (0.5 日)
+
+- [ ] 依存関係の追加確認
+  - [ ] `asyncpg>=0.31.0`（PostgreSQL非同期ドライバー）
+  - [ ] `pgvector>=0.3.0`（asyncpgへの型登録用）
+  - [ ] `langchain-text-splitters>=1.1.0`（テキスト分割）
+  - [ ] `pydantic-settings>=2.12.0`（型安全な設定管理）
+  - [ ] `structlog>=25.5.0`（構造化ログ）
+  - [ ] `prometheus-client>=0.24.1`（メトリクス収集）
+  - [ ] `orjson>=3.11.5`（高速JSON処理）
+- [ ] 設計レビュー（Source-Chunk構造、非同期処理パターン、スキーマ設計）
 
 ### Step 1: データベース抽象化レイヤーの実装 (2-3 日)
 
 - [ ] `src/kotonoha_bot/db/base.py` の作成（`DatabaseProtocol` インターフェースの定義）
 - [ ] 既存の `SQLiteDatabase` を `DatabaseProtocol` に適合
-- [ ] 設定によるデータベース選択機能の実装（環境変数 `DATABASE_TYPE`）
+- [ ] 依存性注入パターンの採用（循環インポート対策）
 
 ### Step 2: PostgreSQL 実装の追加 (3-4 日)
 
 - [ ] `src/kotonoha_bot/db/postgres.py` の作成（`PostgreSQLDatabase` クラス）
 - [ ] `asyncpg` の依存関係追加（`pyproject.toml`）
-- [ ] pgvector 拡張のセットアップ（`CREATE EXTENSION vector`）
+- [ ] pgvector 拡張のセットアップ（`CREATE EXTENSION vector`、pgvector 0.8.1）
+- [ ] ⚠️ **推奨**: pg_trgm 拡張のセットアップ（ハイブリッド検索の準備、Phase 8.5 で実装予定）
+- [ ] ENUM型の作成
+  - [ ] `source_type_enum`（`discord_session`, `document_file`,
+    `web_page`, `image_caption`, `audio_transcript`）
+  - [ ] `session_status_enum`（`active`, `archived`）
+  - [ ] `source_status_enum`（`pending`, `processing`, `completed`,
+    `failed`）
 - [ ] テーブル定義とインデックスの作成
+  - [ ] `sessions` テーブル（短期記憶、高速読み書き用）
+  - [ ] `knowledge_sources` テーブル（長期記憶の親、Source-Chunk構造の親）
+  - [ ] `knowledge_chunks` テーブル（長期記憶の子、ベクトル保存、`vector(1536)` または `halfvec(1536)`）
+  - [ ] HNSWインデックスの作成（ベクトル検索用、環境変数でパラメータ制御）
+  - [ ] ⚠️ **推奨**: `idx_chunks_content_trgm` インデックスの作成（pg_trgm用）
+  - [ ] ⚠️ **推奨**: halfvec の採用検討（メモリ使用量50%削減、環境変数 `KB_USE_HALFVEC` で制御）
 - [ ] 基本的な CRUD 操作の実装（セッション管理）
+- [ ] ⚠️ **重要**: `pgvector.asyncpg.register_vector()` が `init` パラメータ経由で正しく実装されている（プールの各コネクションに対して登録される）
+- [ ] ⚠️ **推奨**: JSONBの自動変換（asyncpgカスタムコーデック）の実装（`json.dumps/loads` が不要になる）
+- [ ] 接続プールの設定（環境変数から読み込み: `DB_POOL_MIN_SIZE`, `DB_POOL_MAX_SIZE`, `DB_COMMAND_TIMEOUT`）
 
 ### Step 3: ベクトル検索機能の実装 (2-3 日)
 
 - [ ] `similarity_search` メソッドの実装（pgvector の `<=>` 演算子を使用）
-- [ ] ベクトルインデックスの最適化（IVFFlat または HNSW）
+- [ ] ベクトルインデックスの最適化（HNSW、環境変数でパラメータ制御: `KB_HNSW_M`, `KB_HNSW_EF_CONSTRUCTION`）
+- [ ] ⚠️ **重要**: halfvec使用時の型キャストを動的に変更する実装（環境変数 `KB_USE_HALFVEC` に基づく）
 - [ ] メタデータフィルタリング機能（チャンネルID、ユーザーIDなど）
+- [ ] ENUMバリデーションによるSQLインジェクション対策
+- [ ] フィルタキーのAllow-list チェック（`ALLOWED_FILTER_KEYS`）
+- [ ] `KnowledgeBaseSearch` クラスの実装
 
-### Step 4: Docker Compose の更新 (1 日)
+### Step 4: 知識ベーススキーマの実装 (2-3 日)
+
+- [ ] `KnowledgeBaseStorage` クラスの実装
+- [ ] 高速保存機能の実装（`save_message_fast`, `save_document_fast`）
+- [ ] Source と Chunk が正しく保存される
+- [ ] Source-Chunk構造の実装（すべてのデータを「Source（親）」と「Chunk（子）」に抽象化）
+- [ ] JSONBメタデータの柔軟な管理（ソースタイプごとに異なる属性を格納）
+
+### Step 5: Embedding処理の実装 (2-3 日)
+
+- [ ] `EmbeddingProvider` インターフェースの実装
+- [ ] `OpenAIEmbeddingProvider` の実装（tenacityによるリトライロジック付き）
+- [ ] `EmbeddingProcessor` クラスの実装（バックグラウンドタスク）
+- [ ] pendingチャンクが自動的にベクトル化される
+- [ ] セマフォによる同時実行数制限
+- [ ] ⚠️ **重要**: `FOR UPDATE SKIP LOCKED` パターンの実装（DBレベルの排他制御、スケールアウト対応）
+- [ ] asyncio.Lockによる競合状態対策（単一プロセス用の補助）
+- [ ] Graceful Shutdownの実装
+- [ ] ⚠️ **重要**: halfvec使用時の型キャストを動的に変更する実装（環境変数 `KB_USE_HALFVEC` に基づく）
+
+### Step 6: セッション知識化処理の実装 (2-3 日)
+
+- [ ] `SessionArchiver` クラスの実装
+- [ ] 非アクティブなセッションが自動的に知識ベースに変換される
+- [ ] ⚠️ **重要**: `_archive_session` メソッドで、`knowledge_sources` への
+  INSERT、`knowledge_chunks` への INSERT、`sessions` の UPDATE が
+  **同一のアトミックなトランザクション内**で実行されている
+  （データ不整合の防止）
+- [ ] トランザクション分離レベルが `REPEATABLE READ` に設定されている
+  （楽観的ロックのため）
+- [ ] トークン数チェックと分割処理が実装されている
+- [ ] Recursive Character Splitter方式によるテキスト分割（`langchain-text-splitters` 使用）
+- [ ] フィルタリングロジック（短いセッション、Botのみのセッション除外）
+
+### Step 7: Docker Compose の更新 (1 日)
 
 - [ ] `docker-compose.yml` に PostgreSQL サービスを追加
-- [ ] `pgvector/pgvector:pg16` イメージの使用
-- [ ] 環境変数の設定（`DATABASE_TYPE=postgres`, `DATABASE_URL`）
+- [ ] `pgvector/pgvector:0.8.1-pg18` イメージの使用
+- [ ] 環境変数の設定
+  - [ ] `DATABASE_URL`（PostgreSQL接続文字列）
+  - [ ] `POSTGRES_PASSWORD`（PostgreSQLパスワード）
+  - [ ] `DB_POOL_MIN_SIZE`（接続プール最小サイズ、デフォルト: 5）
+  - [ ] `DB_POOL_MAX_SIZE`（接続プール最大サイズ、デフォルト: 20）
+  - [ ] `DB_COMMAND_TIMEOUT`（コマンドタイムアウト秒、デフォルト: 60）
+  - [ ] `KB_USE_HALFVEC`（halfvec使用フラグ、デフォルト: false）
+  - [ ] `KB_HNSW_M`（HNSWインデックス m パラメータ、デフォルト: 16）
+  - [ ] `KB_HNSW_EF_CONSTRUCTION`（HNSWインデックス ef_construction パラメータ、デフォルト: 64）
 - [ ] ボリュームマウントとネットワーク設定
+  - [ ] 名前付きボリューム（`postgres_data`）を使用（権限問題回避）
+  - [ ] `./backups:/app/backups` マウント（バックアップ用）
+- [ ] ⚠️ **重要**: バックアップスクリプトで権限問題への対策が実装されている
+  - [ ] 推奨: `docker exec` + `docker cp` を使用した方法（権限問題を完全に回避）
+  - [ ] 代替: ホスト側で `chmod 777 ./backups` または適切なオーナー設定
 - [ ] pgAdmin の追加（Web管理ツール）
   - [ ] `dpage/pgadmin4` イメージの使用
+  - [ ] `profiles: ["admin"]` で設定（セキュリティ向上・メモリ節約）
   - [ ] 環境変数の設定（`PGADMIN_DEFAULT_EMAIL`, `PGADMIN_DEFAULT_PASSWORD`）
+  - [ ] セキュリティ設定（`PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=True`）
   - [ ] ポートマッピング（例: `5050:80`）
-  - [ ] PostgreSQL への接続設定（サーバー登録）
 
-### Step 5: テストと最適化 (1-2 日)
+### Step 8: テストと最適化 (1-2 日)
 
 - [ ] PostgreSQL 用のテストフィクスチャの追加
-- [ ] パフォーマンステスト（ベクトル検索の性能測定）
-- [ ] インデックスの最適化（`lists` パラメータの調整）
-- [ ] 接続プールの調整（`min_size`, `max_size`）
+- [ ] パフォーマンステスト（ベクトル検索の性能測定、HNSWインデックスの効果確認）
+- [ ] インデックスの最適化（HNSWパラメータの調整、環境変数で制御）
+- [ ] 接続プールの調整（`min_size`, `max_size`、環境変数で制御）
+- [ ] ⚠️ **推奨**: halfvec の採用検討（メモリ使用量50%削減、Synology NASのリソース節約）
+- [ ] OpenAI APIのモックが実装されている（CI/CD対応）
 
 **完了基準**:
 
 - [ ] データベース抽象化レイヤーが実装されている
+- [ ] PostgreSQL 18 + pgvector 0.8.1 が実装されている
 - [ ] PostgreSQL 実装が動作する（セッション管理）
-- [ ] pgvector 拡張が有効化されている
+- [ ] pgvector 拡張が有効化されている（HNSWインデックス対応）
+- [ ] ⚠️ **推奨**: pg_trgm 拡張が有効化されている（ハイブリッド検索の準備、Phase 8.5 で実装予定）
+- [ ] ENUM型が正しく定義されている（`source_type_enum`, `session_status_enum`, `source_status_enum`）
 - [ ] ベクトル検索機能が動作する
-- [ ] SQLite から PostgreSQL へのデータ移行が可能
+- [ ] 知識ベーススキーマが実装されている（`knowledge_sources`, `knowledge_chunks`）
+- [ ] Source-Chunk構造が実装されている（すべてのデータを抽象化）
+- [ ] Embedding処理が動作する（バックグラウンドタスク）
+- [ ] ⚠️ **重要**: `FOR UPDATE SKIP LOCKED` パターンが実装されている（DBレベルの排他制御）
+- [ ] セッション知識化処理が動作する
+- [ ] ⚠️ **重要**: トランザクションの整合性が保証されている（アトミック性）
+- [ ] ⚠️ **推奨**: halfvec の採用が検討されている（メモリ使用量50%削減）
 - [ ] Docker Compose で PostgreSQL が起動する
 - [ ] pgAdmin が起動し、PostgreSQL に接続できる
+- [ ] バックアップスクリプトが正常に動作する（権限問題対策済み）
 - [ ] すべてのテストが通過する（既存の 137 テストケース + 新規テスト）
 - [ ] 既存の機能が正常に動作する（回帰テスト）
+
+**注意**: この実装は**新規設計**のため、SQLiteからの移行ツールは作成せず、既存のデータは破棄します。
 
 **実装の優先度**: **高**（ベクトル検索・RAG機能の前提条件、Phase 20-22 で必要）
 
@@ -766,6 +876,66 @@
 1. **ベクトル検索機能の早期実現**: Phase 20-22 の知識ベース機能で必要
 2. **データベース抽象化の確立**: Phase 9 のリファクタリングで抽象化レイヤーを活用
 3. **スケーラビリティの確保**: 将来的なデータ増加に対応
+
+### Phase 8.5: ハイブリッド検索の実装（推奨）⏳ 未実装
+
+**目標**: pg_trgm を使用したハイブリッド検索を実装し、検索品質を向上させる
+
+**期間**: 約 2-3 日
+
+**前提条件**: ✅ **Phase 8（PostgreSQL への移行）が完了していること**
+
+**実装優先度**: **中**（検索品質向上のため推奨）
+
+**背景**: 現在の「ベクトル検索のみ」の実装は、特定のキーワード
+（例：「エラーコード 500」「変数名 my_var」）の検索に弱点があります。
+pg_trgm を使用したハイブリッド検索を実装することで、検索品質が大幅に向上します。
+
+**実装内容**:
+
+- [ ] ハイブリッド検索メソッドの実装（ベクトル検索 + pg_trgm キーワード検索）
+- [ ] ベクトル類似度とキーワード類似度のスコアを組み合わせた検索
+  - [ ] ベクトル類似度の重み（デフォルト: 0.7）
+  - [ ] キーワード類似度の重み（デフォルト: 0.3）
+- [ ] 検索品質の向上が確認できる（固有名詞の検索精度が向上）
+
+**実装方針**:
+
+1. **初期実装**: ベクトル検索のみ（Phase 8）
+2. **段階的導入**: `pg_trgm` 拡張を有効化し、インデックスを追加（Phase 8 で準備）
+3. **ハイブリッド検索**: 検索精度の向上が必要になったタイミングで実装（Phase 8.5）
+
+**注意**: `pg_trgm` インデックスは追加のストレージ容量を消費しますが、
+将来的な拡張性を考慮して設計段階で追加しておくことを推奨します。
+
+**詳細**: [Phase 8 詳細実装計画 - 11.1 Phase 8.5](./phases/phase8.md#111-phase-85-ハイブリッド検索の実装推奨)
+
+### Phase 8.6: Reranking の実装（オプション）⏳ 未実装
+
+**目標**: Cross-Encoder（Reranker）を使用して検索精度を向上させる
+
+**期間**: 約 2-3 日
+
+**前提条件**: ✅ **Phase 8（PostgreSQL への移行）が完了していること**
+
+**実装優先度**: **低**（オプション、CPU負荷を考慮）
+
+**背景**: ベクトル検索でTop-20を取得した後、軽量なCross-Encoder（Reranker）でTop-5に絞り込むと、精度が劇的に向上します。
+
+**実装内容**:
+
+- [ ] `Reranker` クラスの実装（Cross-Encoder を使用）
+- [ ] ベクトル検索の結果を再ランキングできる
+- [ ] 環境変数で有効/無効を切り替え可能
+- [ ] CPU負荷が許容範囲内であることを確認
+
+**注意事項**:
+
+- Synology NASのCPU負荷が許せば検討に値します
+- Reranker は CPU 集約的な処理のため、大量のリクエストがある場合は注意が必要
+- オプション機能として実装し、環境変数で有効/無効を切り替え可能にする
+
+**詳細**: [Phase 8 詳細実装計画 - 11.2 Phase 9: Reranking](./phases/phase8.md#112-phase-9-reranking-の実装オプション)
 
 ---
 
@@ -1552,6 +1722,8 @@
 | **Phase 6**  | 実装済み | レート制限、コマンド、エラーハンドリング強化         | ✅ 完了   |
 | **Phase 7**  | 実装済み | aiosqlite への移行（非同期化）                       | ✅ 完了   |
 | **Phase 8**  | 10-15 日 | PostgreSQL への移行（pgvector 対応） | ⏳ 未実装 |
+| **Phase 8.5**| 2-3 日   | ハイブリッド検索（pg_trgm）           | ⏳ 未実装 |
+| **Phase 8.6**| 2-3 日   | Reranking（オプション）               | ⏳ 未実装 |
 | **Phase 9**  | 10-15 日 | 完全リファクタリング（非同期コードの整理、重複コード削除、litellm.py 戻り値変更） | ⏳ 未実装 |
 | **Phase 10** | 3-6 日   | 高度なモニタリング機能（管理者用高機能ダッシュボード含む） | ⏳ 未実装 |
 | **Phase 11** | 2-3 日   | コスト管理機能（Phase 9 完了後で実装） | ⏳ 未実装 |
@@ -1576,7 +1748,8 @@
 **注意**: Phase 1-7 は既に完了しています。残りの実装順序は以下の通りです:
 
 1. ✅ **Phase 7（aiosqlite への移行）**: 完了（2026 年 1 月 15 日）
-2. **Phase 8（PostgreSQL への移行）**: SQLite から PostgreSQL + pgvector に移行
+2. **Phase 8（PostgreSQL への移行）**: PostgreSQL + pgvector を新規実装
+   （注意: 新規設計のため、SQLiteからの移行ツールは作成せず、既存のデータは破棄）
    - **重要**: ベクトル検索機能の実現（Phase 20-22 で必要）
    - **重要**: データベース抽象化レイヤーの確立
 3. **Phase 9（完全リファクタリング）**: 非同期コードを基にリファクタリングを実施
@@ -1628,9 +1801,10 @@
 
 **Phase 8**:
 
-- PostgreSQL 移行による既存機能の破壊
-- データ移行時のデータ損失リスク
+- PostgreSQL 新規実装による既存機能の破壊
+- 新規設計のため、SQLiteからの移行ツールは作成せず、既存のデータは破棄
 - パフォーマンスの劣化リスク
+- バックアップの権限問題（バインドマウント使用時）
 
 **Phase 9**:
 
@@ -1727,6 +1901,8 @@
 9. **Phase 19**: コスト計算機能
 10. **Phase 20-25**: ロードマップ外の高優先度機能（Phase 8 で pgvector が必要）
     - **Phase 20**: 統合知識ベース機能（pgvector を使用）
+    - **Phase 8.5**: ハイブリッド検索（pg_trgm、推奨）
+    - **Phase 8.6**: Reranking（オプション、CPU負荷を考慮）
     - **Phase 21**: 会話の要約・ハイライト機能
     - **Phase 22**: 議題提案機能
     - **Phase 23**: 聞き耳モードでの自動リアクション機能

@@ -94,7 +94,9 @@ Phase 8では、PostgreSQL + pgvector を新規導入し、以下の機能を実
 
 **方針**: PostgreSQL + pgvector を専用実装として採用
 
-PostgreSQL + pgvector による高性能なベクトル検索機能を実現します。asyncpg を使用した非同期実装により、Botの応答速度を維持しながら、大規模な知識ベースを効率的に管理できます。
+PostgreSQL + pgvector による高性能なベクトル検索機能を実現します。
+asyncpg を使用した非同期実装により、Botの応答速度を維持しながら、
+大規模な知識ベースを効率的に管理できます。
 
 ### 3.2 知識ベーススキーマ設計
 
@@ -108,8 +110,12 @@ PostgreSQL + pgvector による高性能なベクトル検索機能を実現し�
 この設計のメリット：
 
 1. **拡張性**: 将来「動画検索」を入れたくなっても、`source_type` に `video` を足すだけで、テーブル構造を変える必要がありません
-2. **メタデータの柔軟性**: JSONB (`metadata`, `location`) を使うことで、ファイルの種類ごとに異なる属性（PDFのページ番号、音声の秒数など）を無理なく管理できます
-3. **状態管理**: `status` カラムがあるため、OCRやEmbeddingなどの「重い処理」をバックグラウンドワーカーに任せる設計（Producer-Consumerパターン）が容易に組めます
+2. **メタデータの柔軟性**: JSONB (`metadata`, `location`) を使うことで、
+   ファイルの種類ごとに異なる属性（PDFのページ番号、音声の秒数など）を
+   無理なく管理できます
+3. **状態管理**: `status` カラムがあるため、OCRやEmbeddingなどの「重い処理」を
+   バックグラウンドワーカーに任せる設計（Producer-Consumerパターン）が
+   容易に組めます
 
 ### 3.3 非同期Embedding処理
 
@@ -198,7 +204,9 @@ PostgreSQL + pgvector による高性能なベクトル検索機能を実現し�
    # pyproject.toml
    dependencies = [
        # ... 既存の依存関係 ...
-       "asyncpg>=0.31.0",          # PostgreSQL非同期ドライバー（必須: 0.29.0未満だと新しいPostgres機能や型変換でハマる可能性あり）
+       "asyncpg>=0.31.0",          # PostgreSQL非同期ドライバー
+                                   # （必須: 0.29.0未満だと新しいPostgres機能や
+                                   #  型変換でハマる可能性あり）
        "pgvector>=0.3.0",          # pgvector Pythonライブラリ（asyncpgへの型登録を簡素化）
        "asyncpg-stubs>=0.31.1",    # asyncpgの型スタブ（dev依存関係）
        "langchain-text-splitters>=1.1.0",  # テキスト分割ライブラリ
@@ -208,7 +216,6 @@ PostgreSQL + pgvector による高性能なベクトル検索機能を実現し�
        "tenacity>=9.1.2",           # リトライロジック用
        "structlog>=25.5.0",         # 構造化ログ（JSON形式、パフォーマンス向上）
        "prometheus-client>=0.24.1", # メトリクス収集（パフォーマンス監視）
-       "python-ulid>=3.1.0",       # ULID生成（タイムスタンプ順ソート可能なID）
        "orjson>=3.11.5",            # 高速JSON処理（JSONB操作の高速化）
        "async-timeout>=4.0.0",      # Python 3.10以下対応のタイムアウト（⚠️ 重要）
    ]
@@ -216,8 +223,8 @@ PostgreSQL + pgvector による高性能なベクトル検索機能を実現し�
 
    **注意: pgvector Pythonライブラリの導入**:
    - `pgvector` Pythonライブラリをインストールしておくと、asyncpg への型登録が楽になります
-   - `import pgvector.asyncpg; await pgvector.asyncpg.register_vector(conn)` とするだけで、
-     SQL内で手動キャストやエンコード/デコードが不要になります
+   - `import pgvector.asyncpg; await pgvector.asyncpg.register_vector(conn)`
+     とするだけで、SQL内で手動キャストやエンコード/デコードが不要になります
    - 実装箇所: `PostgreSQLDatabase.initialize()` メソッド（Step 2）
 
    **各パッケージの導入意図と実装での利用効果**:
@@ -255,9 +262,11 @@ PostgreSQL + pgvector による高性能なベクトル検索機能を実現し�
        - コンテキスト情報（セッションID、ユーザーID、処理時間等）を自動的に付与可能
        - 標準の`logging`モジュールより高速（特に大量のログ出力時）
        - ログレベルの動的変更やフィルタリングが容易
-       - 実装箇所: 全モジュールでログ出力を統一（`EmbeddingProcessor`、`SessionArchiver`、`PostgreSQLDatabase`等）
+       - 実装箇所: 全モジュールでログ出力を統一
+         （`EmbeddingProcessor`、`SessionArchiver`、`PostgreSQLDatabase`等）
        - 実装時の便利な点:
-         - `structlog.get_logger()`でロガーを取得し、`logger.info("message", key=value)`で構造化ログを出力
+         - `structlog.get_logger()`でロガーを取得し、
+           `logger.info("message", key=value)`で構造化ログを出力
          - `structlog.configure()`で出力形式（JSON、コンソール等）を一元管理
          - バックグラウンドタスクの処理状況を構造化ログで追跡可能
 
@@ -268,24 +277,12 @@ PostgreSQL + pgvector による高性能なベクトル検索機能を実現し�
        - Embedding処理の処理時間、キュー長、エラー率などを追跡可能
        - データベース接続プールの使用状況、クエリ実行時間を監視可能
        - Prometheus + Grafanaによる可視化で、運用時の問題早期発見が可能
-       - 実装箇所: `EmbeddingProcessor`（処理時間、キュー長）、`PostgreSQLDatabase`（接続プール使用率、クエリ時間）
+       - 実装箇所: `EmbeddingProcessor`（処理時間、キュー長）、
+         `PostgreSQLDatabase`（接続プール使用率、クエリ時間）
        - 実装時の便利な点:
          - `from prometheus_client import Counter, Histogram, Gauge`でメトリクスを定義
          - `@Histogram.time()`デコレータで関数の実行時間を自動計測
          - バックグラウンドタスクのメトリクスを`/metrics`エンドポイントで公開可能（将来的にHTTPサーバー追加時）
-
-   - **`python-ulid`**:
-     - **導入意図**: タイムスタンプ順にソート可能な一意IDの生成により、データベースのインデックス効率を向上
-     - **利用効果**:
-       - UUIDと比較して、タイムスタンプ情報を含むため時系列ソートが可能
-       - データベースのインデックス効率が向上（B-treeインデックスで時系列順に並ぶ）
-       - 128ビットの一意性を保証しつつ、可読性も高い（例: `01ARZ3NDEKTSV4RRFFQ69G5FAV`）
-       - 実装箇所: `knowledge_sources.id`、`knowledge_chunks.id`の代替として検討可能（現在はBIGSERIALを使用）
-       - 実装時の便利な点:
-         - `from python_ulid import ULID; ulid = ULID()`で生成
-         - `ulid.timestamp`でタイムスタンプを取得可能
-         - 文字列として保存する場合は`str(ulid)`、バイナリとして保存する場合は`ulid.bytes`
-         - 将来的に分散システムでのID生成が必要になった場合に有効
 
    - **`orjson`**:
      - **導入意図**: 高速なJSON処理により、JSONB操作のパフォーマンス向上と非同期処理の効率化
@@ -294,7 +291,8 @@ PostgreSQL + pgvector による高性能なベクトル検索機能を実現し�
        - `asyncpg`のJSONB型との連携が容易（`orjson.dumps()`でバイト列を生成し、`asyncpg`に渡す）
        - `sessions.messages`（JSONB）の読み書き処理が高速化
        - `knowledge_sources.metadata`、`knowledge_chunks.location`（JSONB）の処理が高速化
-       - 実装箇所: `PostgreSQLDatabase.save_session()`、`PostgreSQLDatabase.save_knowledge_source()`等のJSONB操作
+       - 実装箇所: `PostgreSQLDatabase.save_session()`、
+         `PostgreSQLDatabase.save_knowledge_source()`等のJSONB操作
        - 実装時の便利な点:
          - `import orjson; orjson.dumps(obj)`でJSON文字列（バイト列）を生成
          - `orjson.loads(bytes)`でJSONをパース（標準の`json`と同様のAPI）
@@ -309,7 +307,7 @@ PostgreSQL + pgvector による高性能なベクトル検索機能を実現し�
 **完了基準**:
 
 - [ ] 依存関係が追加されている（`langchain-text-splitters`, `pydantic-settings`,
-  `asyncpg-stubs`, `structlog`, `prometheus-client`, `python-ulid`, `orjson` を含む）
+  `asyncpg-stubs`, `structlog`, `prometheus-client`, `orjson` を含む）
 - [ ] 各パッケージの導入意図と利用効果を理解している
 - [ ] 設計レビューが完了している
 - [ ] 実装方針が明確になっている
@@ -464,9 +462,12 @@ class PostgreSQLDatabase(DatabaseProtocol):
     async def initialize(self) -> None:
         """データベースの初期化"""
         # 環境変数から接続プール設定を読み込み（デフォルト値あり）
-        min_size = int(os.getenv("DB_POOL_MIN_SIZE", str(self.DEFAULT_POOL_MIN_SIZE)))
-        max_size = int(os.getenv("DB_POOL_MAX_SIZE", str(self.DEFAULT_POOL_MAX_SIZE)))
-        command_timeout = int(os.getenv("DB_COMMAND_TIMEOUT", str(self.DEFAULT_COMMAND_TIMEOUT)))
+        min_size = int(os.getenv(
+            "DB_POOL_MIN_SIZE", str(self.DEFAULT_POOL_MIN_SIZE)))
+        max_size = int(os.getenv(
+            "DB_POOL_MAX_SIZE", str(self.DEFAULT_POOL_MAX_SIZE)))
+        command_timeout = int(os.getenv(
+            "DB_COMMAND_TIMEOUT", str(self.DEFAULT_COMMAND_TIMEOUT)))
         
         # ⚠️ 重要: init パラメータを使用して、プールから取得される各コネクションに対して
         # pgvector の型登録を自動的に行います。
@@ -483,7 +484,18 @@ class PostgreSQLDatabase(DatabaseProtocol):
         async with self.pool.acquire() as conn:
             await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
             
-            # pgvector のバージョン確認（HNSWは0.5.0以降で使用可能）
+            # ⚠️ 推奨: pg_trgm 拡張を有効化（ハイブリッド検索の準備）
+            # Phase 8.5 でハイブリッド検索を実装する予定のため、ここで拡張を有効化します。
+            # 固有名詞（エラーコード、変数名など）の検索精度向上に効果的です。
+            try:
+                await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+                logger.info("pg_trgm extension enabled for hybrid search")
+            except Exception as e:
+                # pg_trgm が利用できない環境でも動作するように
+                logger.warning(f"pg_trgm extension could not be enabled: {e}. "
+                             f"Hybrid search will not be available.")
+            
+            # pgvector のバージョン確認（HNSWは0.5.0以降で使用可能、推奨は0.8.1）
             version_row = await conn.fetchrow(
                 "SELECT extversion FROM pg_extension WHERE extname = 'vector'")
             if version_row:
@@ -499,9 +511,11 @@ class PostgreSQLDatabase(DatabaseProtocol):
                         "Please upgrade pgvector."
                     )
                 logger.info(
-                    f"pgvector version {version_str} is compatible (HNSW supported)")
+                    f"pgvector version {version_str} is compatible "
+                    f"(HNSW supported, recommended: 0.8.1 for PostgreSQL 18)")
             else:
-                logger.warning("pgvector extension version could not be determined")
+                logger.warning(
+                    "pgvector extension version could not be determined")
             
             await self._create_tables(conn)
     
@@ -591,7 +605,8 @@ class PostgreSQLDatabase(DatabaseProtocol):
         await conn.execute(f"""
             CREATE TABLE IF NOT EXISTS knowledge_chunks (
                 id BIGSERIAL PRIMARY KEY,
-                source_id BIGINT REFERENCES knowledge_sources(id) ON DELETE CASCADE,
+                source_id BIGINT REFERENCES knowledge_sources(id)
+                    ON DELETE CASCADE,
                 content TEXT NOT NULL,
                 embedding {vector_type},
                 location JSONB DEFAULT '{}'::jsonb,
@@ -658,6 +673,23 @@ class PostgreSQLDatabase(DatabaseProtocol):
             CREATE INDEX IF NOT EXISTS idx_chunks_source_id 
             ON knowledge_chunks(source_id);
         """)
+        
+        # ⚠️ 推奨: pg_trgm 拡張を有効化してハイブリッド検索の準備
+        # ベクトル検索のみでは「固有名詞（エラーコード、変数名など）」の検索に弱いため、
+        # 日本語の全文検索や部分一致において、ベクトル検索を補完する効果が絶大です。
+        # Phase 8.5 でハイブリッド検索を実装する予定のため、ここでインデックスを準備します。
+        try:
+            await conn.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
+            await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_chunks_content_trgm 
+                ON knowledge_chunks USING gin (content gin_trgm_ops);
+            """)
+            logger.info(
+                "pg_trgm extension enabled and index created for hybrid search")
+        except Exception as e:
+            # pg_trgm が利用できない環境（例: 古いPostgreSQL）でも動作するように
+            logger.warning(f"pg_trgm extension could not be enabled: {e}. "
+                         f"Hybrid search will not be available.")
     
     async def close(self) -> None:
         """データベース接続のクローズ"""
@@ -723,7 +755,9 @@ async def save_session(self, session: "ChatSession") -> None:
             """,
                 session.session_key,
                 session.session_type,
-                json.dumps([msg.model_dump() for msg in session.messages], ensure_ascii=False),
+                json.dumps(
+                    [msg.model_dump() for msg in session.messages],
+                    ensure_ascii=False),
                 getattr(session, 'status', 'active'),  # デフォルトは 'active'
                 getattr(session, 'guild_id', None),  # guild_idを追加（DMの場合はNone）
                 session.channel_id,
@@ -815,7 +849,8 @@ async def similarity_search(
     Args:
         query_embedding: クエリのベクトル（1536次元）
         top_k: 取得する結果の数
-        filters: フィルタ条件（例: {"source_type": "discord_session", "channel_id": 123}）
+        filters: フィルタ条件
+            （例: {"source_type": "discord_session", "channel_id": 123}）
     
     Returns:
         検索結果のリスト（各要素は dict で、content, similarity, source情報を含む）
@@ -909,7 +944,9 @@ async def similarity_search(
                             raise ValueError(
                                 f"Invalid channel_id: {filters['channel_id']}. "
                                 f"Must be an integer.")
-                        query += f" AND (s.metadata->>'channel_id')::bigint = ${param_index}"
+                        query += (
+                            f" AND (s.metadata->>'channel_id')::bigint = "
+                            f"${param_index}")
                         params.append(channel_id)
                         param_index += 1
                     
@@ -921,7 +958,9 @@ async def similarity_search(
                             raise ValueError(
                                 f"Invalid user_id: {filters['user_id']}. "
                                 f"Must be an integer.")
-                        query += f" AND (s.metadata->>'author_id')::bigint = ${param_index}"
+                        query += (
+                            f" AND (s.metadata->>'author_id')::bigint = "
+                            f"${param_index}")
                         params.append(user_id)
                         param_index += 1
                 
@@ -1014,7 +1053,8 @@ class KnowledgeBaseSearch:
         """
         # 1. クエリをベクトル化（リアルタイムで必要）
         logger.debug(f"Generating embedding for query: {query[:50]}...")
-        query_embedding = await self.embedding_provider.generate_embedding(query)
+        query_embedding = await self.embedding_provider.generate_embedding(
+            query)
         
         # 2. フィルタの構築
         search_filters = filters or {}
@@ -1155,7 +1195,8 @@ class KnowledgeBaseStorage:
                         source_id,
                         chunk["content"],
                         None,  # embeddingはNULL
-                        json.dumps(chunk.get("location", {}), ensure_ascii=False),
+                        json.dumps(
+                            chunk.get("location", {}), ensure_ascii=False),
                         len(encoding.encode(chunk["content"])),  # token_count
                     )
                     for chunk in chunks
@@ -1207,7 +1248,8 @@ import os
 import logging
 import openai
 from typing import TYPE_CHECKING
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import (
+    retry, stop_after_attempt, wait_exponential, retry_if_exception_type)
 
 if TYPE_CHECKING:
     from . import EmbeddingProvider
@@ -1226,7 +1268,8 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=4, max=60),
-        retry=retry_if_exception_type((openai.RateLimitError, openai.APITimeoutError)),
+        retry=retry_if_exception_type(
+            (openai.RateLimitError, openai.APITimeoutError)),
         reraise=True,
     )
     async def generate_embedding(self, text: str) -> list[float]:
@@ -1248,10 +1291,13 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             logger.error(f"OpenAI API error: {e}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error in generate_embedding: {e}", exc_info=True)
+            logger.error(
+                f"Unexpected error in generate_embedding: {e}", exc_info=True)
             raise
     
-    async def generate_embeddings_batch(self, texts: list[str]) -> list[list[float]]:
+    async def generate_embeddings_batch(
+        self, texts: list[str]
+    ) -> list[list[float]]:
         """複数のテキストをバッチでベクトル化（API効率化）
         
         ⚠️ 改善: OpenAI Embedding APIはバッチリクエストをサポートしているため、
@@ -1357,7 +1403,8 @@ class EmbeddingProcessor:
         """Embedding処理の実装（エラーハンドリング分離）"""
         # 競合状態対策: asyncio.Lockを使用
         if self._lock.locked():
-            logger.debug("Embedding processing already in progress, skipping...")
+            logger.debug(
+                "Embedding processing already in progress, skipping...")
             return
         
         async with self._lock:
@@ -1389,7 +1436,8 @@ class EmbeddingProcessor:
                 embeddings = await self._generate_embeddings_batch(texts)
             except Exception as e:
                 # Embedding API全体障害時の処理: 失敗したチャンクのretry_countをインクリメント
-                logger.error(f"Embedding API failed for batch: {e}", exc_info=True)
+                logger.error(
+                    f"Embedding API failed for batch: {e}", exc_info=True)
                 async with self.db.pool.acquire() as conn:
                     async with conn.transaction():
                         for chunk in pending_chunks:
@@ -1400,7 +1448,8 @@ class EmbeddingProcessor:
                             """, chunk["id"])
                         
                         # retry_countが上限に達したソースはfailedに
-                        source_ids = {chunk["source_id"] for chunk in pending_chunks}
+                        source_ids = {
+                            chunk["source_id"] for chunk in pending_chunks}
                         for source_id in source_ids:
                             failed_count = await conn.fetchval("""
                                 SELECT COUNT(*)
@@ -1417,7 +1466,9 @@ class EmbeddingProcessor:
                                         updated_at = CURRENT_TIMESTAMP
                                     WHERE id = $2
                                 """,
-                                f"Embedding failed after {MAX_RETRY_COUNT} retries",
+                                (
+                                    f"Embedding failed after "
+                                    f"{MAX_RETRY_COUNT} retries"),
                                 source_id)
                 return  # 処理を中断
             
@@ -1429,7 +1480,9 @@ class EmbeddingProcessor:
                         SET embedding = $1::vector,
                             retry_count = 0
                         WHERE id = $2
-                    """, [(emb, chunk["id"]) for emb, chunk in zip(embeddings, pending_chunks)])
+                    """, [
+                        (emb, chunk["id"])
+                        for emb, chunk in zip(embeddings, pending_chunks)])
             
             # Sourceのステータスも更新
             await self._update_source_status(pending_chunks)
@@ -1457,7 +1510,8 @@ class EmbeddingProcessor:
         # 注意: OpenAIEmbeddingProvider にバッチメソッドを追加する必要がある
         if hasattr(self.embedding_provider, 'generate_embeddings_batch'):
             # バッチAPIを使用（推奨）
-            return await self.embedding_provider.generate_embeddings_batch(texts)
+            return await self.embedding_provider.generate_embeddings_batch(
+                texts)
         else:
             # フォールバック: 個別に呼び出す（非効率だが動作する）
             logger.warning(
@@ -1531,10 +1585,13 @@ class EmbeddingProcessor:
 # src/kotonoha_bot/main.py（改善版）
 
 from kotonoha_bot.db.postgres import PostgreSQLDatabase
-from kotonoha_bot.external.embedding.openai_embedding import OpenAIEmbeddingProvider
+from kotonoha_bot.external.embedding.openai_embedding import (
+    OpenAIEmbeddingProvider)
 from kotonoha_bot.features.knowledge_base.storage import KnowledgeBaseStorage
-from kotonoha_bot.features.knowledge_base.embedding_processor import EmbeddingProcessor
-from kotonoha_bot.features.knowledge_base.session_archiver import SessionArchiver
+from kotonoha_bot.features.knowledge_base.embedding_processor import (
+    EmbeddingProcessor)
+from kotonoha_bot.features.knowledge_base.session_archiver import (
+    SessionArchiver)
 
 async def main():
     # データベース初期化
@@ -1689,7 +1746,8 @@ class SessionArchiver:
             batch_size = int(os.getenv("KB_ARCHIVE_BATCH_SIZE", "10"))
             
             # 閾値時間以上非アクティブなセッションを取得
-            threshold_time = datetime.now() - timedelta(hours=archive_threshold_hours)
+            threshold_time = datetime.now() - timedelta(
+                hours=archive_threshold_hours)
             
             # 接続プール枯渇時のタイムアウト処理を追加
             try:
@@ -1727,7 +1785,8 @@ class SessionArchiver:
                 finally:
                     self.db.pool.release(conn)
             except asyncio.TimeoutError:
-                logger.error("Failed to acquire database connection: pool exhausted")
+                logger.error(
+                    "Failed to acquire database connection: pool exhausted")
                 return
             except asyncpg.exceptions.TooManyConnectionsError:
                 logger.error("Connection pool exhausted")
@@ -1737,7 +1796,8 @@ class SessionArchiver:
                 logger.debug("No inactive sessions to archive")
                 return
             
-            logger.info(f"Archiving {len(inactive_sessions)} inactive sessions...")
+            logger.info(
+                f"Archiving {len(inactive_sessions)} inactive sessions...")
             
             # ⚠️ 改善: セッションアーカイブの並列処理（高速化）
             # セマフォで同時実行数を制限しつつ並列処理（DBへの負荷に注意）
@@ -1760,7 +1820,8 @@ class SessionArchiver:
                 return_exceptions=True
             )
             
-            logger.info(f"Successfully archived {len(inactive_sessions)} sessions")
+            logger.info(
+                f"Successfully archived {len(inactive_sessions)} sessions")
             
         except Exception as e:
             logger.error(f"Error during session archiving: {e}", exc_info=True)
@@ -1786,12 +1847,14 @@ class SessionArchiver:
         if not self._should_archive_session(messages):
             logger.debug(f"Skipping low-value session: {session_key}")
             # アーカイブしないが、statusは'archived'に更新（再処理を避ける）
+            # 注意: この場合は知識ベースへの登録を行わないため、単純なUPDATEのみで問題ありません
             async with self.db.pool.acquire() as conn:
-                await conn.execute("""
-                    UPDATE sessions
-                    SET status = 'archived'
-                    WHERE session_key = $1
-                """, session_key)
+                async with conn.transaction():
+                    await conn.execute("""
+                        UPDATE sessions
+                        SET status = 'archived'
+                        WHERE session_key = $1
+                    """, session_key)
             return
         
         # セッションの要約テキストを生成
@@ -1814,7 +1877,8 @@ class SessionArchiver:
             logger.warning(
                 f"Session {session_key} exceeds token limit "
                 f"({token_count} > {MAX_EMBEDDING_TOKENS}), splitting...")
-            chunks = self._split_content_by_tokens(content, encoding, MAX_EMBEDDING_TOKENS)
+            chunks = self._split_content_by_tokens(
+                content, encoding, MAX_EMBEDDING_TOKENS)
         else:
             chunks = [content]
         
@@ -1833,8 +1897,11 @@ class SessionArchiver:
             "archived_at": datetime.now().isoformat(),
         }
         
+        # ⚠️ 重要: すべての操作を1つのアトミックなトランザクション内で実行
+        # これにより、「知識化はされたがセッションはactiveのまま」という不整合を防ぎます
         async with self.db.pool.acquire() as conn:
-            async with conn.transaction():
+            # トランザクション分離レベルを REPEATABLE READ に設定（楽観的ロックのため）
+            async with conn.transaction(isolation='repeatable_read'):
                 # 1. knowledge_sources に登録（status='pending'）
                 source_id = await conn.fetchval("""
                     INSERT INTO knowledge_sources (type, title, uri, metadata, status)
@@ -1858,39 +1925,32 @@ class SessionArchiver:
                     }, ensure_ascii=False), chunk_token_count)
                 
                 # 3. sessions の status を 'archived' に更新（楽観的ロック）
-                # ⚠️ 重要: トランザクション分離レベルを指定して楽観的ロックを確実に機能させる
-                # last_active_at が変更されていない場合のみ更新（競合状態対策）
-                # 注意: asyncpgではトランザクション分離レベルは別の方法で指定する必要がある
-                # 実装時は、BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ を明示的に実行
+                # ⚠️ 重要: last_active_at が変更されていない場合のみ更新（競合状態対策）
+                # UPDATE が 0 件の場合は、トランザクション全体がロールバックされる
                 result = await conn.execute("""
-                    BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
                     UPDATE sessions
                     SET status = 'archived'
                     WHERE session_key = $1
                     AND status = 'active'
                     AND last_active_at = $2
-                    COMMIT;
                 """, session_key, original_last_active_at)
-                
-                # または、トランザクション内で明示的に分離レベルを設定
-                # async with conn.transaction():
-                #     await conn.execute(
-                #         "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-                #     result = await conn.execute("""
-                #         UPDATE sessions
-                #         SET status = 'archived'
-                #         WHERE session_key = $1
-                #         AND status = 'active'
-                #         AND last_active_at = $2
-                #     """, session_key, original_last_active_at)
                 
                 # asyncpgのexecuteは "UPDATE N" 形式の文字列を返す
                 if result == "UPDATE 0":
+                    # セッションが他のプロセスによって更新された場合、トランザクション全体をロールバック
+                    # ⚠️ 重要: 例外を発生させることで、asyncpgのトランザクションコンテキストマネージャーが
+                    # 自動的にロールバックを実行します。これにより、
+                    # knowledge_sources と knowledge_chunks への INSERT も
+                    # 取り消され、データの不整合を防ぎます。
                     logger.warning(
                         f"Session {session_key} was updated during archiving, "
-                        f"skipping...")
-                    return
+                        f"rolling back transaction to prevent duplicate "
+                        f"archive")
+                    raise ValueError(
+                        f"Session {session_key} was concurrently updated, "
+                        f"archiving aborted to prevent duplicate")
         
+        # トランザクションが正常にコミットされた場合のみ、このログが出力されます
         logger.info(
             f"Archived session {session_key} as knowledge source {source_id} "
             f"({len(chunks)} chunks)")
@@ -1949,7 +2009,8 @@ class SessionArchiver:
             logger.warning(
                 "langchain-text-splitters not available, "
                 "using fallback implementation")
-            return self._split_content_by_tokens_fallback(content, encoding, max_tokens)
+            return self._split_content_by_tokens_fallback(
+                content, encoding, max_tokens)
     
     def _split_content_by_tokens_fallback(
         self, content: str, encoding: tiktoken.Encoding, max_tokens: int
@@ -1990,9 +2051,12 @@ class SessionArchiver:
             # オーバーラップを考慮して次の開始位置を計算
             if best_split_pos > overlap_tokens:
                 # オーバーラップ分を戻る
-                overlap_text = chunk_text[best_split_pos - overlap_tokens:best_split_pos]
+                overlap_text = chunk_text[
+                    best_split_pos - overlap_tokens:best_split_pos]
                 overlap_tokens_count = len(encoding.encode(overlap_text))
-                start = start + len(encoding.encode(final_chunk)) - overlap_tokens_count
+                start = (
+                    start + len(encoding.encode(final_chunk))
+                    - overlap_tokens_count)
             else:
                 start = start + len(encoding.encode(final_chunk))
         
@@ -2012,7 +2076,8 @@ class SessionArchiver:
         return "Discord Session"
     
     def _generate_discord_uri(self, session_row: dict) -> str | None:
-        """Discord URLを生成（正しい形式: /channels/{guild_id}/{channel_id}/{message_id}）"""
+        """Discord URLを生成
+        （正しい形式: /channels/{guild_id}/{channel_id}/{message_id}）"""
         channel_id = session_row.get('channel_id')
         thread_id = session_row.get('thread_id')
         guild_id = session_row.get('guild_id')  # sessionsテーブルに追加済み
@@ -2023,12 +2088,15 @@ class SessionArchiver:
         # Guild IDがない場合は、チャンネルIDのみの形式（不完全だが動作する）
         if guild_id:
             if thread_id:
-                return f"https://discord.com/channels/{guild_id}/{channel_id}/{thread_id}"
+                return (
+                    f"https://discord.com/channels/{guild_id}/"
+                    f"{channel_id}/{thread_id}")
             else:
                 return f"https://discord.com/channels/{guild_id}/{channel_id}"
         else:
             # フォールバック: Guild IDがない場合（将来的に修正が必要）
-            logger.warning(f"Guild ID not found for session, using incomplete URL")
+            logger.warning(
+                f"Guild ID not found for session, using incomplete URL")
             if thread_id:
                 return f"https://discord.com/channels/{channel_id}/{thread_id}"
             else:
@@ -2047,11 +2115,13 @@ class SessionArchiver:
             task = getattr(self.archive_inactive_sessions, '_task', None)
             if task and not task.done():
                 try:
-                    # 最大60秒待機（アーカイブ処理は時間がかかる可能性があるため）
+                    # 最大60秒待機
+                    # （アーカイブ処理は時間がかかる可能性があるため）
                     await asyncio.wait_for(task, timeout=60.0)
                 except asyncio.TimeoutError:
                     logger.warning(
-                        "Session archiving task did not complete within timeout")
+                        "Session archiving task did not complete "
+                        "within timeout")
                 except asyncio.CancelledError:
                     logger.debug("Session archiving task was cancelled")
         except Exception as e:
@@ -2065,10 +2135,16 @@ class SessionArchiver:
 - [ ] `SessionArchiver` クラスが実装されている
 - [ ] 非アクティブなセッションが自動的に知識ベースに変換される
 - [ ] セッションのstatusが'archived'に更新される
+- [ ] ⚠️ **重要**: `_archive_session` メソッドで、`knowledge_sources` への
+  INSERT、`knowledge_chunks` への INSERT、`sessions` の UPDATE が
+  **同一のアトミックなトランザクション内**で実行されている
+  （データ不整合の防止）
+- [ ] トランザクション分離レベルが `REPEATABLE READ` に設定されている（楽観的ロックのため）
+- [ ] セッションが同時更新された場合、トランザクション全体がロールバックされ、知識ベースへの登録も取り消される（例外処理による自動ロールバック）
 - [ ] トークン数チェックと分割処理が実装されている
 - [ ] Recursive Character Splitter方式によるテキスト分割が実装されている（句読点・改行を優先）
 - [ ] `langchain-text-splitters` の導入意図を理解し、将来的な移行計画がある（または既に使用している）
-- [ ] 楽観的ロックによる競合状態対策が実装されている
+- [ ] 楽観的ロックによる競合状態対策が実装されている（`last_active_at` のチェック）
 - [ ] フィルタリングロジック（短いセッション、Botのみのセッション除外）が実装されている
 - [ ] `token_count` カラムが正しく保存されている
 - [ ] Graceful Shutdownが実装されている（処理中のタスクが完了するまで待機）
@@ -2141,7 +2217,7 @@ services:
         max-file: "5"
 
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:0.8.1-pg18
     container_name: kotonoha-postgres
     restart: unless-stopped
     env_file:
@@ -2159,6 +2235,9 @@ services:
       # バックアップは pg_dump で外部に出せば十分なので、データ領域は名前付きボリュームのままにします。
       - postgres_data:/var/lib/postgresql/data
       # バックアップスクリプト用マウント（必要に応じて）
+      # ⚠️ 注意: バインドマウントを使用する場合、権限問題が発生する可能性があります。
+      # 推奨: docker exec + docker cp を使用したバックアップスクリプト（権限問題を完全に回避）
+      # 詳細は「6.2 データの永続化とバックアップ戦略」セクションを参照してください。
       # Synology NASのHyper Backup対象フォルダにマウントする場合の例:
       # - /volume1/docker/kotonoha/backups:/backups
     networks:
@@ -2178,7 +2257,10 @@ services:
     # データ量が増えるとスワップが発生する可能性があるため、
     # docker stats で監視し、必要に応じてメモリ制限を調整してください。
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kotonoha} -d ${POSTGRES_DB:-kotonoha}"]
+      test: [
+        "CMD-SHELL",
+        "pg_isready -U ${POSTGRES_USER:-kotonoha} "
+        "-d ${POSTGRES_DB:-kotonoha}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -2230,7 +2312,8 @@ networks:
 
 以下の変更が必要です：
 
-1. **`./data:/app/data` マウントの削除**: SQLiteのデータベースファイルは不要になったため、このマウントを削除またはコメントアウトしてください。
+1. **`./data:/app/data` マウントの削除**: SQLiteのデータベースファイルは
+   不要になったため、このマウントを削除またはコメントアウトしてください。
    - 以前: `- ./data:/app/data` （SQLite用）
    - 現在: 削除（PostgreSQLは別コンテナで管理）
 
@@ -2246,6 +2329,9 @@ networks:
      - **現在**: PostgreSQLの`pg_dump`バックアップファイル（`.sql`または`.dump`）を保存
    - **既存のSQLiteバックアップファイル（`kotonoha_*.db.gz`）は削除しても問題ありません。**
    - `scripts/backup.sh`はPostgreSQL用に更新する必要があります（`pg_dump`を使用）。
+   - ⚠️ **重要**: バインドマウントの権限問題対策が必要です。詳細は「6.2 データの永続化とバックアップ戦略」セクションを参照してください。
+     - 推奨: `docker exec` + `docker cp` を使用したバックアップスクリプト（権限問題を完全に回避）
+     - 代替: ホスト側で `chmod 777 ./backups` または適切なオーナー設定
 
 4. **PostgreSQLコンテナの追加**: `postgres`サービスと`pgadmin`サービスを追加してください。
 
@@ -2287,7 +2373,114 @@ services:
 2. **自動バックアップスクリプト**: cron等で定期実行
 3. **Synology Hyper Backup との連携**: `pg_dump`の結果をNASの別フォルダに出力
 
-詳細なバックアップスクリプトの実装例と権限問題への対策については、上記の設計書を参照してください。
+##### ⚠️ 重要: バックアップ出力先の権限問題対策
+
+**問題**: `./backups` ディレクトリはバインドマウント
+（`./backups:/app/backups`）のため、コンテナ内の `postgres` ユーザー
+（通常 UID 999）がホスト側のディレクトリに書き込めない場合があります。
+
+**解決方法**:
+
+###### 方法 1: ホスト側ディレクトリの権限設定（推奨）
+
+```bash
+# バックアップディレクトリを作成
+mkdir -p ./backups
+
+# 方法 1a: 全ユーザーに書き込み権限を付与（簡易だがセキュリティリスクあり）
+chmod 777 ./backups
+
+# 方法 1b: 適切なオーナー設定（より安全）
+# postgres コンテナ内の UID/GID を確認
+docker exec kotonoha-postgres id postgres
+# 例: uid=999(postgres) gid=999(postgres) groups=999(postgres)
+
+# ホスト側で同じ UID/GID にオーナーを変更
+sudo chown -R 999:999 ./backups
+chmod 755 ./backups
+```
+
+###### 方法 2: docker exec + docker cp による回避テクニック（推奨）
+
+コンテナ内の `/tmp` に一時ファイルとして出力し、`docker cp` でホストにコピーする方法です。権限問題を完全に回避できます。
+
+```bash
+#!/bin/bash
+# scripts/backup_postgres.sh
+# PostgreSQL バックアップスクリプト（権限問題回避版）
+
+set -e
+
+CONTAINER_NAME="kotonoha-postgres"
+DB_NAME="${POSTGRES_DB:-kotonoha}"
+DB_USER="${POSTGRES_USER:-kotonoha}"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="./backups"
+BACKUP_FILE="kotonoha_${TIMESTAMP}.dump"
+
+# バックアップディレクトリの作成（ホスト側）
+mkdir -p "${BACKUP_DIR}"
+
+# コンテナ内の /tmp にバックアップを作成（権限問題なし）
+echo "Creating backup in container..."
+docker exec "${CONTAINER_NAME}" pg_dump \
+  -U "${DB_USER}" \
+  -F c \
+  -f "/tmp/${BACKUP_FILE}" \
+  "${DB_NAME}"
+
+# コンテナからホストにコピー（権限問題なし）
+echo "Copying backup to host..."
+docker cp "${CONTAINER_NAME}:/tmp/${BACKUP_FILE}" "${BACKUP_DIR}/${BACKUP_FILE}"
+
+# コンテナ内の一時ファイルを削除
+docker exec "${CONTAINER_NAME}" rm "/tmp/${BACKUP_FILE}"
+
+# バックアップサイズの表示
+BACKUP_SIZE=$(du -h "${BACKUP_DIR}/${BACKUP_FILE}" | cut -f1)
+echo "Backup completed: ${BACKUP_DIR}/${BACKUP_FILE} (${BACKUP_SIZE}))"
+
+# 古いバックアップの削除（7日以上前）
+RETENTION_DAYS=7
+echo "Cleaning up old backups (older than ${RETENTION_DAYS} days)..."
+find "${BACKUP_DIR}" -name "kotonoha_*.dump" -mtime +${RETENTION_DAYS} -delete
+
+echo "Backup process completed."
+```
+
+**この方法のメリット**:
+
+- 権限問題を完全に回避（コンテナ内の `/tmp` は postgres ユーザーが書き込み可能）
+- ホスト側のディレクトリ権限設定が不要
+- `docker cp` は root 権限で実行されるため、ホスト側への書き込みも問題なし
+
+###### 方法 3: docker-compose.yml での初期化スクリプト
+
+`docker-compose.yml` の `postgres` サービスに `entrypoint` を追加して、
+起動時にバックアップディレクトリの権限を設定する方法もあります。
+
+```yaml
+postgres:
+  image: pgvector/pgvector:0.8.1-pg18
+  # ... 既存の設定 ...
+  volumes:
+    - postgres_data:/var/lib/postgresql/data
+    - ./backups:/backups  # マウント先を /backups に変更
+  entrypoint: |
+    sh -c "
+      # バックアップディレクトリの権限を設定
+      mkdir -p /backups
+      chmod 777 /backups
+      # 通常の PostgreSQL エントリーポイントを実行
+      docker-entrypoint.sh postgres
+    "
+```
+
+**注意**: この方法は `docker-entrypoint.sh` の動作に依存するため、イメージによっては動作しない可能性があります。
+
+**推奨**: 方法 2（docker exec + docker cp）を推奨します。最も確実で、権限問題を完全に回避できます。
+
+詳細なバックアップスクリプトの実装例については、上記の設計書を参照してください。
 
 #### 6.3 データベース・パフォーマンス設計（Synology NASへの最適化）
 
@@ -2297,17 +2490,20 @@ services:
 
 **halfvecの採用検討**:
 
-pgvector 0.7.0以降では、`halfvec` (float16) 型がサポートされています。これを使用するとストレージとメモリ使用量が半分になります。
+pgvector 0.7.0以降では、`halfvec` (float16) 型がサポートされています。
+これを使用するとストレージとメモリ使用量が半分になります。
 
 **メリット**:
 
-- **メモリ使用量の削減**: `vector(1536)`はfloat32を使用するため、1ベクトルあたり約6KB消費します。10万件で約600MBのインデックスサイズになります。`halfvec(1536)`を使用すると約300MBに削減されます。
+- **メモリ使用量の削減**: `vector(1536)`はfloat32を使用するため、
+  1ベクトルあたり約6KB消費します。10万件で約600MBのインデックスサイズに
+  なります。`halfvec(1536)`を使用すると約300MBに削減されます。
 - **精度への影響**: OpenAIのEmbedding精度への影響は軽微です。
 
 **使用方法**:
 
 - 環境変数 `KB_USE_HALFVEC=true` を設定すると、`halfvec(1536)`が使用されます
-- `pgvector:pg16` の最新イメージであれば対応しています
+- `pgvector/pgvector:0.8.1-pg18` イメージを使用します（PostgreSQL 18 + pgvector 0.8.1）
 - NASのリソース節約のため強く推奨します
 
 詳細な注意事項については、上記の設計書を参照してください。
@@ -2380,7 +2576,10 @@ Phase 8の開始時点で `pydantic-settings` を導入することを強く推�
    # 使用例
    settings = Settings()
    db = PostgreSQLDatabase(
-       connection_string=f"postgresql://{settings.postgres_user}:{settings.postgres_password}@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}"
+       connection_string=(
+           f"postgresql://{settings.postgres_user}:"
+           f"{settings.postgres_password}@{settings.postgres_host}:"
+           f"{settings.postgres_port}/{settings.postgres_db}")
    )
    ```
 
@@ -2433,7 +2632,9 @@ Phase 8の開始時点で `pydantic-settings` を導入することを強く推�
 
 ##### Q: pgvector.asyncpg.register_vector() はどこで呼ぶべき？
 
-A: ⚠️ **これは設計書に重大な見落としがあります**。設計書では `initialize()` 内で1回だけ呼んでいますが、コネクションプールを使用している場合、プールから取得される各コネクションに対して登録が必要です。
+A: ⚠️ **これは設計書に重大な見落としがあります**。設計書では
+`initialize()` 内で1回だけ呼んでいますが、コネクションプールを使用して
+いる場合、プールから取得される各コネクションに対して登録が必要です。
 
 **❌ 設計書の現状（問題あり）**:
 
@@ -2491,13 +2692,15 @@ SELECT 句に必要なカラムが含まれているか確認してください�
 
 A: PGVectorのテストは、実際にEmbedding APIを叩くとコストと時間がかかります。
 設計書にある `mock_embedding_provider` で固定次元のダミーベクトル（例: `[0.1] * 1536`）を返すのが正解です。
-類似度検索のロジック確認用には、pgvector に対して「特定のIDが返ってくるか」だけを確認し、精度のテストは切り離しましょう。
+類似度検索のロジック確認用には、pgvector に対して
+「特定のIDが返ってくるか」だけを確認し、精度のテストは切り離しましょう。
 
 ##### Q: テスト用のPostgreSQLはどう用意する？
 
 A: 3つの選択肢があります：
 
-1. **Docker Compose（推奨）**: `docker-compose -f docker-compose.test.yml up -d` でテスト用PostgreSQLを起動
+1. **Docker Compose（推奨）**: `docker-compose -f docker-compose.test.yml up -d`
+   でテスト用PostgreSQLを起動
 2. **testcontainers-python**: テストコード内でコンテナを起動（自動管理）
 3. **Pytest-docker**: pytestプラグインで自動管理
 
@@ -2510,7 +2713,7 @@ from testcontainers.postgres import PostgresContainer
 @pytest.fixture(scope="session")
 async def postgres_container():
     """テスト用PostgreSQLコンテナを起動"""
-    with PostgresContainer("pgvector/pgvector:pg16") as postgres:
+    with PostgresContainer("pgvector/pgvector:0.8.1-pg18") as postgres:
         yield postgres.get_connection_url()
 ```
 
@@ -2525,7 +2728,10 @@ test = [
 
 ##### Q: Source と Chunk の関係で、1:1 のケースはどう扱う？
 
-A: 設計上は問題ありません。1つの Source に対して1つの Chunk が存在するケース（短いセッションなど）も正常なパターンです。データベーススキーマは1対多の関係を想定していますが、1対1のケースも自然に処理されます。特に問題はありません。
+A: 設計上は問題ありません。1つの Source に対して1つの Chunk が存在する
+ケース（短いセッションなど）も正常なパターンです。データベーススキーマは
+1対多の関係を想定していますが、1対1のケースも自然に処理されます。
+特に問題はありません。
 
 #### 7.1 PostgreSQL 用テストフィクスチャ
 
@@ -2684,7 +2890,8 @@ async def test_vector_search_performance(postgres_db):
    embedding_duration = Histogram(
        'embedding_duration_seconds', 'Embedding processing duration')
    pending_chunks = Gauge('pending_chunks_count', 'Number of pending chunks')
-   embedding_errors = Counter('embedding_errors_total', 'Total embedding errors')
+   embedding_errors = Counter(
+       'embedding_errors_total', 'Total embedding errors')
    ```
 
 **完了基準**:
@@ -2753,8 +2960,12 @@ addopts = "--cov=src/kotonoha_bot --cov-fail-under=80"
 - [ ] `PostgreSQLDatabase` が `DatabaseProtocol` に適合している
 - [ ] pgvector 拡張が有効化されている
 - [ ] pgvector のバージョン確認が実装されている（HNSW対応の確認）
-- [ ] ⚠️ **重要**: `pgvector.asyncpg.register_vector()` が `init` パラメータ経由で正しく実装されている（プールの各コネクションに対して登録される）
+- [ ] ⚠️ **推奨**: pg_trgm 拡張が有効化されている（ハイブリッド検索の準備、Phase 8.5 で実装予定）
+- [ ] ⚠️ **重要**: `pgvector.asyncpg.register_vector()` が `init` パラメータ
+  経由で正しく実装されている（プールの各コネクションに対して登録される）
 - [ ] テーブルとインデックスが作成される
+- [ ] ⚠️ **推奨**: pg_trgm 拡張が有効化されている（ハイブリッド検索の準備）
+- [ ] ⚠️ **推奨**: `idx_chunks_content_trgm` インデックスが作成されている（Phase 8.5 で使用予定）
 - [ ] セッション管理が動作する
 - [ ] 接続プールの設定が環境変数から読み込まれる（`DB_POOL_MIN_SIZE`, `DB_POOL_MAX_SIZE`）
 
@@ -2774,11 +2985,15 @@ addopts = "--cov=src/kotonoha_bot --cov-fail-under=80"
 - [ ] `knowledge_chunks` テーブルが作成される（`created_at` カラム含む）
 - [ ] 高速保存機能が動作する
 - [ ] Embedding処理が動作する
-- [ ] セッション知識化処理が動作する（非アクティブなセッションが自動的に知識ベースに変換される）
+- [ ] セッション知識化処理が動作する
+  （非アクティブなセッションが自動的に知識ベースに変換される）
 - [ ] Embedding APIのリトライロジックが実装されている（tenacity使用）
 - [ ] セマフォによる同時実行数制限が実装されている
 - [ ] asyncio.Lockによる競合状態対策が実装されている
 - [ ] トランザクションが適切に使用されている（save_session等）
+- [ ] ⚠️ **重要**: `SessionArchiver._archive_session` で、知識ベースへの登録と
+  セッションステータス更新が同一トランザクション内で実行されている
+  （アトミック性の保証）
 - [ ] トークン数チェックと分割処理が実装されている
 - [ ] Recursive Character Splitter方式によるテキスト分割が実装されている（句読点・改行を優先）
 - [ ] `langchain-text-splitters` の導入意図を理解し、将来的な移行計画がある（または既に使用している）
@@ -2792,7 +3007,6 @@ addopts = "--cov=src/kotonoha_bot --cov-fail-under=80"
 - [ ] `asyncpg-stubs>=0.31.1` がdev依存関係としてインストールされている
 - [ ] `structlog>=25.5.0` がインストールされている（構造化ログ用）
 - [ ] `prometheus-client>=0.24.1` がインストールされている（メトリクス収集用）
-- [ ] `python-ulid>=3.1.0` がインストールされている（ULID生成用）
 - [ ] `orjson>=3.11.5` がインストールされている（高速JSON処理用）
 - [ ] 各パッケージの導入意図と利用効果を理解している
 - [ ] 型チェック（`ty` または `mypy`）で `asyncpg-stubs` の効果が確認できる
@@ -2801,7 +3015,7 @@ addopts = "--cov=src/kotonoha_bot --cov-fail-under=80"
 #### Docker Compose
 
 - [ ] `docker-compose.yml` に PostgreSQL サービスが追加されている
-- [ ] `pgvector/pgvector:pg16` イメージが使用されている
+- [ ] `pgvector/pgvector:0.8.1-pg18` イメージが使用されている
 - [ ] 環境変数が正しく設定されている（`DATABASE_URL`）
 - [ ] ボリュームマウントとネットワーク設定が正しく設定されている
 - [ ] 名前付きボリューム（`postgres_data`）を使用しており、バインドマウントによる権限問題を回避している
@@ -2816,7 +3030,11 @@ addopts = "--cov=src/kotonoha_bot --cov-fail-under=80"
 - [ ] pgAdmin が起動し、PostgreSQL に接続できる（`docker-compose --profile admin up -d` で起動）
 - [ ] pgAdmin で PostgreSQL サーバーが登録されている
 - [ ] バックアップ戦略が実装されている（pg_dump等）
-- [ ] バックアップスクリプトで権限問題への対策が実装されている（chmod 644等）
+- [ ] ⚠️ **重要**: バックアップスクリプトで権限問題への対策が実装されている
+  - 推奨: `docker exec` + `docker cp` を使用した方法（権限問題を完全に回避）
+  - 代替: ホスト側で `chmod 777 ./backups` または適切なオーナー設定（`chown 999:999 ./backups`）
+- [ ] バックアップスクリプトが正常に動作する（手動実行で確認）
+- [ ] 古いバックアップの自動削除機能が実装されている（保持日数の設定）
 - [ ] `.env.example` ファイルが作成されている
 
 #### テスト
@@ -2843,7 +3061,8 @@ uv run pytest --cov=src/kotonoha_bot --cov-report=term-missing
 docker-compose exec postgres psql -U kotonoha -d kotonoha -c "SELECT version();"
 
 # 依存関係の確認
-uv pip list | grep -E "(langchain-text-splitters|pydantic-settings|asyncpg-stubs)"
+uv pip list | grep -E "(langchain-text-splitters|pydantic-settings|" \
+  "asyncpg-stubs)"
 ```
 
 ---
@@ -3086,6 +3305,226 @@ docker-compose logs kotonoha-bot
    # コンテナを起動
    docker-compose start
    ```
+
+---
+
+## 11. 将来の改善計画
+
+### 11.1 Phase 8.5: ハイブリッド検索の実装（推奨）
+
+**背景**: 現在の「ベクトル検索のみ」の実装は、特定のキーワード
+（例：「エラーコード 500」「変数名 my_var」）の検索に弱点があります。
+pg_trgm を使用したハイブリッド検索を実装することで、
+検索品質が大幅に向上します。
+
+#### 11.1.1 pg_trgm の必須化
+
+**現状**: pg_trgm は「オプション」として扱われていますが、**「推奨（将来的に必須）」**に格上げすることを検討してください。
+
+**理由**:
+
+- 日本語の全文検索や部分一致において、ベクトル検索を補完する効果が大きい
+- 固有名詞（エラーコード、変数名、プロジェクトコード名など）の検索精度が向上
+- PostgreSQL 標準拡張のため、追加の依存関係が不要
+
+**実装方針**:
+
+- Phase 8 の `_create_indexes` メソッドで既に pg_trgm 拡張とインデックスの作成を実装済み
+- Phase 8.5 でハイブリッド検索クエリの実装を追加
+
+**ハイブリッド検索の実装例**:
+
+```python
+# src/kotonoha_bot/features/knowledge_base/hybrid_search.py
+"""ハイブリッド検索（ベクトル検索 + pg_trgm キーワード検索）"""
+
+async def hybrid_search(
+    self,
+    query: str,
+    query_embedding: list[float],
+    top_k: int = 10,
+    vector_weight: float = 0.7,
+    keyword_weight: float = 0.3,
+) -> list[dict]:
+    """ハイブリッド検索を実行
+    
+    Args:
+        query: 検索クエリ（テキスト）
+        query_embedding: クエリのベクトル（1536次元）
+        top_k: 取得する結果の数
+        vector_weight: ベクトル類似度の重み（デフォルト: 0.7）
+        keyword_weight: キーワード類似度の重み（デフォルト: 0.3）
+    
+    Returns:
+        検索結果のリスト（combined_score でソート済み）
+    """
+    async with self.db.pool.acquire() as conn:
+        # ベクトル検索とキーワード検索のスコアを組み合わせ
+        rows = await conn.fetch("""
+            WITH vector_results AS (
+                SELECT 
+                    c.id,
+                    c.source_id,
+                    c.content,
+                    s.type as source_type,
+                    s.title,
+                    s.uri,
+                    s.metadata as source_metadata,
+                    1 - (c.embedding <=> $1::vector) AS vector_similarity
+                FROM knowledge_chunks c
+                JOIN knowledge_sources s ON c.source_id = s.id
+                WHERE c.embedding IS NOT NULL
+                  AND 1 - (c.embedding <=> $1::vector) > 0.7
+            ),
+            keyword_results AS (
+                SELECT 
+                    c.id,
+                    c.source_id,
+                    c.content,
+                    s.type as source_type,
+                    s.title,
+                    s.uri,
+                    s.metadata as source_metadata,
+                    similarity(c.content, $2) AS keyword_similarity
+                FROM knowledge_chunks c
+                JOIN knowledge_sources s ON c.source_id = s.id
+                WHERE c.content % $2  -- pg_trgm の類似度演算子
+            )
+            SELECT 
+                COALESCE(v.id, k.id) AS chunk_id,
+                COALESCE(v.source_id, k.source_id) AS source_id,
+                COALESCE(v.content, k.content) AS content,
+                COALESCE(v.source_type, k.source_type) AS source_type,
+                COALESCE(v.title, k.title) AS title,
+                COALESCE(v.uri, k.uri) AS uri,
+                COALESCE(v.source_metadata, k.source_metadata)
+                    AS source_metadata,
+                COALESCE(v.vector_similarity, 0) * $3 +
+                COALESCE(k.keyword_similarity, 0) * $4 AS combined_score
+            FROM vector_results v
+            FULL OUTER JOIN keyword_results k ON v.id = k.id
+            ORDER BY combined_score DESC
+            LIMIT $5
+        """, query_embedding, query, vector_weight, keyword_weight, top_k)
+        
+        return [
+            {
+                "chunk_id": row["chunk_id"],
+                "source_id": row["source_id"],
+                "content": row["content"],
+                "source_type": row["source_type"],
+                "title": row["title"],
+                "uri": row["uri"],
+                "source_metadata": row["source_metadata"],
+                "combined_score": float(row["combined_score"]),
+            }
+            for row in rows
+        ]
+```
+
+**完了基準**:
+
+- [ ] pg_trgm 拡張が有効化されている
+- [ ] `idx_chunks_content_trgm` インデックスが作成されている
+- [ ] ハイブリッド検索メソッドが実装されている
+- [ ] ベクトル検索とキーワード検索のスコアを組み合わせた検索が動作する
+- [ ] 検索品質の向上が確認できる（固有名詞の検索精度が向上）
+
+### 11.2 Phase 9: Reranking の実装（オプション）
+
+**背景**: ベクトル検索でTop-20を取得した後、軽量なCross-Encoder（Reranker）でTop-5に絞り込むと、精度が劇的に向上します。
+
+**実装方針**:
+
+- ベクトル検索でTop-20を取得
+- Cross-Encoder（例: `cross-encoder/ms-marco-MiniLM-L-6-v2`）で再ランキング
+- Top-5を返す
+
+**注意事項**:
+
+- Synology NASのCPU負荷が許せば検討に値します
+- Reranker は CPU 集約的な処理のため、大量のリクエストがある場合は注意が必要
+- オプション機能として実装し、環境変数で有効/無効を切り替え可能にする
+
+**実装例**:
+
+```python
+# src/kotonoha_bot/features/knowledge_base/reranker.py
+"""Reranking による検索精度向上"""
+
+from sentence_transformers import CrossEncoder
+
+class Reranker:
+    """Cross-Encoder による再ランキング"""
+    
+    def __init__(
+        self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    ):
+        self.model = CrossEncoder(model_name)
+    
+    def rerank(
+        self,
+        query: str,
+        candidates: list[dict],
+        top_k: int = 5,
+    ) -> list[dict]:
+        """検索候補を再ランキング
+        
+        Args:
+            query: 検索クエリ
+            candidates: 検索候補のリスト（各要素は content キーを持つ）
+            top_k: 返す結果の数
+        
+        Returns:
+            再ランキングされた結果のリスト
+        """
+        if not candidates:
+            return []
+        
+        # Cross-Encoder でスコアを計算
+        pairs = [[query, candidate["content"]] for candidate in candidates]
+        scores = self.model.predict(pairs)
+        
+        # スコアでソート
+        reranked = sorted(
+            zip(candidates, scores),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        # Top-k を返す
+        return [
+            {**candidate, "rerank_score": float(score)}
+            for candidate, score in reranked[:top_k]
+        ]
+```
+
+**使用例**:
+
+```python
+# ベクトル検索でTop-20を取得
+vector_results = await self.db.similarity_search(
+    query_embedding=query_embedding,
+    top_k=20,
+)
+
+# Reranker でTop-5に絞り込む
+reranker = Reranker()
+final_results = reranker.rerank(
+    query=query,
+    candidates=vector_results,
+    top_k=5,
+)
+```
+
+**完了基準**:
+
+- [ ] Cross-Encoder モデルがロードされる
+- [ ] Reranking メソッドが実装されている
+- [ ] ベクトル検索の結果を再ランキングできる
+- [ ] 環境変数で有効/無効を切り替え可能
+- [ ] CPU負荷が許容範囲内であることを確認
+- [ ] 検索精度の向上が確認できる
 
 ---
 

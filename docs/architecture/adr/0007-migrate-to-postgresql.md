@@ -361,7 +361,7 @@ services:
       - DATABASE_URL=postgresql://kotonoha:${POSTGRES_PASSWORD}@postgres:5432/kotonoha
 
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:0.8.1-pg18
     container_name: kotonoha-postgres
     restart: unless-stopped
     environment:
