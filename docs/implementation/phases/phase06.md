@@ -93,7 +93,7 @@ Phase 6（高度な機能：レート制限・コマンド・エラーハンド�
 
 - [コマンド仕様書](../../specifications/command-specification.md)
 - [実装ロードマップ](../roadmap.md)
-- [Phase 5 実装完了報告](./phase5.md)
+- [Phase 5 実装完了報告](./phase05.md)
 
 ---
 
@@ -1469,7 +1469,7 @@ Phase 7 完了後、以下の機能拡張を検討:
 - [Phase 6 実装完了報告](./phase6-completion-report.md)
 - [コマンド仕様書](../../specifications/command-specification.md)
 - [実装ロードマップ](../roadmap.md)
-- [Phase 5 実装完了報告](./phase5.md)
+- [Phase 5 実装完了報告](./phase05.md)
 - [Discord.py ドキュメント](https://discordpy.readthedocs.io/)
 - [Discord API ドキュメント](https://discord.com/developers/docs/)
 

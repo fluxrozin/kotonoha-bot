@@ -95,7 +95,7 @@ Phase 7（aiosqlite への移行：非同期化）の実装が完了しました
 
 - [ADR-0006: aiosqlite への移行](../../architecture/adr/0006-migrate-to-aiosqlite.md)
 - [実装ロードマップ](../roadmap.md)
-- [Phase 6 実装完了報告](./phase6.md)
+- [Phase 6 実装完了報告](./phase06.md)
 
 ---
 

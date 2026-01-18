@@ -722,8 +722,8 @@ Phase 3 が完了したら、以下の機能拡張を検討:
 - [pytest ドキュメント](https://docs.pytest.org/)
 - [ty ドキュメント](https://github.com/astral-sh/ty)（Rust 製の高速型チェッカー）
 - [実装ロードマップ](../roadmap.md)
-- [Phase 1 実装完了報告](./phase1.md)
-- [Phase 2 実装完了報告](./phase2.md)
+- [Phase 1 実装完了報告](./phase01.md)
+- [Phase 2 実装完了報告](./phase02.md)
 - [デプロイメント・運用ガイド](../../operations/deployment-operations.md)
 - [トラブルシューティングガイド](../../operations/troubleshooting.md)
 

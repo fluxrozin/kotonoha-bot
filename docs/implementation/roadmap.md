@@ -21,30 +21,45 @@
 
 ---
 
-## 2. 実装段階の全体像と実装状況
+## 2. 実装状況サマリー
 
-### 実装状況サマリー
-
-| Phase        | 段階              | 実装状況  | 期間     | 主要機能                                             |
-| ------------ | ----------------- | --------- | -------- | ---------------------------------------------------- |
-| **Phase 1**  | 段階 1, 3, 4 統合 | ✅ 完了   | 実装済み | MVP（メンション応答型、セッション管理）              |
-| **Phase 2**  | 段階 2            | ✅ 完了   | 実装済み | NAS デプロイ、Docker 化、バックアップ                |
-| **Phase 3**  | 段階 7            | ✅ 完了   | 実装済み | CI/CD、テスト、コード品質                            |
-| **Phase 4**  | -                 | ✅ 完了   | 実装済み | メッセージ長制限、バッチ同期                         |
-| **Phase 5**  | 段階 5            | ✅ 完了   | 実装済み | スレッド型、聞き耳型                                 |
-| **Phase 6**  | 段階 6            | ✅ 完了   | 実装済み | レート制限、コマンド、エラーハンドリング強化         |
-| **Phase 7**  | -                 | ✅ 完了   | 実装済み | aiosqlite への移行（非同期化）                       |
-| **Phase 8**  | -                 | ⏳ 未実装 | 10-15 日 | PostgreSQL への移行（pgvector 対応）                 |
-| **Phase 8.5**| -                 | ⏳ 未実装 | 2-3 日   | ハイブリッド検索（pg_trgm）                           |
-| **Phase 8.6**| -                 | ⏳ 未実装 | 2-3 日   | Reranking（オプション）                               |
-| **Phase 9**  | -                 | ⏳ 未実装 | 10-15 日 | 完全リファクタリング（非同期コードの整理を含む）     |
-| **Phase 10** | -                 | ⏳ 未実装 | 12-18 日 | 高度な運用機能（モニタリング・設定管理・コスト管理） |
-| **Phase 11** | -                 | ⏳ 未実装 | 5-8 日   | 自動化・最適化機能                                   |
-| **Phase 12** | -                 | ⏳ 未実装 | 3-4 日   | 監査機能（PostgreSQL 移行後で実装）                  |
+| Phase        | 実装状況  | 期間     | 主要機能                                             |
+| ------------ | --------- | -------- | ---------------------------------------------------- |
+| **Phase 1**  | ✅ 完了   | 実装済み | MVP（メンション応答型、セッション管理）              |
+| **Phase 2**  | ✅ 完了   | 実装済み | NAS デプロイ、Docker 化、バックアップ                |
+| **Phase 3**  | ✅ 完了   | 実装済み | CI/CD、テスト、コード品質                            |
+| **Phase 4**  | ✅ 完了   | 実装済み | メッセージ長制限、バッチ同期                         |
+| **Phase 5**  | ✅ 完了   | 実装済み | スレッド型、聞き耳型                                 |
+| **Phase 6**  | ✅ 完了   | 実装済み | レート制限、コマンド、エラーハンドリング強化         |
+| **Phase 7**  | ✅ 完了   | 実装済み | aiosqlite への移行（非同期化）                       |
+| **Phase 8**  | ⏳ 未実装 | 10-15 日 | PostgreSQL への移行（pgvector 対応）                 |
+| **Phase 9**  | ⏳ 未実装 | 2-3 日   | ハイブリッド検索（pg_trgm）                           |
+| **Phase 10** | ⏳ 未実装 | 2-3 日   | Reranking（オプション）                               |
+| **Phase 11** | ⏳ 未実装 | 10-15 日 | 完全リファクタリング（非同期コードの整理を含む）     |
+| **Phase 12** | ⏳ 未実装 | 3-6 日   | 高度なモニタリング機能（管理者用ダッシュボード含む） |
+| **Phase 13** | ⏳ 未実装 | 2-3 日   | コスト管理機能                                       |
+| **Phase 14** | ⏳ 未実装 | 3-4 日   | 監査ログ機能                                         |
+| **Phase 15** | ⏳ 未実装 | 2-3 日   | 設定管理機能                                         |
+| **Phase 16** | ⏳ 未実装 | 2-3 日   | パフォーマンス分析                                   |
+| **Phase 17** | ⏳ 未実装 | 1-2 日   | ログ出力の強化                                       |
+| **Phase 18** | ⏳ 未実装 | 2-3 日   | モデル切り替えオプション                             |
+| **Phase 19** | ⏳ 未実装 | 1-2 日   | バックアップの自動化強化                             |
+| **Phase 20** | ⏳ 未実装 | 2-3 日   | データベース最適化                                   |
+| **Phase 21** | ⏳ 未実装 | 2-3 日   | コスト計算機能                                       |
+| **Phase 22** | ⏳ 未実装 | 15-20 日 | 統合知識ベース機能（会話・添付ファイル・ウェブ）   |
+| **Phase 23** | ⏳ 未実装 | 10-15 日 | 会話の要約・ハイライト機能                           |
+| **Phase 24** | ⏳ 未実装 | 8-12 日  | 議題提案機能                                         |
+| **Phase 25** | ⏳ 未実装 | 5-10 日  | 聞き耳モードでの自動リアクション機能                 |
+| **Phase 26** | ⏳ 未実装 | 5-8 日   | ポジティブフィードバック生成機能                     |
+| **Phase 27** | ⏳ 未実装 | 5-8 日   | 翻訳要約機能                                         |
+| **Phase 28** | ⏳ 未実装 | 20-30 日 | 音声チャンネル機能（要約・議事録、合成音声発話）     |
+| **Phase 29** | ⏳ 未実装 | 15-20 日 | コンテキスト理解の向上機能                           |
 
 ---
 
-## Phase 1: MVP（メンション応答型）✅ 完了
+## 3. フェーズ別実装計画
+
+### Phase 1: MVP（メンション応答型）✅ 完了
 
 **目標**: Discord 上でメンションされた時に LiteLLM 経由で LLM API を使って応答できる最小限の Bot
 
@@ -66,11 +81,11 @@
 - ✅ 基本的なエラーハンドリング
 - ✅ ログ出力機能
 
-**詳細**: [Phase 1 実装完了報告](./phases/phase1.md)
+**詳細**: [Phase 1 実装完了報告](./phases/phase01.md)
 
 ---
 
-## Phase 2: NAS デプロイ ✅ 完了
+### Phase 2: NAS デプロイ ✅ 完了
 
 **目標**: Phase 1 で実装済みの Bot を NAS 上で 24 時間稼働させ、本番環境として運用できるようにする
 
@@ -86,11 +101,11 @@
 - ✅ ヘルスチェック機能（HTTP エンドポイント）
 - ✅ セキュリティ設定（非 root ユーザーでの実行）
 
-**詳細**: [Phase 2 実装完了報告](./phases/phase2.md)
+**詳細**: [Phase 2 実装完了報告](./phases/phase02.md)
 
 ---
 
-## Phase 3: CI/CD と運用機能 ✅ 完了
+### Phase 3: CI/CD と運用機能 ✅ 完了
 
 **目標**: CI/CD パイプラインを構築し、運用に必要な機能を実装する
 
@@ -106,19 +121,19 @@
 - ✅ Watchtower による自動更新機能
 - ✅ 通知機能（Discord Webhook、オプション）
 
-**詳細**: [Phase 3 実装完了報告](./phases/phase3.md)
+**詳細**: [Phase 3 実装完了報告](./phases/phase03.md)
 
 ---
 
-## Phase 4: 機能改善 ✅ 完了
+### Phase 4: 機能改善 ✅ 完了
 
 **目標**: Phase 1 で実装した機能の改善と不足機能の追加
 
-**期間**: 約 3-5 日
+**実装期間**: 2026 年 1 月（完了）
 
 **実装済み機能**:
 
-### 4.1 メッセージ長制限対応
+#### 4.1 メッセージ長制限対応
 
 - ✅ メッセージ分割機能の実装
   - ✅ 2000 文字超の応答を検知
@@ -126,30 +141,24 @@
   - ✅ 連番を付与して複数メッセージに分割
   - ✅ Embed の活用（オプション、6000 文字制限あり）
 
-### 4.2 セッション同期機能の改善
+#### 4.2 セッション同期機能の改善
 
 - ✅ バッチ同期の定期実行タスク
   - ✅ `discord.ext.tasks` または `asyncio` を使用
   - ✅ 5 分ごとにアイドル状態のセッションを自動保存
   - ✅ `cleanup_old_sessions` の定期実行（1 時間ごと）
 
-### 4.3 エラーハンドリングの改善
+#### 4.3 エラーハンドリングの改善
 
 - ✅ メッセージ追加時の自動保存
   - ✅ `add_message` 後に自動的に `save_session` を呼ぶ（オプション）
   - ✅ または、バッチ同期に任せる
 
-**完了基準**:
-
-- ✅ 2000 文字超の応答が自動的に分割される
-- ✅ バッチ同期が 5 分ごとに実行される
-- ✅ セッションクリーンアップが 1 時間ごとに実行される
-
-**詳細**: [Phase 4 実装完了報告](./phases/phase4.md)
+**詳細**: [Phase 4 実装完了報告](./phases/phase04.md)
 
 ---
 
-## Phase 5: 会話の契機拡張（スレッド型・聞き耳型）✅ 完了
+### Phase 5: 会話の契機拡張（スレッド型・聞き耳型）✅ 完了
 
 **目標**: 3 つの会話の契機（メンション/スレッド/聞き耳型）を実装する
 
@@ -157,7 +166,7 @@
 
 **実装済み機能**:
 
-### 5.1 メッセージルーターの実装
+#### 5.1 メッセージルーターの実装
 
 - ✅ `router/message_router.py`: メッセージルーティング
 - ✅ 会話の契機判定ロジック
@@ -165,7 +174,7 @@
   - ✅ スレッド型の判定
   - ✅ 聞き耳型の判定
 
-### 5.2 スレッド型の実装
+#### 5.2 スレッド型の実装
 
 - ✅ メンション検知時の自動スレッド作成
 - ✅ スレッド名の生成（メッセージの最初の 50 文字、文の区切りで切る）
@@ -173,7 +182,7 @@
 - ✅ スレッドアーカイブ検知
 - ✅ アーカイブ時のセッション保存
 
-### 5.3 聞き耳型の実装
+#### 5.3 聞き耳型の実装
 
 - ✅ `eavesdrop/llm_judge.py`: LLM 判断機能（アプローチ 1）
   - ✅ 会話ログの一時保存（直近 20 件）
@@ -187,7 +196,7 @@
 - ✅ チャンネルごとの有効/無効設定
 - ✅ メインチャンネルへの直接投稿機能
 
-### 5.4 統一インターフェースの実装
+#### 5.4 統一インターフェースの実装
 
 - ✅ 3 つの方式を統一的に扱うインターフェース
 - ✅ セッションキーの統一管理
@@ -195,19 +204,11 @@
   - ✅ スレッド型: `thread:{thread_id}`
   - ✅ 聞き耳型: `eavesdrop:{channel_id}`
 
-**完了基準**:
-
-- ✅ メッセージルーターが実装されている
-- ✅ スレッド型が動作する（自動スレッド作成）
-- ✅ 聞き耳型が動作する（アプローチ 1）
-- ✅ 各方式で会話履歴が正しく管理される
-- ✅ すべてのテストが通過する（49 テストケース）
-
-**詳細**: [Phase 5 実装完了報告](./phases/phase5.md)
+**詳細**: [Phase 5 実装完了報告](./phases/phase05.md)
 
 ---
 
-## Phase 6: 高度な機能（レート制限・コマンド・エラーハンドリング強化）✅ 完了
+### Phase 6: 高度な機能（レート制限・コマンド・エラーハンドリング強化）✅ 完了
 
 **目標**: レート制限対応、スラッシュコマンド機能、エラーハンドリングの強化を実装し、運用性とユーザー体験を向上させる
 
@@ -215,7 +216,7 @@
 
 **実装済み機能**:
 
-### Step 1: レート制限モニタリングの実装 ✅
+#### Step 1: レート制限モニタリングの実装 ✅
 
 - ✅ `src/kotonoha_bot/rate_limit/__init__.py` の作成
 - ✅ `src/kotonoha_bot/rate_limit/monitor.py` の作成
@@ -224,7 +225,7 @@
   - ✅ 警告ログの出力
 - ✅ `litellm_provider.py` への統合
 
-### Step 2: トークンバケットアルゴリズムの実装 ✅
+#### Step 2: トークンバケットアルゴリズムの実装 ✅
 
 - ✅ `src/kotonoha_bot/rate_limit/token_bucket.py` の作成
   - ✅ リクエストレートの制御
@@ -232,7 +233,7 @@
   - ✅ トークンの自動補充
 - ✅ `litellm_provider.py` への統合
 
-### Step 3: リクエストキューイングの実装 ✅
+#### Step 3: リクエストキューイングの実装 ✅
 
 - ✅ `src/kotonoha_bot/rate_limit/request_queue.py` の作成
   - ✅ リクエストのキューイング
@@ -240,478 +241,64 @@
   - ✅ 非同期処理
 - ✅ `handlers.py` への統合
 
-### Step 4: スラッシュコマンドの実装 ✅
+#### Step 4: スラッシュコマンドの実装 ✅
 
 - ✅ `src/kotonoha_bot/commands/__init__.py` の作成
 - ✅ `src/kotonoha_bot/commands/chat.py` の作成
   - ✅ `/chat reset` コマンド（会話履歴リセット）
-    - ✅ セッションの会話履歴をクリア
-    - ✅ メモリ内のセッションをリセット
   - ✅ `/chat status` コマンド（セッション状態表示）
-    - ✅ セッションタイプの表示
-    - ✅ 会話履歴の件数表示
-    - ✅ セッションの開始時刻表示
-  - [ ] `/chat start` コマンド（スレッド型開始）
-    - [ ] スレッドの自動作成
-    - [ ] セッションの初期化
-    - **注意**: スレッド型はメンション時に自動作成されるため、
-      現時点では未実装
+  - [ ] `/chat start` コマンド（スレッド型開始、未実装）
 - ✅ `main.py` でのコマンド登録
 - ✅ コマンドの同期（`bot.tree.sync()`）
 
-### Step 4.5: 応答メッセージにモデル情報フッターを追加 ✅
+#### Step 4.5: 応答メッセージにモデル情報フッターを追加 ✅
 
 - ✅ `src/kotonoha_bot/utils/message_formatter.py` の作成
-  - ✅ Embed を使用したメッセージフォーマット関数の実装
-  - ✅ フッターに使用モデル名を表示
-  - ✅ レート制限使用率の表示（オプション）
+- ✅ Embed を使用したメッセージフォーマット関数の実装
+- ✅ フッターに使用モデル名を表示
 - ✅ `handlers.py` の更新
-  - ✅ すべての応答メッセージ（mention、thread、eavesdrop）にフッターを追加
-  - ✅ `generate_response` から使用モデル情報を取得
-- ✅ メッセージ分割時の対応
-  - ✅ 分割されたメッセージの最初のメッセージのみフッターを表示
 
-### Step 5: エラーハンドリングの強化 ✅
+#### Step 5: エラーハンドリングの強化 ✅
 
 - ✅ `src/kotonoha_bot/errors/__init__.py` の作成
 - ✅ `src/kotonoha_bot/errors/discord_errors.py` の作成
-  - ✅ Discord API エラーの分類
-  - ✅ エラータイプの判定
-  - ✅ 適切なエラーメッセージの生成
 - ✅ `src/kotonoha_bot/errors/database_errors.py` の作成
-  - ✅ データベースエラーの分類
-  - ✅ エラータイプの判定
-  - ✅ 適切なエラーメッセージの生成
 - ✅ `handlers.py` への統合
-  - ✅ ユーザーフレンドリーなエラーメッセージの送信
-  - ✅ 場面緘黙支援を考慮した表現
 
-### Step 6: テストの実装 ✅
+#### Step 6: テストの実装 ✅
 
-- ✅ `tests/unit/test_rate_limit.py` の作成（実装状況を確認）
-  - ✅ レート制限モニターのテスト
-  - ✅ トークンバケットのテスト
-  - ✅ リクエストキューのテスト
-- ✅ `tests/unit/test_commands.py` の作成（実装状況を確認）
-  - ✅ `/chat reset` コマンドのテスト
-  - ✅ `/chat status` コマンドのテスト
-- ✅ `tests/unit/test_errors.py` の作成（実装状況を確認）
-  - ✅ Discord エラーの分類テスト
-  - ✅ データベースエラーの分類テスト
-  - ✅ エラーメッセージの生成テスト
+- ✅ `tests/unit/test_rate_limit.py` の作成
+- ✅ `tests/unit/test_commands.py` の作成
+- ✅ `tests/unit/test_errors.py` の作成
 
-### Step 7: 動作確認とドキュメント更新 ✅
-
-- ✅ レート制限対応の動作確認
-- ✅ スラッシュコマンドの動作確認
-- ✅ エラーハンドリングの動作確認
-- ✅ `.env.example` の更新
-- ✅ README の更新
-- ✅ 実装ロードマップの更新
-
-**既に実装済みの機能**:
-
-- ✅ API エラーの分類（RateLimitError、InternalServerError、AuthenticationError）:
-  Phase 1 で実装済み
-- ✅ リトライロジック（指数バックオフ）: Phase 1 で実装済み
-  - ✅ 最大リトライ回数の設定（`LLM_MAX_RETRIES`、デフォルト: 3）
-  - ✅ リトライ間隔の指数バックオフ（`LLM_RETRY_DELAY_BASE`、デフォルト: 1.0 秒）
-  - ✅ `InternalServerError`（HTTP 529 Overloaded を含む）のリトライ対応
-  - ✅ `RateLimitError`（HTTP 429）のリトライ対応
-- ✅ フォールバック機能: Phase 1 で実装済み
-  - ✅ フォールバックモデルへの自動切り替え（LiteLLM の`fallbacks`パラメータ）
-  - ✅ フォールバック時のログ出力
-
-**完了基準**:
-
-- ✅ レート制限モニターが実装されている
-- ✅ トークンバケットアルゴリズムが実装されている
-- ✅ リクエストキューが実装されている
-- ✅ 優先度管理が動作する（メンション > スレッド > 聞き耳型）
-- ✅ `/chat reset` コマンドが動作する
-- ✅ `/chat status` コマンドが動作する
-- ✅ Discord API エラーの分類が実装されている
-- ✅ データベースエラーの分類が実装されている
-- ✅ ユーザーフレンドリーなエラーメッセージが生成される
-- ✅ 場面緘黙支援を考慮した表現が使用される
-- ✅ 応答メッセージにモデル情報フッターが追加されている
-- ✅ すべてのテストが通過する
-
-**詳細**: [Phase 6 実装計画](./phases/phase6.md)
+**詳細**: [Phase 6 実装計画](./phases/phase06.md)
 
 ---
 
-## 実装状況の詳細
-
-### ✅ 実装完了（Phase 1, Phase 2, Phase 3）
-
-| 機能カテゴリ                    | 実装状況 | 備考    |
-| ------------------------------- | -------- | ------- |
-| 環境構築・Discord 接続          | ✅ 完了  | Phase 1 |
-| AI 応答機能（メンション応答型） | ✅ 完了  | Phase 1 |
-| セッション管理・会話履歴保持    | ✅ 完了  | Phase 1 |
-| NAS デプロイ・Docker 化         | ✅ 完了  | Phase 2 |
-| バックアップ機能                | ✅ 完了  | Phase 2 |
-| ログ管理                        | ✅ 完了  | Phase 2 |
-| ヘルスチェック                  | ✅ 完了  | Phase 2 |
-| CI/CD パイプライン              | ✅ 完了  | Phase 3 |
-| テストフレームワーク            | ✅ 完了  | Phase 3 |
-| コード品質ツール                | ✅ 完了  | Phase 3 |
-| Watchtower 設定                 | ✅ 完了  | Phase 3 |
-
-### ✅ 実装完了（Phase 4）
-
-| 機能カテゴリ                 | 実装状況 | 備考    |
-| ---------------------------- | -------- | ------- |
-| メッセージ長制限対応         | ✅ 完了  | Phase 4 |
-| バッチ同期の定期実行         | ✅ 完了  | Phase 4 |
-| セッション設定の環境変数対応 | ✅ 完了  | Phase 4 |
-| エラーハンドリング改善       | ✅ 完了  | Phase 4 |
-
-### ✅ 実装完了（Phase 5）
-
-| 機能カテゴリ         | 実装状況 | 備考    |
-| -------------------- | -------- | ------- |
-| メッセージルーター   | ✅ 完了  | Phase 5 |
-| スレッド型           | ✅ 完了  | Phase 5 |
-| 聞き耳型             | ✅ 完了  | Phase 5 |
-| 統一インターフェース | ✅ 完了  | Phase 5 |
-
-### ✅ 実装完了（Phase 6）
-
-| 機能カテゴリ                 | 実装状況 | 備考    |
-| ---------------------------- | -------- | ------- |
-| レート制限モニタリング       | ✅ 完了  | Phase 6 |
-| トークンバケットアルゴリズム | ✅ 完了  | Phase 6 |
-| リクエストキューイング       | ✅ 完了  | Phase 6 |
-| スラッシュコマンド           | ✅ 完了  | Phase 6 |
-| Discord API エラー分類       | ✅ 完了  | Phase 6 |
-| データベースエラー分類       | ✅ 完了  | Phase 6 |
-| ユーザーフレンドリーなエラー | ✅ 完了  | Phase 6 |
-| 応答メッセージフッター       | ✅ 完了  | Phase 6 |
-| リトライロジック（基本）     | ✅ 完了  | Phase 1 |
-| API エラー分類（基本）       | ✅ 完了  | Phase 1 |
-| フォールバック機能           | ✅ 完了  | Phase 1 |
-
----
-
-## フェーズ別実装計画
-
-### Phase 1 の詳細: MVP（メンション応答型）✅ 完了
-
-**実装済み機能**:
-
-1. **環境構築と Discord 接続**
-
-   - ✅ プロジェクト構造の作成
-   - ✅ `pyproject.toml` の設定
-   - ✅ Discord Bot の基本接続
-
-2. **AI 応答機能**
-
-   - ✅ LiteLLM 統合
-   - ✅ システムプロンプトの実装
-   - ✅ 動的プロンプト生成（日付情報の注入）
-   - ✅ フォールバック機能
-
-3. **セッション管理**
-   - ✅ SQLite データベースのセットアップ
-   - ✅ ChatSession クラスの実装
-   - ✅ セッション管理モジュール
-   - ✅ 会話履歴の保持と復元
-
-**詳細**: [Phase 1 実装完了報告](./phases/phase1.md)
-
----
-
-### Phase 2 の詳細: NAS デプロイ ✅ 完了
-
-**実装済み機能**:
-
-1. **Docker 化**
-
-   - ✅ Dockerfile の作成（マルチステージビルド）
-   - ✅ Docker Compose の作成
-   - ✅ 非 root ユーザーでの実行
-
-2. **NAS デプロイ**
-
-   - ✅ Synology Container Manager での設定
-   - ✅ 自動起動の設定
-   - ✅ ボリュームマウント
-
-3. **運用機能**
-   - ✅ バックアップ機能
-   - ✅ ログ管理
-   - ✅ ヘルスチェック機能
-
-**詳細**: [Phase 2 実装完了報告](./phases/phase2.md)
-
----
-
-### Phase 3 の詳細: CI/CD と運用機能 ✅ 完了
-
-**実装済み機能**:
-
-1. **テストフレームワーク**
-
-   - ✅ pytest 設定
-   - ✅ テストディレクトリ構造
-   - ✅ 基本的なテストの実装
-
-2. **コード品質ツール**
-
-   - ✅ Ruff 設定（lint、format）
-   - ✅ ty 設定（type-check）
-
-3. **CI/CD パイプライン**
-   - ✅ GitHub Actions CI ワークフロー
-   - ✅ GitHub Actions ビルドワークフロー
-   - ✅ Docker イメージのビルドと GHCR へのプッシュ
-   - ✅ Watchtower の設定
-
-**詳細**: [Phase 3 実装完了報告](./phases/phase3.md)
-
----
-
-### Phase 4 の詳細: 機能改善 ✅ 完了
-
-**実装済み機能**:
-
-1. **メッセージ長制限対応**
-
-   - ✅ 2000 文字超の応答を分割
-   - ✅ 文の区切りで分割
-   - ✅ 連番を付与
-
-2. **セッション同期機能の改善**
-
-   - ✅ バッチ同期の定期実行（5 分ごと）
-   - ✅ セッションクリーンアップの定期実行（1 時間ごと）
-
-3. **セッション設定の環境変数対応**
-
-   - ✅ `SESSION_TIMEOUT_HOURS`、`MAX_SESSIONS` を環境変数から読み込み
-
-4. **エラーハンドリングの改善**
-   - ✅ エラーメッセージの改善
-
-**期間**: 実装済み（2026 年 1 月 15 日完了）
-
-**詳細**: [Phase 4 実装完了報告](./phases/phase4.md)
-
----
-
-### Phase 5 の詳細: 会話の契機拡張（スレッド型・聞き耳型）✅ 完了
-
-**実装済み機能**:
-
-1. **メッセージルーター**
-
-   - ✅ メッセージルーティング
-   - ✅ 会話の契機判定ロジック
-
-2. **スレッド型**
-
-   - ✅ メンション検知時の自動スレッド作成
-   - ✅ スレッド名の生成（メッセージの最初の 50 文字、文の区切りで切る）
-   - ✅ スレッド内での会話継続（メンション不要）
-   - ✅ スレッドアーカイブ検知
-   - ✅ アーカイブ時のセッション保存
-
-3. **聞き耳型**
-   - ✅ LLM 判断機能（アプローチ 1）
-   - [ ] ルールベース判断機能（アプローチ 2、オプション）
-   - ✅ チャンネルごとの有効/無効設定
-   - ✅ 会話ログの一時保存（直近 20 件）
-   - ✅ 介入履歴の追跡
-   - ✅ 会話状態の分析
-
-**実装期間**: 2026 年 1 月（完了）
-
-**詳細**: [Phase 5 実装完了報告](./phases/phase5.md)
-
----
-
-### Phase 6 の詳細: 高度な機能（レート制限・コマンド・エラーハンドリング強化）✅ 完了
-
-**実装済み機能**:
-
-1. **レート制限モニタリング**
-
-   - ✅ `rate_limit/monitor.py` の作成
-   - ✅ API リクエスト数の追跡
-   - ✅ レート制限の接近を検知
-   - ✅ 警告ログの出力
-   - ✅ `litellm_provider.py` への統合
-
-2. **トークンバケットアルゴリズム**
-
-   - ✅ `rate_limit/token_bucket.py` の作成
-   - ✅ リクエストレートの制御
-   - ✅ バースト対応
-   - ✅ トークンの自動補充
-   - ✅ `litellm_provider.py` への統合
-
-3. **リクエストキューイング**
-
-   - ✅ `rate_limit/request_queue.py` の作成
-   - ✅ リクエストのキューイング
-   - ✅ 優先度管理（メンション > スレッド > 聞き耳型）
-   - ✅ 非同期処理
-   - ✅ `handlers.py` への統合
-
-4. **スラッシュコマンド**
-
-   - ✅ `commands/chat.py` の作成
-   - ✅ `/chat reset` コマンド（会話履歴リセット）
-   - ✅ `/chat status` コマンド（セッション状態表示）
-   - [ ] `/chat start` コマンド（スレッド型開始、未実装）
-     - **注意**: スレッド型はメンション時に自動作成されるため、
-       現時点では未実装
-   - ✅ `main.py` でのコマンド登録
-
-5. **エラーハンドリングの強化**
-
-   - ✅ `errors/discord_errors.py` の作成
-   - ✅ `errors/database_errors.py` の作成
-   - ✅ Discord API エラーの分類
-   - ✅ データベースエラーの分類
-   - ✅ ユーザーフレンドリーなエラーメッセージの生成
-   - ✅ 場面緘黙支援を考慮した表現
-   - ✅ `handlers.py` への統合
-
-6. **応答メッセージフッター**
-
-   - ✅ `utils/message_formatter.py` の作成
-   - ✅ Embed を使用したメッセージフォーマット関数の実装
-   - ✅ フッターに使用モデル名を表示
-   - ✅ レート制限使用率の表示（オプション）
-   - ✅ `handlers.py` の更新
-
-**既に実装済みの機能**:
-
-- ✅ API エラーの分類（RateLimitError、InternalServerError、AuthenticationError）:
-  Phase 1 で実装済み
-- ✅ リトライロジック（指数バックオフ）: Phase 1 で実装済み
-- ✅ フォールバック機能: Phase 1 で実装済み
-
-**期間**: 実装済み（2026 年 1 月完了）
-
-**詳細**: [Phase 6 実装計画](./phases/phase6.md)
-
----
-
-## Phase 7: aiosqlite への移行 ✅ 完了
+### Phase 7: aiosqlite への移行 ✅ 完了
 
 **目標**: 同期的な `sqlite3` から非同期対応の `aiosqlite` に移行し、Bot 全体のブロッキング問題を解決する
 
-**期間**: 約 2-3 日
-
-**実装完了日**: 2026 年 1 月 15 日
+**実装期間**: 2026 年 1 月 15 日（完了）
 
 **実装済み機能**:
 
-### Step 1: SQLiteDatabase クラスの非同期化 ✅
-
 - ✅ `SQLiteDatabase` クラスの全メソッドを `async def` に変更
-  - ✅ `_get_connection()` を非同期化（各メソッドで直接 `aiosqlite.connect()` を使用する実装に変更）
-  - ✅ `_init_database()` を非同期化
-  - ✅ `__init__()` を変更し、`initialize()` メソッドを追加
-  - ✅ `save_session()` を非同期化
-  - ✅ `load_session()` を非同期化
-  - ✅ `load_all_sessions()` を非同期化
-  - ✅ `delete_session()` を非同期化
-  - ✅ `close()` を非同期化（aiosqlite は接続プールを自動管理するため、実装を簡素化）
-- ✅ `aiosqlite` の API に合わせて実装を修正
-- ✅ WAL モード、外部キー制約などの設定を維持（各接続で PRAGMA 設定を実行）
-- ✅ すべての `sqlite3.Error` を `aiosqlite.Error` に変更
-
-### Step 2: SessionManager クラスの非同期化 ✅
-
-- ✅ `SessionManager` の DB 操作を呼び出すメソッドを非同期化
-  - ✅ `__init__()` を変更し、`initialize()` メソッドを追加
-  - ✅ `_load_active_sessions()` を非同期化
-  - ✅ `get_session()` を非同期化
-  - ✅ `create_session()` を非同期化
-  - ✅ `save_session()` を非同期化
-  - ✅ `save_all_sessions()` を非同期化
-  - ✅ `cleanup_old_sessions()` を非同期化
-- ✅ 初期化処理を `on_ready` イベントで実行するように変更
-
-### Step 3: 呼び出し元の修正 ✅
-
-- ✅ `handlers.py` のすべての呼び出し箇所で `await` を追加
-  - ✅ `on_ready()` イベントで `session_manager.initialize()` を呼び出す
-  - ✅ `cleanup_task()` 内の呼び出し
-  - ✅ `batch_sync_task()` 内の呼び出し
-  - ✅ `_process_mention()` 内の呼び出し
-  - ✅ `_process_thread_creation()` 内の呼び出し
-  - ✅ `_process_thread_message()` 内の呼び出し
-  - ✅ `_process_eavesdrop()` 内の呼び出し
-  - ✅ `on_thread_update()` 内の呼び出し
-- ✅ `main.py` の `shutdown_gracefully()` を修正
-- ✅ コマンド実装（`commands/chat.py`）の DB 操作を確認・修正
-
-### Step 4: テストの更新 ✅
-
-- ✅ `tests/conftest.py` のフィクスチャを非同期化
-- ✅ `tests/unit/test_db.py` のすべてのテストを非同期化
-- ✅ `tests/unit/test_session.py` のすべてのテストを非同期化
-- ✅ 他のテストファイルで DB 操作を使用している場合は修正（モックを `AsyncMock` に変更）
-- ✅ すべてのテストが通過することを確認（137 テストケースすべて通過）
-
-### Step 5: 動作確認とドキュメント更新 ✅
-
-- ✅ 基本機能が正常に動作することを確認
-- ✅ パフォーマンスが改善されていることを確認
-- ✅ エラーハンドリングが正しく動作することを確認
-- ✅ すべてのテストが通過することを確認
-- ✅ ADR-0006 のステータスを更新
-- ✅ ロードマップの実装状況を更新
-
-**完了基準**:
-
-- ✅ `aiosqlite` が依存関係に追加されている（✅ 既に完了: `aiosqlite>=0.22.1`）
-- ✅ `SQLiteDatabase` クラスが完全に非同期化されている
-- ✅ `SessionManager` クラスが完全に非同期化されている
-- ✅ すべての呼び出し箇所で `await` が使用されている
-- ✅ Bot 全体がブロックされない（非同期処理が正常に動作）
-- ✅ すべてのテストが通過する（137 テストケースすべて通過）
-- ✅ 既存の機能が正常に動作する（セッション保存・読み込み）
-- ✅ ドキュメントが更新されている
-
-**実装の優先度**: **高**（技術的負債の解消、監査ログ機能の前提条件）
+- ✅ `SessionManager` クラスの DB 操作を呼び出すメソッドを非同期化
+- ✅ 呼び出し元の修正（`handlers.py`、`main.py`、`commands/chat.py`）
+- ✅ テストの更新（すべてのテストを非同期化）
+- ✅ 動作確認とドキュメント更新
 
 **詳細**:
 
 - [ADR-0006: aiosqlite への移行](../architecture/adr/0006-migrate-to-aiosqlite.md)
-- [Phase 7 実装計画](./phases/phase7.md)
-
-**注意**: この移行は Phase 8（PostgreSQL への移行）と Phase 9（完全リファクタリング）の前に実施することを推奨します。理由:
-
-1. **技術的負債の早期解消**: 同期コードが非同期イベントハンドラーから呼ばれているのは重大な問題
-2. **パフォーマンスの即時改善**: Bot 全体のブロッキング問題を解決
-3. **Phase 8 の効率化**: PostgreSQL 移行時に非同期 DB が必要
-4. **Phase 9 の効率化**: 非同期コードを基にリファクタリングする方が効率的
-5. **監査ログ機能の前提**: Phase 12 の監査ログ機能は非同期 DB が必要
+- [Phase 7 実装計画](./phases/phase07.md)
 
 ---
 
-## Phase 8: PostgreSQL への移行 ⏳ 未実装
+### Phase 8: PostgreSQL への移行 ⏳ 未実装
 
 **目標**: PostgreSQL 18 + pgvector 0.8.1 を新規実装し、ベクトル検索機能とスケーラビリティを実現する
-
-**設計思想**（[PostgreSQL スキーマ設計書](../architecture/postgresql-schema-design.md) に基づく）:
-
-- **短期記憶（Sessions）**: Discord Botがリアルタイムに読み書きする場所。
-  高速動作優先。`sessions` テーブルで管理。
-- **長期記憶（Knowledge）**: AI検索用。あらゆるデータ（会話、ファイル、Web）を
-  「Source」と「Chunk」に抽象化して管理。
-- **Source-Chunk構造**: すべてのデータを「Source（親）」と「Chunk（子）」に
-  抽象化することで、将来の機能拡張（動画検索など）にも柔軟に対応。
-- **データフロー**: `sessions` テーブルの非アクティブなセッションは、
-  バッチ処理によって `knowledge_sources` と `knowledge_chunks` に変換される。
 
 **期間**: 約 10-15 日
 
@@ -719,165 +306,34 @@
 
 **実装優先度**: **高**（ベクトル検索・RAG機能の前提条件）
 
-**詳細**:
+**設計思想**
+（[PostgreSQL スキーマ設計書](../architecture/postgresql-schema-design.md) に基づく）:
 
-- [Phase 8 詳細実装計画](./phases/phase8.md)
-- [PostgreSQL スキーマ設計書](../architecture/postgresql-schema-design.md)
+- **短期記憶（Sessions）**: Discord Botがリアルタイムに読み書きする場所。
+  高速動作優先。`sessions` テーブルで管理。
+- **長期記憶（Knowledge）**: AI検索用。あらゆるデータ（会話、ファイル、Web）を
+  「Source」と「Chunk」に抽象化して管理。
+- **Source-Chunk構造**: すべてのデータを「Source（親）」と「Chunk（子）」に抽象化
+  することで、将来の機能拡張（動画検索など）にも柔軟に対応。
+- **データフロー**: `sessions` テーブルの非アクティブなセッションは、
+  バッチ処理によって `knowledge_sources` と `knowledge_chunks` に変換される。
 
-### Step 0: 依存関係の確認と設計レビュー (0.5 日)
+**実装内容**:
 
-- [ ] 依存関係の追加確認
-  - [ ] `asyncpg>=0.31.0`（PostgreSQL非同期ドライバー）
-  - [ ] `pgvector>=0.3.0`（asyncpgへの型登録用）
-  - [ ] `langchain-text-splitters>=1.1.0`（テキスト分割）
-  - [ ] `pydantic-settings>=2.12.0`（型安全な設定管理）
-  - [ ] `structlog>=25.5.0`（構造化ログ）
-  - [ ] `prometheus-client>=0.24.1`（メトリクス収集）
-  - [ ] `orjson>=3.11.5`（高速JSON処理）
-- [ ] 設計レビュー（Source-Chunk構造、非同期処理パターン、スキーマ設計）
+- [ ] データベース抽象化レイヤーの実装
+- [ ] PostgreSQL 実装の追加（pgvector 拡張、ENUM型、テーブル定義）
+- [ ] ベクトル検索機能の実装
+- [ ] 知識ベーススキーマの実装
+- [ ] Embedding処理の実装
+- [ ] セッション知識化処理の実装
+- [ ] Docker Compose の更新
+- [ ] テストと最適化
 
-### Step 1: データベース抽象化レイヤーの実装 (2-3 日)
+**詳細**: [Phase 8 詳細実装計画](./phases/phase08.md)
 
-- [ ] `src/kotonoha_bot/db/base.py` の作成（`DatabaseProtocol` インターフェースの定義）
-- [ ] 既存の `SQLiteDatabase` を `DatabaseProtocol` に適合
-- [ ] 依存性注入パターンの採用（循環インポート対策）
+---
 
-### Step 2: PostgreSQL 実装の追加 (3-4 日)
-
-- [ ] `src/kotonoha_bot/db/postgres.py` の作成（`PostgreSQLDatabase` クラス）
-- [ ] `asyncpg` の依存関係追加（`pyproject.toml`）
-- [ ] pgvector 拡張のセットアップ（`CREATE EXTENSION vector`、pgvector 0.8.1）
-- [ ] ⚠️ **推奨**: pg_trgm 拡張のセットアップ（ハイブリッド検索の準備、Phase 8.5 で実装予定）
-- [ ] ENUM型の作成
-  - [ ] `source_type_enum`（`discord_session`, `document_file`,
-    `web_page`, `image_caption`, `audio_transcript`）
-  - [ ] `session_status_enum`（`active`, `archived`）
-  - [ ] `source_status_enum`（`pending`, `processing`, `completed`,
-    `failed`）
-- [ ] テーブル定義とインデックスの作成
-  - [ ] `sessions` テーブル（短期記憶、高速読み書き用）
-  - [ ] `knowledge_sources` テーブル（長期記憶の親、Source-Chunk構造の親）
-  - [ ] `knowledge_chunks` テーブル（長期記憶の子、ベクトル保存、`vector(1536)` または `halfvec(1536)`）
-  - [ ] HNSWインデックスの作成（ベクトル検索用、環境変数でパラメータ制御）
-  - [ ] ⚠️ **推奨**: `idx_chunks_content_trgm` インデックスの作成（pg_trgm用）
-  - [ ] ⚠️ **推奨**: halfvec の採用検討（メモリ使用量50%削減、環境変数 `KB_USE_HALFVEC` で制御）
-- [ ] 基本的な CRUD 操作の実装（セッション管理）
-- [ ] ⚠️ **重要**: `pgvector.asyncpg.register_vector()` が `init` パラメータ経由で正しく実装されている（プールの各コネクションに対して登録される）
-- [ ] ⚠️ **推奨**: JSONBの自動変換（asyncpgカスタムコーデック）の実装（`json.dumps/loads` が不要になる）
-- [ ] 接続プールの設定（環境変数から読み込み: `DB_POOL_MIN_SIZE`, `DB_POOL_MAX_SIZE`, `DB_COMMAND_TIMEOUT`）
-
-### Step 3: ベクトル検索機能の実装 (2-3 日)
-
-- [ ] `similarity_search` メソッドの実装（pgvector の `<=>` 演算子を使用）
-- [ ] ベクトルインデックスの最適化（HNSW、環境変数でパラメータ制御: `KB_HNSW_M`, `KB_HNSW_EF_CONSTRUCTION`）
-- [ ] ⚠️ **重要**: halfvec使用時の型キャストを動的に変更する実装（環境変数 `KB_USE_HALFVEC` に基づく）
-- [ ] メタデータフィルタリング機能（チャンネルID、ユーザーIDなど）
-- [ ] ENUMバリデーションによるSQLインジェクション対策
-- [ ] フィルタキーのAllow-list チェック（`ALLOWED_FILTER_KEYS`）
-- [ ] `KnowledgeBaseSearch` クラスの実装
-
-### Step 4: 知識ベーススキーマの実装 (2-3 日)
-
-- [ ] `KnowledgeBaseStorage` クラスの実装
-- [ ] 高速保存機能の実装（`save_message_fast`, `save_document_fast`）
-- [ ] Source と Chunk が正しく保存される
-- [ ] Source-Chunk構造の実装（すべてのデータを「Source（親）」と「Chunk（子）」に抽象化）
-- [ ] JSONBメタデータの柔軟な管理（ソースタイプごとに異なる属性を格納）
-
-### Step 5: Embedding処理の実装 (2-3 日)
-
-- [ ] `EmbeddingProvider` インターフェースの実装
-- [ ] `OpenAIEmbeddingProvider` の実装（tenacityによるリトライロジック付き）
-- [ ] `EmbeddingProcessor` クラスの実装（バックグラウンドタスク）
-- [ ] pendingチャンクが自動的にベクトル化される
-- [ ] セマフォによる同時実行数制限
-- [ ] ⚠️ **重要**: `FOR UPDATE SKIP LOCKED` パターンの実装（DBレベルの排他制御、スケールアウト対応）
-- [ ] asyncio.Lockによる競合状態対策（単一プロセス用の補助）
-- [ ] Graceful Shutdownの実装
-- [ ] ⚠️ **重要**: halfvec使用時の型キャストを動的に変更する実装（環境変数 `KB_USE_HALFVEC` に基づく）
-
-### Step 6: セッション知識化処理の実装 (2-3 日)
-
-- [ ] `SessionArchiver` クラスの実装
-- [ ] 非アクティブなセッションが自動的に知識ベースに変換される
-- [ ] ⚠️ **重要**: `_archive_session` メソッドで、`knowledge_sources` への
-  INSERT、`knowledge_chunks` への INSERT、`sessions` の UPDATE が
-  **同一のアトミックなトランザクション内**で実行されている
-  （データ不整合の防止）
-- [ ] トランザクション分離レベルが `REPEATABLE READ` に設定されている
-  （楽観的ロックのため）
-- [ ] トークン数チェックと分割処理が実装されている
-- [ ] Recursive Character Splitter方式によるテキスト分割（`langchain-text-splitters` 使用）
-- [ ] フィルタリングロジック（短いセッション、Botのみのセッション除外）
-
-### Step 7: Docker Compose の更新 (1 日)
-
-- [ ] `docker-compose.yml` に PostgreSQL サービスを追加
-- [ ] `pgvector/pgvector:0.8.1-pg18` イメージの使用
-- [ ] 環境変数の設定
-  - [ ] `DATABASE_URL`（PostgreSQL接続文字列）
-  - [ ] `POSTGRES_PASSWORD`（PostgreSQLパスワード）
-  - [ ] `DB_POOL_MIN_SIZE`（接続プール最小サイズ、デフォルト: 5）
-  - [ ] `DB_POOL_MAX_SIZE`（接続プール最大サイズ、デフォルト: 20）
-  - [ ] `DB_COMMAND_TIMEOUT`（コマンドタイムアウト秒、デフォルト: 60）
-  - [ ] `KB_USE_HALFVEC`（halfvec使用フラグ、デフォルト: false）
-  - [ ] `KB_HNSW_M`（HNSWインデックス m パラメータ、デフォルト: 16）
-  - [ ] `KB_HNSW_EF_CONSTRUCTION`（HNSWインデックス ef_construction パラメータ、デフォルト: 64）
-- [ ] ボリュームマウントとネットワーク設定
-  - [ ] 名前付きボリューム（`postgres_data`）を使用（権限問題回避）
-  - [ ] `./backups:/app/backups` マウント（バックアップ用）
-- [ ] ⚠️ **重要**: バックアップスクリプトで権限問題への対策が実装されている
-  - [ ] 推奨: `docker exec` + `docker cp` を使用した方法（権限問題を完全に回避）
-  - [ ] 代替: ホスト側で `chmod 777 ./backups` または適切なオーナー設定
-- [ ] pgAdmin の追加（Web管理ツール）
-  - [ ] `dpage/pgadmin4` イメージの使用
-  - [ ] `profiles: ["admin"]` で設定（セキュリティ向上・メモリ節約）
-  - [ ] 環境変数の設定（`PGADMIN_DEFAULT_EMAIL`, `PGADMIN_DEFAULT_PASSWORD`）
-  - [ ] セキュリティ設定（`PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=True`）
-  - [ ] ポートマッピング（例: `5050:80`）
-
-### Step 8: テストと最適化 (1-2 日)
-
-- [ ] PostgreSQL 用のテストフィクスチャの追加
-- [ ] パフォーマンステスト（ベクトル検索の性能測定、HNSWインデックスの効果確認）
-- [ ] インデックスの最適化（HNSWパラメータの調整、環境変数で制御）
-- [ ] 接続プールの調整（`min_size`, `max_size`、環境変数で制御）
-- [ ] ⚠️ **推奨**: halfvec の採用検討（メモリ使用量50%削減、Synology NASのリソース節約）
-- [ ] OpenAI APIのモックが実装されている（CI/CD対応）
-
-**完了基準**:
-
-- [ ] データベース抽象化レイヤーが実装されている
-- [ ] PostgreSQL 18 + pgvector 0.8.1 が実装されている
-- [ ] PostgreSQL 実装が動作する（セッション管理）
-- [ ] pgvector 拡張が有効化されている（HNSWインデックス対応）
-- [ ] ⚠️ **推奨**: pg_trgm 拡張が有効化されている（ハイブリッド検索の準備、Phase 8.5 で実装予定）
-- [ ] ENUM型が正しく定義されている（`source_type_enum`, `session_status_enum`, `source_status_enum`）
-- [ ] ベクトル検索機能が動作する
-- [ ] 知識ベーススキーマが実装されている（`knowledge_sources`, `knowledge_chunks`）
-- [ ] Source-Chunk構造が実装されている（すべてのデータを抽象化）
-- [ ] Embedding処理が動作する（バックグラウンドタスク）
-- [ ] ⚠️ **重要**: `FOR UPDATE SKIP LOCKED` パターンが実装されている（DBレベルの排他制御）
-- [ ] セッション知識化処理が動作する
-- [ ] ⚠️ **重要**: トランザクションの整合性が保証されている（アトミック性）
-- [ ] ⚠️ **推奨**: halfvec の採用が検討されている（メモリ使用量50%削減）
-- [ ] Docker Compose で PostgreSQL が起動する
-- [ ] pgAdmin が起動し、PostgreSQL に接続できる
-- [ ] バックアップスクリプトが正常に動作する（権限問題対策済み）
-- [ ] すべてのテストが通過する（既存の 137 テストケース + 新規テスト）
-- [ ] 既存の機能が正常に動作する（回帰テスト）
-
-**注意**: この実装は**新規設計**のため、SQLiteからの移行ツールは作成せず、既存のデータは破棄します。
-
-**実装の優先度**: **高**（ベクトル検索・RAG機能の前提条件、Phase 20-22 で必要）
-
-**注意**: この移行は Phase 9（完全リファクタリング）の前に実施することを推奨します。理由:
-
-1. **ベクトル検索機能の早期実現**: Phase 20-22 の知識ベース機能で必要
-2. **データベース抽象化の確立**: Phase 9 のリファクタリングで抽象化レイヤーを活用
-3. **スケーラビリティの確保**: 将来的なデータ増加に対応
-
-### Phase 8.5: ハイブリッド検索の実装（推奨）⏳ 未実装
+### Phase 9: ハイブリッド検索の実装（推奨）⏳ 未実装
 
 **目標**: pg_trgm を使用したハイブリッド検索を実装し、検索品質を向上させる
 
@@ -887,30 +343,17 @@
 
 **実装優先度**: **中**（検索品質向上のため推奨）
 
-**背景**: 現在の「ベクトル検索のみ」の実装は、特定のキーワード
-（例：「エラーコード 500」「変数名 my_var」）の検索に弱点があります。
-pg_trgm を使用したハイブリッド検索を実装することで、検索品質が大幅に向上します。
-
 **実装内容**:
 
 - [ ] ハイブリッド検索メソッドの実装（ベクトル検索 + pg_trgm キーワード検索）
 - [ ] ベクトル類似度とキーワード類似度のスコアを組み合わせた検索
-  - [ ] ベクトル類似度の重み（デフォルト: 0.7）
-  - [ ] キーワード類似度の重み（デフォルト: 0.3）
 - [ ] 検索品質の向上が確認できる（固有名詞の検索精度が向上）
 
-**実装方針**:
+**詳細**: [Phase 8 詳細実装計画 - 11.1 Phase 8.5](./phases/phase08.md#111-phase-85-ハイブリッド検索の実装推奨)
 
-1. **初期実装**: ベクトル検索のみ（Phase 8）
-2. **段階的導入**: `pg_trgm` 拡張を有効化し、インデックスを追加（Phase 8 で準備）
-3. **ハイブリッド検索**: 検索精度の向上が必要になったタイミングで実装（Phase 8.5）
+---
 
-**注意**: `pg_trgm` インデックスは追加のストレージ容量を消費しますが、
-将来的な拡張性を考慮して設計段階で追加しておくことを推奨します。
-
-**詳細**: [Phase 8 詳細実装計画 - 11.1 Phase 8.5](./phases/phase8.md#111-phase-85-ハイブリッド検索の実装推奨)
-
-### Phase 8.6: Reranking の実装（オプション）⏳ 未実装
+### Phase 10: Reranking の実装（オプション）⏳ 未実装
 
 **目標**: Cross-Encoder（Reranker）を使用して検索精度を向上させる
 
@@ -920,8 +363,6 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 
 **実装優先度**: **低**（オプション、CPU負荷を考慮）
 
-**背景**: ベクトル検索でTop-20を取得した後、軽量なCross-Encoder（Reranker）でTop-5に絞り込むと、精度が劇的に向上します。
-
 **実装内容**:
 
 - [ ] `Reranker` クラスの実装（Cross-Encoder を使用）
@@ -929,23 +370,18 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - [ ] 環境変数で有効/無効を切り替え可能
 - [ ] CPU負荷が許容範囲内であることを確認
 
-**注意事項**:
-
-- Synology NASのCPU負荷が許せば検討に値します
-- Reranker は CPU 集約的な処理のため、大量のリクエストがある場合は注意が必要
-- オプション機能として実装し、環境変数で有効/無効を切り替え可能にする
-
-**詳細**: [Phase 8 詳細実装計画 - 11.2 Phase 9: Reranking](./phases/phase8.md#112-phase-9-reranking-の実装オプション)
+**詳細**: [Phase 8 詳細実装計画 - 11.2 Phase 9: Reranking](./phases/phase08.md#112-phase-9-reranking-の実装オプション)
 
 ---
 
-## Phase 9: 完全リファクタリング ⏳ 未実装
+### Phase 11: 完全リファクタリング ⏳ 未実装
 
 **目標**: コードベースの品質向上と技術的負債の解消を実現する
 
 **期間**: 約 10-15 日
 
-**前提条件**: ✅ **Phase 7（aiosqlite への移行）が完了していること**、✅ **Phase 8（PostgreSQL への移行）が完了していること**
+**前提条件**: ✅ **Phase 7（aiosqlite への移行）が完了していること**、
+✅ **Phase 8（PostgreSQL への移行）が完了していること**
 
 **主な改善点**:
 
@@ -959,124 +395,39 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - ✅ テストの充実
 - ✅ フォルダ構造の最適化
 - ✅ 重複コードの削除（日付フォーマット、プロンプト読み込み、エラーメッセージ）
-- ✅ **重要**: `litellm.py` の戻り値を `tuple[str, dict]` に変更
-  （Phase 11 と Phase 12 で必要）
+- ✅ **重要**: `litellm.py` の戻り値を `tuple[str, dict]` に変更（Phase 13 と Phase 14 で必要）
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
+**実装内容**:
 
-### Step 1: コア機能の整理 (1-2 日)
+- [ ] コア機能の整理（`core/` ディレクトリ）
+- [ ] handlers.py の分割（`bot/handlers/` ディレクトリ）
+- [ ] サービス層の整理（`services/` ディレクトリ）
+- [ ] データアクセス層の整理（`data/` ディレクトリ）
+- [ ] 外部サービス層の整理（`external/` ディレクトリ）
+- [ ] 機能別モジュールの整理（`features/` ディレクトリ）
+- [ ] ユーティリティの整理（`utils/` ディレクトリ）
+- [ ] 型ヒントとドキュメントの充実
+- [ ] テストの充実
 
-- [ ] `src/kotonoha_bot/core/` ディレクトリを新規作成
-- [ ] `src/kotonoha_bot/core/config.py` の作成（`config.py` から設定管理を整理）
-- [ ] `src/kotonoha_bot/core/logging.py` の作成（ログ設定の分離）
-- [ ] `src/kotonoha_bot/core/exceptions.py` の作成（カスタム例外クラス）
-- [ ] `src/kotonoha_bot/main.py` の更新（インポートパスの更新）
-
-### Step 2: handlers.py の分割 (2-3 日)
-
-- [ ] `src/kotonoha_bot/bot/handlers/` ディレクトリを新規作成
-- [ ] `src/kotonoha_bot/bot/handlers/base.py` の作成（基底ハンドラー）
-- [ ] `src/kotonoha_bot/bot/handlers/mention.py` の作成（メンション応答型）
-- [ ] `src/kotonoha_bot/bot/handlers/thread.py` の作成（スレッド型）
-- [ ] `src/kotonoha_bot/bot/handlers/eavesdrop.py` の作成（聞き耳型）
-- [ ] **重要**: `src/kotonoha_bot/ai/litellm_provider.py` の
-  `generate_response()` の戻り値を `tuple[str, dict]` に変更
-  （後で `src/kotonoha_bot/external/ai/litellm.py` に移動予定）
-- [ ] すべての呼び出し箇所（8箇所）を更新
-
-### Step 3: サービス層の整理 (1-2 日)
-
-- [ ] `src/kotonoha_bot/services/` ディレクトリを新規作成
-- [ ] `src/kotonoha_bot/services/session.py` の作成（`session/manager.py` からビジネスロジックを抽出）
-- [ ] `src/kotonoha_bot/services/ai.py` の作成
-- [ ] `src/kotonoha_bot/services/conversation.py` の作成
-- [ ] 既存コードの更新（インポートパスの更新）
-
-### Step 4: データアクセス層の整理 (1 日)
-
-- [ ] `src/kotonoha_bot/data/` ディレクトリを新規作成
-- [ ] `src/kotonoha_bot/data/database.py` の作成（`db/sqlite.py` から移動）
-- [ ] `src/kotonoha_bot/data/models.py` の作成（`session/models.py` から移動）
-- [ ] 既存コードの更新（インポートパスの更新）
-
-### Step 5: 外部サービス層の整理 (1 日)
-
-- [ ] `src/kotonoha_bot/external/` ディレクトリを新規作成
-- [ ] `src/kotonoha_bot/external/ai/` ディレクトリを新規作成
-- [ ] `src/kotonoha_bot/external/ai/provider.py` の作成（`ai/provider.py` から移動）
-- [ ] `src/kotonoha_bot/external/ai/litellm.py` の作成（`ai/litellm_provider.py` から移動）
-- [ ] `src/kotonoha_bot/external/ai/prompts.py` の作成
-  （`ai/prompts.py` の `_load_prompt_from_markdown()` を公開関数化）
-- [ ] `src/kotonoha_bot/external/health.py` の作成（`health.py` から移動）
-- [ ] `src/kotonoha_bot/eavesdrop/llm_judge.py` の更新（プロンプト読み込みの重複削除）
-
-### Step 6: 機能別モジュールの整理 (1-2 日)
-
-- [ ] `src/kotonoha_bot/features/` ディレクトリを新規作成
-- [ ] `src/kotonoha_bot/features/rate_limit/` の作成（`rate_limit/` から移動）
-- [ ] `src/kotonoha_bot/features/eavesdrop/` の作成（`eavesdrop/` から移動）
-- [ ] `src/kotonoha_bot/features/errors/` ディレクトリを新規作成
-- [ ] `src/kotonoha_bot/features/errors/messages.py` の作成（エラーメッセージの一元管理）
-- [ ] `src/kotonoha_bot/features/errors/discord.py` の作成
-  （`errors/discord_errors.py` から移動）
-- [ ] `src/kotonoha_bot/features/errors/database.py` の作成
-  （`errors/database_errors.py` から移動）
-- [ ] `src/kotonoha_bot/bot/router.py` の作成（`router/message_router.py` から移動）
-
-### Step 7: ユーティリティの整理 (1 日)
-
-- [ ] `src/kotonoha_bot/utils/message.py` の作成
-  （`utils/message_formatter.py` と `utils/message_splitter.py` を統合）
-- [ ] `src/kotonoha_bot/utils/datetime.py` の作成（日付フォーマット関数、重複削除）
-- [ ] 既存コードの更新（日付フォーマットの3箇所を置き換え）
-
-### Step 8: 型ヒントとドキュメントの充実 (1-2 日)
-
-- [ ] すべての関数・メソッドに型ヒントを追加
-- [ ] すべてのクラス・関数・メソッドに docstring を追加
-- [ ] `ty` による型チェックの通過
-
-### Step 9: テストの充実 (1-2 日)
-
-- [ ] テストカバレッジの測定
-- [ ] 不足しているテストの追加
-- [ ] `litellm.py` の戻り値変更に関するテストを追加
-- [ ] すべてのテストが通過することを確認
-
-**完了基準**:
-
-- [ ] コード構造が整理されている（シンプルなレイヤードアーキテクチャ）
-- [ ] アーキテクチャが改善されている（依存性注入の改善）
-- [ ] パフォーマンスが最適化されている（データベースクエリ、非同期処理）
-- [ ] コード品質が向上している（型ヒント、ドキュメント、スタイル）
-- [ ] テストカバレッジが向上している（80% 以上）
-- [ ] すべてのテストが通過する（既存の 137 テストケース + 新規テスト）
-- [ ] ドキュメントが更新されている
-- [ ] 既存の機能が正常に動作する（回帰テスト）
-- [ ] 重複コードが削除されている（日付フォーマット、プロンプト読み込み、エラーメッセージ）
-- [ ] `litellm.py` の戻り値が `tuple[str, dict]` になっている
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 10: 高度なモニタリング機能 ⏳ 未実装
+### Phase 12: 高度なモニタリング機能 ⏳ 未実装
 
 **目標**: 運用性と管理性を向上させるための高度なモニタリング機能を実装する
 
-**期間**: 約 3-4 日（ダッシュボード含む場合は約 5-6 日）
+**期間**: 約 3-6 日（ダッシュボード含む場合は約 5-6 日）
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**
-
-**実装優先度**: **最優先**
-
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**
 
 **実装優先度**: **最優先**
 
-**実装期間**: 約 3-4 日（ダッシュボード含む場合は約 5-6 日）
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/monitoring/` ディレクトリを新規作成
   - [ ] `metrics.py`: メトリクス収集クラス
-  - [ ] `collector.py`: メトリクス収集ロジック（API リクエスト数、レスポンス時間、エラー率など）
+  - [ ] `collector.py`: メトリクス収集ロジック
   - [ ] `dashboard.py`: ダッシュボード機能（管理者用高機能ダッシュボード）
   - [ ] `alerts.py`: アラート機能（閾値超過時の通知）
 - [ ] `src/kotonoha_bot/services/monitoring.py`: モニタリングサービスのビジネスロジック
@@ -1085,43 +436,33 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 **機能**:
 
 - [ ] 基本的なメトリクス収集（API リクエスト数、レスポンス時間、エラー率など）
-- [ ] メトリクスエンドポイント（`src/kotonoha_bot/external/health.py` の拡張）
+- [ ] メトリクスエンドポイント
 - [ ] 管理者用高機能ダッシュボード機能
-  - メトリクスの可視化（グラフ、チャート）
-  - リアルタイム監視
-  - 履歴データの表示
-  - エクスポート機能
 - [ ] アラート機能（閾値超過時の通知）
 
-**完了基準**:
-
-- [ ] 高度なモニタリング機能が実装されている
-- [ ] 管理者用高機能ダッシュボードが動作する
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 11: コスト管理機能 ⏳ 未実装
+### Phase 13: コスト管理機能 ⏳ 未実装
 
 **目標**: トークン使用量とコストを追跡・管理する機能を実装する
 
 **期間**: 約 2-3 日
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**（`litellm.py` の戻り値変更が完了しているため）
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**（`litellm.py` の戻り値変更が完了しているため）
 
 **実装優先度**: **高**
 
-**実装期間**: 約 2-3 日
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/cost_management/` ディレクトリを新規作成
   - [ ] `tracker.py`: トークン使用量の追跡
   - [ ] `calculator.py`: コスト計算機能
   - [ ] `reporter.py`: コストレポート生成
   - [ ] `budget.py`: 予算管理機能（オプション）
-- [ ] `src/kotonoha_bot/services/cost_tracking.py`:
-  コスト追跡サービスのビジネスロジック
-- [ ] `src/kotonoha_bot/data/models.py`:
-  コストデータモデルを追加（`TokenUsage`, `CostRecord` など）
-- [ ] `src/kotonoha_bot/external/ai/litellm.py` でトークン使用量を取得して記録（Phase 9 で既に実装済み）
+- [ ] `src/kotonoha_bot/services/cost_tracking.py`: コスト追跡サービスのビジネスロジック
+- [ ] `src/kotonoha_bot/data/models.py`: コストデータモデルを追加
 
 **機能**:
 
@@ -1130,68 +471,75 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - [ ] コストレポート機能（日次・週次・月次のコスト集計、可視化、エクスポート）
 - [ ] 予算管理機能（オプション、予算の設定、予算超過時のアラート、コスト予測）
 
-**注意**: Phase 9 で `litellm.py` の `generate_response()` の戻り値が
-`tuple[str, dict]` になっているため、トークン情報が既に取得できる状態です。
-
-**完了基準**:
-
-- [ ] コスト管理機能が実装されている
-- [ ] トークン使用量が追跡されている
-- [ ] コストレポートが生成できる
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 13: 設定管理機能 ⏳ 未実装
+### Phase 14: 監査ログ機能 ⏳ 未実装
+
+**目標**: 監査ログとコンプライアンス対応を実現する
+
+**期間**: 約 3-4 日
+
+**前提条件**: ✅ **Phase 7（aiosqlite への移行）が完了していること**、
+✅ **Phase 8（PostgreSQL への移行）が完了していること**、
+✅ **Phase 11（完全リファクタリング）が完了していること**
+
+**実装優先度**: **高**
+
+**実装内容**:
+
+- [ ] `src/kotonoha_bot/features/audit/` ディレクトリを新規作成
+  - [ ] `logger.py`: `AuditLogger` クラス（監査ログの記録）
+  - [ ] `reporter.py`: 監査レポート生成
+- [ ] `src/kotonoha_bot/data/models.py`: 監査ログデータモデルを追加
+- [ ] `src/kotonoha_bot/data/database.py`: 監査ログテーブルの作成と操作メソッドを追加
+- [ ] `src/kotonoha_bot/bot/handlers/` の各ハンドラーで監査ログを記録（非同期で実行）
+
+**機能**:
+
+- [ ] データベーススキーマの実装（`audit_logs` テーブル、`monthly_usage` テーブル、インデックス）
+- [ ] `AuditLogger` クラスの実装
+- [ ] すべての応答生成箇所で監査ログを記録（非同期ログ記録）
+
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
+
+---
+
+### Phase 15: 設定管理機能 ⏳ 未実装
 
 **目標**: チャンネルごと、ユーザーごとの設定管理機能を実装する
 
 **期間**: 約 2-3 日
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/commands/settings.py`: `/settings` コマンドの実装
-- [ ] `src/kotonoha_bot/services/settings.py`:
-  設定管理サービスのビジネスロジック
+- [ ] `src/kotonoha_bot/services/settings.py`: 設定管理サービスのビジネスロジック
 - [ ] `src/kotonoha_bot/data/models.py`: 設定データモデルを追加
-  （`ChannelSettings`, `UserSettings`, `GlobalSettings`）
-- [ ] `src/kotonoha_bot/data/database.py`:
-  設定の永続化メソッドを追加
-- [ ] `src/kotonoha_bot/core/config.py` を拡張して、
-  データベースから設定を読み込む機能を追加
+- [ ] `src/kotonoha_bot/data/database.py`: 設定の永続化メソッドを追加
 
 **設定項目**:
 
 - [ ] グローバル設定（全サーバー共通、管理者のみ変更可能）
-  - [ ] デフォルト LLM モデル
-  - [ ] システムプロンプトのカスタマイズ
 - [ ] チャンネルごとの設定
-  - [ ] 聞き耳型の有効/無効
-  - [ ] スレッド型の有効/無効
-  - [ ] チャンネル固有の LLM モデル（オプション）
 - [ ] ユーザーごとの設定（オプション）
-  - [ ] ユーザー固有の LLM モデル
 
-**完了基準**:
-
-- [ ] `/settings` コマンドが動作する
-- [ ] チャンネルごとの設定が管理できる
-- [ ] ユーザーごとの設定が管理できる（オプション）
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 14: パフォーマンス分析 ⏳ 未実装
+### Phase 16: パフォーマンス分析 ⏳ 未実装
 
 **目標**: システムのパフォーマンスを分析・監視する機能を実装する
 
 **期間**: 約 2-3 日
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
-
-**実装期間**: 約 2-3 日
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/monitoring/performance.py`: パフォーマンス分析機能
 - [ ] `src/kotonoha_bot/services/performance.py`: パフォーマンス分析サービスのビジネスロジック
@@ -1203,93 +551,39 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - [ ] 分析レポートの生成（日次・週次・月次）
 - [ ] ボトルネックの特定（遅延の原因分析、リソース制約の検出）
 
-**完了基準**:
-
-- [ ] パフォーマンス分析機能が実装されている
-- [ ] 分析レポートが生成できる
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 15: ログ出力の強化 ⏳ 未実装
+### Phase 17: ログ出力の強化 ⏳ 未実装
 
 **目標**: ログ出力を強化し、検索・フィルタリング・エクスポート機能を実装する
 
 **期間**: 約 1-2 日
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
-
-**実装期間**: 約 1-2 日
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/core/logging.py` を拡張
   - [ ] 構造化ログ（JSON 形式）のサポート
   - [ ] ログ検索・フィルタリング機能
   - [ ] ログエクスポート機能
 - [ ] `src/kotonoha_bot/features/logging/` ディレクトリを新規作成（必要に応じて）
-  - [ ] `search.py`: ログ検索機能
-  - [ ] `export.py`: ログエクスポート機能
 
-**完了基準**:
-
-- [ ] ログ出力が強化されている
-- [ ] ログ検索・フィルタリング機能が動作する
-- [ ] ログエクスポート機能が動作する
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 12: 監査ログ機能 ⏳ 未実装
-
-**目標**: 監査ログとコンプライアンス対応を実現する
-
-**期間**: 約 3-4 日
-
-**前提条件**: ✅ **Phase 7（aiosqlite への移行）が完了していること**、
-✅ **Phase 8（PostgreSQL への移行）が完了していること**、
-✅ **Phase 9（完全リファクタリング）が完了していること**
-
-**実装優先度**: **高**（Phase 9 で `litellm.py` の戻り値変更が完了しているため）
-
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
-
-- [ ] `src/kotonoha_bot/features/audit/` ディレクトリを新規作成
-  - [ ] `logger.py`: `AuditLogger` クラス（監査ログの記録）
-  - [ ] `reporter.py`: 監査レポート生成
-- [ ] `src/kotonoha_bot/data/models.py`:
-  監査ログデータモデルを追加（`AuditLog`, `MonthlyUsage` など）
-- [ ] `src/kotonoha_bot/data/database.py`: 監査ログテーブルの作成と操作メソッドを追加
-- [ ] `src/kotonoha_bot/bot/handlers/` の各ハンドラーで監査ログを記録（非同期で実行）
-- [ ] `src/kotonoha_bot/external/ai/litellm.py` でトークン情報とレイテンシを取得（Phase 9 で既に実装済み）
-
-**機能**:
-
-- [ ] データベーススキーマの実装（`audit_logs` テーブル、`monthly_usage` テーブル、インデックス）
-- [ ] `AuditLogger` クラスの実装
-  （`log_interaction()` メソッド、`get_monthly_usage()` メソッド、
-  `get_user_usage()` メソッド）
-- [ ] すべての応答生成箇所で監査ログを記録（非同期ログ記録）
-
-**注意**: Phase 9 で `litellm.py` の `generate_response()` の戻り値が
-`tuple[str, dict]` になっているため、トークン情報とレイテンシが既に取得できる
-状態です。
-
-**完了基準**:
-
-- [ ] 監査ログ機能が実装されている
-- [ ] すべての応答生成箇所で監査ログが記録されている
-- [ ] 月次集計が可能（オプション）
-
----
-
-## Phase 16: モデル切り替えオプション ⏳ 未実装
+### Phase 18: モデル切り替えオプション ⏳ 未実装
 
 **目標**: メッセージからモデル選択指示を検出し、動的にモデルを切り替える機能を実装する
 
 **期間**: 約 2-3 日
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/model_selection/` ディレクトリを新規作成
   - [ ] `selector.py`: モデル選択ロジック（メッセージからモデル指示を検出）
@@ -1303,29 +597,23 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - [ ] 許可されていないモデル名の無視
 - [ ] 指定モデルが利用できない場合のフォールバック
 
-**完了基準**:
-
-- [ ] モデル切り替えオプションが実装されている
-- [ ] メッセージからモデル指示を検出できる
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 17: バックアップの自動化強化 ⏳ 未実装
+### Phase 19: バックアップの自動化強化 ⏳ 未実装
 
 **目標**: バックアップの自動化を強化し、スケジュール・検証・通知機能を実装する
 
 **期間**: 約 1-2 日
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
-
-**実装期間**: 約 1-2 日
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/automation/backup.py`: バックアップ自動化機能
 - [ ] `src/kotonoha_bot/services/automation.py`: 自動化サービスのビジネスロジック
 - [ ] `src/kotonoha_bot/data/database.py`: バックアップ検証機能を追加
-- [ ] Phase 2 で実装済みのバックアップ機能を拡張
 
 **機能**:
 
@@ -1334,24 +622,20 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - [ ] バックアップの検証（整合性チェック、リストアテストの自動実行）
 - [ ] バックアップの通知（成功/失敗の通知、ディスク使用量の警告）
 
-**完了基準**:
-
-- [ ] バックアップの自動化が強化されている
-- [ ] スケジュールバックアップが動作する
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 18: データベース最適化 ⏳ 未実装
+### Phase 20: データベース最適化 ⏳ 未実装
 
 **目標**: データベースの最適化を自動化し、パフォーマンスを向上させる機能を実装する
 
 **期間**: 約 2-3 日
 
-**前提条件**: ✅ **Phase 8（PostgreSQL への移行）が完了していること**、✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 8（PostgreSQL への移行）が完了していること**、
+✅ **Phase 11（完全リファクタリング）が完了していること**
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
-
-**実装期間**: 約 2-3 日
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/automation/optimization.py`: データベース最適化機能
 - [ ] `src/kotonoha_bot/data/database.py`: 最適化メソッドを追加（`VACUUM`, インデックス再構築など）
@@ -1363,22 +647,19 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - [ ] クエリ最適化（スロークエリの検出、インデックスの最適化）
 - [ ] データアーカイブ機能（古いセッションのアーカイブ、アーカイブデータの検索）
 
-**完了基準**:
-
-- [ ] データベース最適化が実装されている
-- [ ] 自動最適化が動作する
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 19: コスト計算機能 ⏳ 未実装
+### Phase 21: コスト計算機能 ⏳ 未実装
 
 **目標**: トークン数からコストを計算し、モデルごとのコスト単価を管理する機能を実装する
 
 **期間**: 約 2-3 日
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/audit/cost_calculator.py`: コスト計算機能
 - [ ] `src/kotonoha_bot/data/models.py`: コストデータモデルを追加
@@ -1390,33 +671,31 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - [ ] モデルごとのコスト単価管理
 - [ ] コスト計算の精度向上
 
-**完了基準**:
-
-- [ ] コスト計算機能が実装されている
-- [ ] モデルごとのコスト単価が管理できる
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 20: 統合知識ベース機能 ⏳ 未実装
+### Phase 22: 統合知識ベース機能 ⏳ 未実装
 
 **目標**: 会話、添付ファイル、ウェブから統合的に知識ベースを構築する機能を実装する
 
 **期間**: 約 15-20 日
 
-**前提条件**: ✅ **Phase 8（PostgreSQL への移行）が完了していること**（pgvector が必要）、✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 8（PostgreSQL への移行）が完了していること**
+（pgvector が必要）、✅ **Phase 11（完全リファクタリング）が完了していること**
 
-**実装優先度**: **高**（Phase 10 完了後に実装）
+**実装優先度**: **高**
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/knowledge_base/` ディレクトリを新規作成
   - [ ] `summarizer.py`: 要約機能
   - [ ] `storage.py`: 知識ベース保存機能
   - [ ] `search.py`: 検索機能
   - [ ] `semantic_search.py`: セマンティック検索機能（オプション）
-  - [ ] `file_processor.py`: 添付ファイル処理機能（新規追加）
-  - [ ] `web_scraper.py`: ウェブコンテンツ取得機能（新規追加）
-  - [ ] `content_integrator.py`: 統合コンテンツ管理機能（新規追加）
+  - [ ] `file_processor.py`: 添付ファイル処理機能
+  - [ ] `web_scraper.py`: ウェブコンテンツ取得機能
+  - [ ] `content_integrator.py`: 統合コンテンツ管理機能
 - [ ] `src/kotonoha_bot/services/knowledge_base.py`: 知識ベースサービスのビジネスロジック
 - [ ] `src/kotonoha_bot/data/models.py`: 知識ベースデータモデルを追加
 
@@ -1428,75 +707,56 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - [ ] 統合検索機能（会話・ファイル・ウェブを横断検索）
 - [ ] 知識ベースの更新・管理機能
 
-**潜在的な課題**:
-
-- **ファイル処理の時間**: 大きなファイルの処理に時間がかかる
-  - **対策**: 非同期処理で実装、バックグラウンドで処理
-- **ファイル形式の対応**: 多様なファイル形式に対応する必要がある
-  - **対策**: 段階的な実装（まずはテキストファイル、次に PDF、画像など）
-- **ウェブスクレイピングの制限**: ウェブサイトの利用規約や技術的制限
-  - **対策**: 利用規約の確認、適切なレート制限
-
-**完了基準**:
-
-- [ ] 統合知識ベース機能が実装されている
-- [ ] 会話・ファイル・ウェブからの知識抽出が動作する
-- [ ] 統合検索機能が動作する
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 21: 会話の要約・ハイライト機能 ⏳ 未実装
+### Phase 23: 会話の要約・ハイライト機能 ⏳ 未実装
 
 **目標**: 会話の要約とハイライト抽出機能を実装する
 
 **期間**: 約 10-15 日
 
-**前提条件**: ✅ **Phase 8（PostgreSQL への移行）が完了していること**、✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 8（PostgreSQL への移行）が完了していること**、
+✅ **Phase 11（完全リファクタリング）が完了していること**
 
 **実装優先度**: **高**（知識ベース機能と同時に実装）
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
-
-**実装優先度**: **中**（Phase 10 完了後に実装）
-
-**実装期間**: 約 5-10 日
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/knowledge_base/` ディレクトリを拡張
-  - [ ] `conversation_analyzer.py`: 会話分析機能（新規追加）
-  - [ ] `highlight_extractor.py`: ハイライト抽出機能（新規追加）
-  - [ ] `conversation_summarizer.py`: 会話要約機能（新規追加）
-  - [ ] `highlight_formatter.py`: ハイライトフォーマット機能（新規追加）
-- [ ] `src/kotonoha_bot/commands/summary.py`: 要約・ハイライトコマンド（新規追加）
-- [ ] `src/kotonoha_bot/services/summary.py`: 要約・ハイライトサービスのビジネスロジック（新規追加）
+  - [ ] `conversation_analyzer.py`: 会話分析機能
+  - [ ] `highlight_extractor.py`: ハイライト抽出機能
+  - [ ] `conversation_summarizer.py`: 会話要約機能
+  - [ ] `highlight_formatter.py`: ハイライトフォーマット機能
+- [ ] `src/kotonoha_bot/commands/summary.py`: 要約・ハイライトコマンド
+- [ ] `src/kotonoha_bot/services/summary.py`: 要約・ハイライトサービスのビジネスロジック
 - [ ] `src/kotonoha_bot/data/models.py`: 要約・ハイライトデータモデルの追加
 
-**完了基準**:
-
-- [ ] 会話の要約・ハイライト機能が実装されている
-- [ ] 要約・ハイライトコマンドが動作する
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 22: 議題提案機能 ⏳ 未実装
+### Phase 24: 議題提案機能 ⏳ 未実装
 
 **目標**: 未解決事項や継続課題を抽出し、議題を提案する機能を実装する
 
 **期間**: 約 8-12 日
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**、
-✅ **Phase 20（統合知識ベース機能）が完了していること**、
-✅ **Phase 21（会話の要約・ハイライト機能）が完了していること**
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**、
+✅ **Phase 22（統合知識ベース機能）が完了していること**、
+✅ **Phase 23（会話の要約・ハイライト機能）が完了していること**
 
 **実装優先度**: **高**（知識ベース機能と要約・ハイライト機能の後に実装）
 
-**詳細**: [将来実装予定機能の詳細レビュー](./phases/future_features_review.md)
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/agenda/` ディレクトリを新規作成
-  - [ ] `issue_extractor.py`: 課題抽出機能（新規追加）
-  - [ ] `agenda_generator.py`: 議題生成機能（新規追加）
-  - [ ] `priority_ranker.py`: 優先順位付け機能（新規追加）
-- [ ] `src/kotonoha_bot/services/agenda.py`: 議題サービスのビジネスロジック（新規追加）
-- [ ] `src/kotonoha_bot/commands/agenda.py`: 議題提案コマンド（新規追加）
+  - [ ] `issue_extractor.py`: 課題抽出機能
+  - [ ] `agenda_generator.py`: 議題生成機能
+  - [ ] `priority_ranker.py`: 優先順位付け機能
+- [ ] `src/kotonoha_bot/services/agenda.py`: 議題サービスのビジネスロジック
+- [ ] `src/kotonoha_bot/commands/agenda.py`: 議題提案コマンド
 - [ ] `src/kotonoha_bot/data/models.py`: 議題データモデルの追加
 
 **機能**:
@@ -1506,63 +766,50 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - [ ] 議題の優先順位付け
 - [ ] 議題の提案・管理
 
-**潜在的な課題**:
-
-- **課題抽出の精度**: LLM 判定の精度が重要
-  - **対策**: 高精度な LLM 判定、セマンティック検索で関連情報を取得
-- **継続課題の特定**: セマンティック検索で関連する課題を検索
-  - **対策**: セマンティック検索の実装、言及回数の追跡
-
-**完了基準**:
-
-- [ ] 議題提案機能が実装されている
-- [ ] 議題提案コマンドが動作する
+**詳細**: [将来実装予定機能の詳細レビュー](./phases/future_features_review.md)
 
 ---
 
-## Phase 23: 聞き耳モードでの自動リアクション機能 ⏳ 未実装
+### Phase 25: 聞き耳モードでの自動リアクション機能 ⏳ 未実装
 
 **目標**: 聞き耳モードで会話を分析し、適切なリアクションを自動で付与する機能を実装する
 
 **期間**: 約 5-10 日
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**
 
-**実装優先度**: **中**（Phase 10 完了後に実装）
+**実装優先度**: **中**
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/eavesdrop/` ディレクトリを拡張
-  - [ ] `reaction_judge.py`: リアクション判定機能（新規追加）
-  - [ ] `reaction_manager.py`: リアクション管理機能（新規追加）
+  - [ ] `reaction_judge.py`: リアクション判定機能
+  - [ ] `reaction_manager.py`: リアクション管理機能
 - [ ] `src/kotonoha_bot/bot/handlers/eavesdrop.py`: 聞き耳型ハンドラーの拡張
-- [ ] `src/kotonoha_bot/services/reaction.py`: リアクションサービスのビジネスロジック（新規追加）
+- [ ] `src/kotonoha_bot/services/reaction.py`: リアクションサービスのビジネスロジック
 - [ ] `src/kotonoha_bot/data/models.py`: リアクション履歴データモデルの追加
 
-**完了基準**:
-
-- [ ] 聞き耳モードでの自動リアクション機能が実装されている
-- [ ] リアクション判定が動作する
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 24: ポジティブフィードバック生成機能 ⏳ 未実装
+### Phase 26: ポジティブフィードバック生成機能 ⏳ 未実装
 
 **目標**: 会話の感情分析を行い、ポジティブフィードバックと週次サマリーを自動生成する機能を実装する
 
 **期間**: 約 5-8 日
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**
 
-**実装優先度**: **中**（Phase 10 完了後に実装）
+**実装優先度**: **中**
 
-**詳細**: [将来実装予定機能の詳細レビュー](./phases/future_features_review.md)
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/feedback/` ディレクトリを新規作成
-  - [ ] `sentiment_analyzer.py`: 感情分析機能（新規追加）
-  - [ ] `positive_feedback_generator.py`: ポジティブフィードバック生成機能（新規追加）
-  - [ ] `weekly_summary.py`: 週次サマリー生成機能（新規追加）
-- [ ] `src/kotonoha_bot/services/feedback.py`: フィードバックサービスのビジネスロジック（新規追加）
+  - [ ] `sentiment_analyzer.py`: 感情分析機能
+  - [ ] `positive_feedback_generator.py`: ポジティブフィードバック生成機能
+  - [ ] `weekly_summary.py`: 週次サマリー生成機能
+- [ ] `src/kotonoha_bot/services/feedback.py`: フィードバックサービスのビジネスロジック
 - [ ] `src/kotonoha_bot/data/models.py`: フィードバックデータモデルの追加
 
 **機能**:
@@ -1572,37 +819,27 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - [ ] 週次サマリーの自動生成（場面緘黙支援を考慮した表現）
 - [ ] フィードバック履歴の管理
 
-**潜在的な課題**:
-
-- **感情分析の精度**: 感情分析の精度が重要
-  - **対策**: 高精度な感情分析、複数の指標を統合
-- **サマリー生成の品質**: LLM を使ったサマリー生成の品質が重要
-  - **対策**: 高品質なサマリー生成、場面緘黙支援を考慮した表現
-
-**完了基準**:
-
-- [ ] ポジティブフィードバック生成機能が実装されている
-- [ ] 週次サマリーが自動生成される
+**詳細**: [将来実装予定機能の詳細レビュー](./phases/future_features_review.md)
 
 ---
 
-## Phase 25: 翻訳要約機能 ⏳ 未実装
+### Phase 27: 翻訳要約機能 ⏳ 未実装
 
 **目標**: 多言語対応の強化として、会話や要約の翻訳機能を実装する
 
 **期間**: 約 5-8 日
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**
 
-**実装優先度**: **中**（多言語対応の強化として、Phase 10 完了後に実装）
+**実装優先度**: **中**（多言語対応の強化として）
 
-**詳細**: [将来実装予定機能の詳細レビュー](./phases/future_features_review.md)
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/translation/` ディレクトリを新規作成
-  - [ ] `translator.py`: 翻訳機能（新規追加）
-  - [ ] `summary_translator.py`: 要約翻訳機能（新規追加）
-- [ ] `src/kotonoha_bot/services/translation.py`: 翻訳サービスのビジネスロジック（新規追加）
-- [ ] `src/kotonoha_bot/commands/translate.py`: 翻訳コマンド（新規追加）
+  - [ ] `translator.py`: 翻訳機能
+  - [ ] `summary_translator.py`: 要約翻訳機能
+- [ ] `src/kotonoha_bot/services/translation.py`: 翻訳サービスのビジネスロジック
+- [ ] `src/kotonoha_bot/commands/translate.py`: 翻訳コマンド
 
 **機能**:
 
@@ -1611,84 +848,62 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - [ ] 自動言語検出
 - [ ] 翻訳品質の管理
 
-**潜在的な課題**:
-
-- **翻訳の精度**: 自動翻訳の精度が課題
-  - **対策**: LLM を使った翻訳、または外部翻訳 API の統合
-- **多言語メッセージの管理**: 多言語メッセージを誰が管理するか
-  - **対策**: 翻訳ファイルを管理、または LLM による自動翻訳
-
-**完了基準**:
-
-- [ ] 翻訳要約機能が実装されている
-- [ ] 翻訳コマンドが動作する
+**詳細**: [将来実装予定機能の詳細レビュー](./phases/future_features_review.md)
 
 ---
 
-## Phase 26: 音声チャンネル機能（要約・議事録、合成音声発話） ⏳ 未実装
+### Phase 28: 音声チャンネル機能（要約・議事録、合成音声発話）⏳ 未実装
 
 **目標**: 音声チャンネルでの要約・議事録生成と合成音声発話機能を実装する
 
 **期間**: 約 20-30 日
 
-**前提条件**: ✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 11（完全リファクタリング）が完了していること**
 
 **実装優先度**: **低**（技術検討後に実装）
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/knowledge_base/` ディレクトリを拡張
-  - [ ] `voice_recorder.py`: 音声録音機能（新規追加）
-  - [ ] `transcription.py`: 文字起こし機能（新規追加）
-  - [ ] `meeting_minutes.py`: 議事録生成機能（新規追加）
-  - [ ] `tts_generator.py`: 合成音声生成機能（新規追加）
+  - [ ] `voice_recorder.py`: 音声録音機能
+  - [ ] `transcription.py`: 文字起こし機能
+  - [ ] `meeting_minutes.py`: 議事録生成機能
+  - [ ] `tts_generator.py`: 合成音声生成機能
 - [ ] `src/kotonoha_bot/external/voice/` ディレクトリを新規作成
-  - [ ] `whisper_provider.py`: Whisper API プロバイダー
 - [ ] `src/kotonoha_bot/external/tts/` ディレクトリを新規作成
-  - [ ] `tts_provider.py`: TTS プロバイダーインターフェース
-  - [ ] `openai_tts.py`: OpenAI TTS API プロバイダー
 
-**完了基準**:
-
-- [ ] 音声チャンネル機能が実装されている
-- [ ] 音声録音・文字起こしが動作する
-- [ ] 合成音声発話が動作する
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## Phase 27: コンテキスト理解の向上機能 ⏳ 未実装
+### Phase 29: コンテキスト理解の向上機能 ⏳ 未実装
 
 **目標**: ベクトル DB と Embedding API を使用してコンテキスト理解を向上させる機能を実装する
 
 **期間**: 約 15-20 日
 
-**前提条件**: ✅ **Phase 8（PostgreSQL への移行）が完了していること**（pgvector が必要）、✅ **Phase 9（完全リファクタリング）が完了していること**
+**前提条件**: ✅ **Phase 8（PostgreSQL への移行）が完了していること**
+（pgvector が必要）、✅ **Phase 11（完全リファクタリング）が完了していること**
 
 **実装優先度**: **低**（技術検討後に実装）
 
-**詳細**: [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
+**実装内容**:
 
 - [ ] `src/kotonoha_bot/features/knowledge_base/` ディレクトリを拡張
-  - [ ] `vector_store.py`: ベクトルストア機能（新規追加）
-  - [ ] `embedding_generator.py`: 埋め込み生成機能（新規追加）
-  - [ ] `semantic_search.py`: セマンティック検索機能（新規追加）
-  - [ ] `context_retriever.py`: コンテキスト取得機能（新規追加）
+  - [ ] `vector_store.py`: ベクトルストア機能
+  - [ ] `embedding_generator.py`: 埋め込み生成機能
+  - [ ] `semantic_search.py`: セマンティック検索機能
+  - [ ] `context_retriever.py`: コンテキスト取得機能
 - [ ] `src/kotonoha_bot/external/vector/` ディレクトリを新規作成
-  - [ ] `sqlite_vector_provider.py`: SQLite ベクトル拡張プロバイダー（推奨）
 - [ ] `src/kotonoha_bot/external/embedding/` ディレクトリを新規作成
-  - [ ] `embedding_provider.py`: Embedding プロバイダーインターフェース
-  - [ ] `openai_embedding.py`: OpenAI Embedding API プロバイダー
 
-**完了基準**:
-
-- [ ] コンテキスト理解の向上機能が実装されている
-- [ ] セマンティック検索が動作する
+**詳細**: [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
-## 実装の進め方
+## 4. 実装の進め方
 
-### 各フェーズの進め方
+### 4.1 各フェーズの進め方
 
 1. **実装**: フェーズの内容を実装
 2. **テスト**: 動作確認とテスト
@@ -1696,13 +911,13 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 4. **ドキュメント更新**: 必要に応じてドキュメントを更新
 5. **次のフェーズへ**: 次のフェーズに進む
 
-### コミット方針
+### 4.2 コミット方針
 
 - **フェーズごとのコミット**: 各フェーズが完了したらコミット
 - **明確なコミットメッセージ**: 何を実装したか明確に
 - **動作確認**: コミット前に必ず動作確認
 
-### テスト方針
+### 4.3 テスト方針
 
 - **各フェーズでテスト**: 各フェーズで動作確認
 - **手動テスト**: まずは手動で動作確認
@@ -1710,94 +925,11 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 
 ---
 
-## 見積もり
+## 5. リスク管理
 
-| Phase        | 期間     | 主要機能                                             | 実装状況  |
-| ------------ | -------- | ---------------------------------------------------- | --------- |
-| **Phase 1**  | 実装済み | MVP（メンション応答型、セッション管理）              | ✅ 完了   |
-| **Phase 2**  | 実装済み | NAS デプロイ、Docker 化、バックアップ                | ✅ 完了   |
-| **Phase 3**  | 実装済み | CI/CD、テスト、コード品質                            | ✅ 完了   |
-| **Phase 4**  | 実装済み | メッセージ長制限、バッチ同期                         | ✅ 完了   |
-| **Phase 5**  | 実装済み | スレッド型、聞き耳型                                 | ✅ 完了   |
-| **Phase 6**  | 実装済み | レート制限、コマンド、エラーハンドリング強化         | ✅ 完了   |
-| **Phase 7**  | 実装済み | aiosqlite への移行（非同期化）                       | ✅ 完了   |
-| **Phase 8**  | 10-15 日 | PostgreSQL への移行（pgvector 対応） | ⏳ 未実装 |
-| **Phase 8.5**| 2-3 日   | ハイブリッド検索（pg_trgm）           | ⏳ 未実装 |
-| **Phase 8.6**| 2-3 日   | Reranking（オプション）               | ⏳ 未実装 |
-| **Phase 9**  | 10-15 日 | 完全リファクタリング（非同期コードの整理、重複コード削除、litellm.py 戻り値変更） | ⏳ 未実装 |
-| **Phase 10** | 3-6 日   | 高度なモニタリング機能（管理者用高機能ダッシュボード含む） | ⏳ 未実装 |
-| **Phase 11** | 2-3 日   | コスト管理機能（Phase 9 完了後で実装） | ⏳ 未実装 |
-| **Phase 12** | 3-4 日   | 監査ログ機能（Phase 8, 9 完了後で実装） | ⏳ 未実装 |
-| **Phase 13** | 2-3 日   | 設定管理機能 | ⏳ 未実装 |
-| **Phase 14** | 2-3 日   | パフォーマンス分析 | ⏳ 未実装 |
-| **Phase 15** | 1-2 日   | ログ出力の強化 | ⏳ 未実装 |
-| **Phase 16** | 2-3 日   | モデル切り替えオプション | ⏳ 未実装 |
-| **Phase 17** | 1-2 日   | バックアップの自動化強化 | ⏳ 未実装 |
-| **Phase 18** | 2-3 日   | データベース最適化 | ⏳ 未実装 |
-| **Phase 19** | 2-3 日   | コスト計算機能 | ⏳ 未実装 |
-| **Phase 20** | 15-20 日 | 統合知識ベース機能（会話・添付ファイル・ウェブ） | ⏳ 未実装 |
-| **Phase 21** | 10-15 日 | 会話の要約・ハイライト機能 | ⏳ 未実装 |
-| **Phase 22** | 8-12 日  | 議題提案機能 | ⏳ 未実装 |
-| **Phase 23** | 5-10 日  | 聞き耳モードでの自動リアクション機能 | ⏳ 未実装 |
-| **Phase 24** | 5-8 日   | ポジティブフィードバック生成機能 | ⏳ 未実装 |
-| **Phase 25** | 5-8 日   | 翻訳要約機能 | ⏳ 未実装 |
-| **Phase 26** | 20-30 日 | 音声チャンネル機能（要約・議事録、合成音声発話） | ⏳ 未実装 |
-| **Phase 27** | 15-20 日 | コンテキスト理解の向上機能 | ⏳ 未実装 |
-| **合計**     | 実装済み | Phase 1-7 完了、Phase 8-27 は未実装                  |           |
+### 5.1 各フェーズでのリスク
 
-**注意**: Phase 1-7 は既に完了しています。残りの実装順序は以下の通りです:
-
-1. ✅ **Phase 7（aiosqlite への移行）**: 完了（2026 年 1 月 15 日）
-2. **Phase 8（PostgreSQL への移行）**: PostgreSQL + pgvector を新規実装
-   （注意: 新規設計のため、SQLiteからの移行ツールは作成せず、既存のデータは破棄）
-   - **重要**: ベクトル検索機能の実現（Phase 20-22 で必要）
-   - **重要**: データベース抽象化レイヤーの確立
-3. **Phase 9（完全リファクタリング）**: 非同期コードを基にリファクタリングを実施
-   - **重要**: `litellm.py` の戻り値を `tuple[str, dict]` に変更
-     （Phase 11 と Phase 12 で必要）
-4. **Phase 10-19**: Phase 9 完了後に実施
-   - **Phase 10**: 高度なモニタリング機能（最優先）
-   - **Phase 11**: コスト管理機能（Phase 9 でトークン情報が取得できる状態）
-   - **Phase 12**: 監査ログ機能（Phase 8, 9 でトークン情報が取得できる状態）
-   - **Phase 13-15**: 設定管理、パフォーマンス分析、ログ強化
-   - **Phase 16-18**: 自動化・最適化機能
-   - **Phase 19**: コスト計算機能
-5. **Phase 20-25**: ロードマップ外の高優先度機能（Phase 8 で pgvector が必要）
-   - **Phase 20**: 統合知識ベース機能（pgvector を使用）
-   - **Phase 21**: 会話の要約・ハイライト機能
-   - **Phase 22**: 議題提案機能
-   - **Phase 23**: 聞き耳モードでの自動リアクション機能
-   - **Phase 24**: ポジティブフィードバック生成機能
-   - **Phase 25**: 翻訳要約機能
-6. **Phase 26-27**: ロードマップ外の低優先度機能（技術検討後）
-   - **Phase 26**: 音声チャンネル機能
-   - **Phase 27**: コンテキスト理解の向上機能（pgvector を使用）
-
----
-
-## リスク管理
-
-### 各フェーズでのリスク
-
-**Phase 3**:
-
-- ✅ 完了（CI/CD の設定、GitHub Actions、Watchtower の設定が完了）
-
-**Phase 4**:
-
-- ✅ 完了（メッセージ分割、バッチ同期の実装が完了）
-
-**Phase 5**:
-
-- ✅ 完了（スレッド型、聞き耳型の実装が完了）
-
-**Phase 6**:
-
-- ✅ 完了（レート制限、コマンド、エラーハンドリングの実装が完了）
-
-**Phase 7**:
-
-- ✅ 完了（aiosqlite への移行、非同期化、テスト更新が完了）
+**Phase 1-7**: ✅ 完了（リスクは解消済み）
 
 **Phase 8**:
 
@@ -1806,13 +938,13 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 - パフォーマンスの劣化リスク
 - バックアップの権限問題（バインドマウント使用時）
 
-**Phase 9**:
+**Phase 11**:
 
 - リファクタリングによる既存機能の破壊
 - テストカバレッジの不足による回帰バグ
 - パフォーマンス最適化による予期しない副作用
 
-### 対策
+### 5.2 対策
 
 - **早期の動作確認**: 各フェーズで動作確認
 - **ドキュメント参照**: 実装前にドキュメントを確認
@@ -1821,7 +953,7 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 
 ---
 
-## 次のステップ
+## 6. 次のステップ
 
 現在の実装状況:
 
@@ -1835,98 +967,67 @@ pg_trgm を使用したハイブリッド検索を実装することで、検索
 
 次の実装ステップは **Phase 8（PostgreSQL への移行）** です。
 
-**実装順序の推奨**:
+### 6.1 推奨実装順序
 
 1. ✅ **Phase 7（aiosqlite への移行）**: 完了（2026 年 1 月 15 日）
 
-   - ✅ 技術的負債の早期解消（同期コードが非同期イベントハンドラーから呼ばれている問題）
-   - ✅ Bot 全体のブロッキング問題を解決
-   - ✅ Phase 12（監査ログ機能）の前提条件を満たした
-
 2. **Phase 8（PostgreSQL への移行）**: Phase 7 完了後に実施
-
    - **重要**: ベクトル検索機能の実現（pgvector を使用）
-   - **重要**: Phase 20-22 の知識ベース機能の前提条件
+   - **重要**: Phase 22-24 の知識ベース機能の前提条件
    - データベース抽象化レイヤーの確立
    - スケーラビリティの確保
 
-3. **Phase 9（完全リファクタリング）**: Phase 8 完了後に実施
+3. **Phase 9（ハイブリッド検索）**: Phase 8 完了後に実施（推奨）
+   - 検索品質の向上
 
+4. **Phase 10（Reranking）**: Phase 8 完了後に実施（オプション）
+   - CPU負荷を考慮
+
+5. **Phase 11（完全リファクタリング）**: Phase 8 完了後に実施
    - 非同期コードを基にリファクタリングする方が効率的
-   - 非同期処理の最適化も含む
-   - **重要**: `litellm.py` の戻り値を `tuple[str, dict]` に変更
-     （Phase 11 と Phase 12 で必要）
-   - 重複コードの削除（日付フォーマット、プロンプト読み込み、エラーメッセージ）
+   - **重要**: `litellm.py` の戻り値を `tuple[str, dict]` に変更（Phase 13 と Phase 14 で必要）
+   - 重複コードの削除
 
-4. **Phase 10-19**: Phase 9 完了後に実施
+6. **Phase 12-21**: Phase 11 完了後に実施
+   - **Phase 12**: 高度なモニタリング機能（運用の基盤、最優先）⭐⭐⭐⭐⭐
+   - **Phase 13**: コスト管理機能（Phase 11 でトークン情報が取得できる状態）⭐⭐⭐⭐☆
+   - **Phase 14**: 監査ログ機能（Phase 8, 11 でトークン情報が取得できる状態）⭐⭐⭐⭐☆
+   - **Phase 15-17**: 設定管理、パフォーマンス分析、ログ強化
+   - **Phase 18-20**: 自動化・最適化機能
+   - **Phase 21**: コスト計算機能
 
-   - **Phase 10**: 高度なモニタリング機能（運用の基盤、最優先）⭐⭐⭐⭐⭐
-   - **Phase 11**: コスト管理機能（Phase 9 でトークン情報が取得できる状態）⭐⭐⭐⭐☆
-   - **Phase 12**: 監査ログ機能（Phase 8, 9 でトークン情報が取得できる状態）⭐⭐⭐⭐☆
-   - **Phase 13-15**: 設定管理、パフォーマンス分析、ログ強化
-   - **Phase 16-18**: 自動化・最適化機能
-   - **Phase 19**: コスト計算機能
+7. **Phase 22-27**: ロードマップ外の高優先度機能（Phase 8 で pgvector が必要）
+   - **Phase 22**: 統合知識ベース機能（pgvector を使用）⭐⭐⭐⭐⭐
+   - **Phase 23**: 会話の要約・ハイライト機能（知識ベース機能と同時に実装）⭐⭐⭐⭐⭐
+   - **Phase 24**: 議題提案機能（知識ベース機能の後に実装）⭐⭐⭐⭐⭐
+   - **Phase 25**: 聞き耳モードでの自動リアクション機能⭐⭐⭐⭐⭐
+   - **Phase 26**: ポジティブフィードバック生成機能⭐⭐⭐⭐☆
+   - **Phase 27**: 翻訳要約機能（多言語対応の強化）⭐⭐⭐⭐☆
 
-5. **Phase 20-25**: ロードマップ外の高優先度機能（Phase 8 で pgvector が必要）
-
-   - **Phase 20**: 統合知識ベース機能（会話・添付ファイル・ウェブ、pgvector を使用）⭐⭐⭐⭐⭐
-   - **Phase 21**: 会話の要約・ハイライト機能（知識ベース機能と同時に実装）⭐⭐⭐⭐⭐
-   - **Phase 22**: 議題提案機能（知識ベース機能の後に実装）⭐⭐⭐⭐⭐
-   - **Phase 23**: 聞き耳モードでの自動リアクション機能⭐⭐⭐⭐⭐
-   - **Phase 24**: ポジティブフィードバック生成機能⭐⭐⭐⭐☆
-   - **Phase 25**: 翻訳要約機能（多言語対応の強化）⭐⭐⭐⭐☆
-
-6. **Phase 26-27**: ロードマップ外の低優先度機能（技術検討後）
-
-   - **Phase 26**: 音声チャンネル機能（要約・議事録、合成音声発話）⭐⭐⭐☆☆
-   - **Phase 27**: コンテキスト理解の向上機能（pgvector を使用）⭐⭐⭐☆☆
-
-各フェーズの詳細な実装手順については、各フェーズの実装計画書を参照してください。
-
-**推奨実装順序**:
-
-1. ✅ **Phase 7（aiosqlite への移行）**: 完了（2026 年 1 月 15 日）
-2. **Phase 8（PostgreSQL への移行）**: Phase 7 完了後に実施
-   - **重要**: ベクトル検索機能の実現（pgvector を使用）
-   - **重要**: Phase 20-22 の知識ベース機能の前提条件
-3. **Phase 9（完全リファクタリング）**: Phase 8 完了後に実施
-   - **重要**: `litellm.py` の戻り値を `tuple[str, dict]` に変更
-   - 重複コードの削除（日付フォーマット、プロンプト読み込み、エラーメッセージ）
-4. **Phase 10**: 高度なモニタリング機能（運用の基盤、最優先）⭐⭐⭐⭐⭐
-   - 管理者用高機能ダッシュボード機能を含む
-5. **Phase 11**: コスト管理機能（Phase 9 でトークン情報が取得できる状態）⭐⭐⭐⭐☆
-6. **Phase 12**: 監査ログ機能（Phase 8, 9 でトークン情報が取得できる状態）⭐⭐⭐⭐☆
-7. **Phase 13-15**: 設定管理、パフォーマンス分析、ログ強化
-8. **Phase 16-18**: 自動化・最適化機能
-9. **Phase 19**: コスト計算機能
-10. **Phase 20-25**: ロードマップ外の高優先度機能（Phase 8 で pgvector が必要）
-    - **Phase 20**: 統合知識ベース機能（pgvector を使用）
-    - **Phase 8.5**: ハイブリッド検索（pg_trgm、推奨）
-    - **Phase 8.6**: Reranking（オプション、CPU負荷を考慮）
-    - **Phase 21**: 会話の要約・ハイライト機能
-    - **Phase 22**: 議題提案機能
-    - **Phase 23**: 聞き耳モードでの自動リアクション機能
-    - **Phase 24**: ポジティブフィードバック生成機能
-    - **Phase 25**: 翻訳要約機能
-11. **Phase 26-27**: ロードマップ外の低優先度機能（技術検討後）
-    - **Phase 26**: 音声チャンネル機能
-    - **Phase 27**: コンテキスト理解の向上機能（pgvector を使用）
+8. **Phase 28-29**: ロードマップ外の低優先度機能（技術検討後）
+   - **Phase 28**: 音声チャンネル機能（要約・議事録、合成音声発話）⭐⭐⭐☆☆
+   - **Phase 29**: コンテキスト理解の向上機能（pgvector を使用）⭐⭐⭐☆☆
 
 **詳細**:
 
+- [ADR-0006: aiosqlite への移行](../architecture/adr/0006-migrate-to-aiosqlite.md)
 - [ADR-0007: PostgreSQL への移行](../architecture/adr/0007-migrate-to-postgresql.md)
-- [Phase 9 実装計画](./phases/phase8_detailed_plan.md)
+- [Phase 8 詳細実装計画](./phases/phase08.md)
+- [Phase 9 実装計画](./phases/phase09_detailed_plan.md)
 
 ---
 
 **作成日**: 2026 年 1 月 14 日  
-**最終更新日**: 2026 年 1 月 18 日（全機能を統合、実装順序と優先度を再整理）  
-**バージョン**: 10.0  
+**最終更新日**: 2026 年 1 月 18 日（フェーズ番号を整理、小数点を削除、文書構造を再構築）  
+**バージョン**: 11.0  
 **作成者**: kotonoha-bot 開発チーム
 
 ### 更新履歴
 
-- **v10.0** (2026-01-18): 全機能を統合（統合知識ベース、翻訳要約、ポジティブフィードバック、議題提案、管理者用ダッシュボード）、実装順序と優先度を再整理
+- **v11.0** (2026-01-18): フェーズ番号を整理（小数点を削除、連番に統一）、文書構造をゼロベースで再構築、重複を削除
+- **v10.0** (2026-01-18): 全機能を統合（統合知識ベース、翻訳要約、
+  ポジティブフィードバック、議題提案、管理者用ダッシュボード）、
+  実装順序と優先度を再整理
 - **v9.0** (2026-01-17): Phase 8+ の内容を統合、Phase 9-11 をゼロベースで再構築、実装優先度を明確化
 - **v8.0** (2026-01-15): Phase 7 の実装完了を反映、実装状況を更新
 - **v7.0** (2026-01): Phase 6 の実装完了を反映、実装状況を更新

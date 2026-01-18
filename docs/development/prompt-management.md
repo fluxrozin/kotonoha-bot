@@ -204,4 +204,4 @@ docker compose restart kotonoha-bot
 ## 関連ドキュメント
 
 - [システムアーキテクチャ](../architecture/system-architecture.md) - システム構成の詳細
-- [Phase 5 実装計画](../implementation/phases/phase5.md) - 聞き耳型機能の実装詳細
+- [Phase 5 実装計画](../implementation/phases/phase05.md) - 聞き耳型機能の実装詳細

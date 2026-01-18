@@ -856,9 +856,9 @@ Phase 4 が完了したら、以下の機能拡張を検討:
 - [Discord.py Documentation](https://discordpy.readthedocs.io/)
 - [Discord API ドキュメント](https://discord.com/developers/docs/)
 - [実装ロードマップ](../roadmap.md)
-- [Phase 1 実装完了報告](./phase1.md)
-- [Phase 2 実装完了報告](./phase2.md)
-- [Phase 3 実装完了報告](./phase3.md)
+- [Phase 1 実装完了報告](./phase01.md)
+- [Phase 2 実装完了報告](./phase02.md)
+- [Phase 3 実装完了報告](./phase03.md)
 - [実装検討事項](../considerations.md)
 
 ---

@@ -272,7 +272,7 @@ graph TB
 
 - `GITHUB_TOKEN`: GitHub Personal Access Token（`ghp_` で始まる）
 - GHCR からプライベートイメージをプルする場合に必要
-- 詳細は [Phase 3 実装ガイド](../implementation/phases/phase3.md) を参照
+- 詳細は [Phase 3 実装ガイド](../implementation/phases/phase03.md) を参照
 
 #### 3.2.10 Watchtower 設定
 

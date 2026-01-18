@@ -88,17 +88,17 @@
   監査ログ機能の実装計画、データベーススキーマ、実装ステップ
 - [知識ベース設計](./implementation/knowledge-base-design.md):
   知識ベース機能の設計と実装計画
-- [**Phase 1 実装計画**](./implementation/phases/phase1.md):
+- [**Phase 1 実装計画**](./implementation/phases/phase01.md):
   MVP（メンション応答型）の詳細実装ステップ、コード例、完了基準
-- [Phase 2 実装計画](./implementation/phases/phase2.md):
+- [Phase 2 実装計画](./implementation/phases/phase02.md):
   NAS デプロイ（Docker 化・24 時間稼働）の詳細実装ステップ
-- [Phase 3 実装計画](./implementation/phases/phase3.md):
+- [Phase 3 実装計画](./implementation/phases/phase03.md):
   CI/CD、テスト、コード品質の詳細実装ステップ
-- [Phase 4 実装計画](./implementation/phases/phase4.md):
+- [Phase 4 実装計画](./implementation/phases/phase04.md):
   メッセージ長制限、バッチ同期の詳細実装ステップ
-- [Phase 5 実装計画](./implementation/phases/phase5.md):
+- [Phase 5 実装計画](./implementation/phases/phase05.md):
   スレッド型、聞き耳型の詳細実装ステップ
-- [Phase 6 実装計画](./implementation/phases/phase6.md):
+- [Phase 6 実装計画](./implementation/phases/phase06.md):
   レート制限、コマンド、エラーハンドリング強化の詳細実装ステップ
 
 ### テスト
@@ -227,12 +227,12 @@ docs/
 │   ├── intervention_improvements.md   # 介入改善の検討資料
 │   ├── token_optimization.md          # トークン最適化の検討資料
 │   └── phases/                        # フェーズ別実装計画
-│       ├── phase1.md                  # Phase 1: MVP実装ステップ（完了）
-│       ├── phase2.md                  # Phase 2: NASデプロイ（Docker化・24時間稼働）（完了）
-│       ├── phase3.md                  # Phase 3: CI/CD、テスト、コード品質（完了）
-│       ├── phase4.md                  # Phase 4: メッセージ長制限、バッチ同期（完了）
-│       ├── phase5.md                  # Phase 5: スレッド型、聞き耳型（完了）
-│       └── phase6.md                  # Phase 6: レート制限、コマンド、エラーハンドリング強化（完了）
+│       ├── phase01.md                 # Phase 1: MVP実装ステップ（完了）
+│       ├── phase02.md                  # Phase 2: NASデプロイ（Docker化・24時間稼働）（完了）
+│       ├── phase03.md                  # Phase 3: CI/CD、テスト、コード品質（完了）
+│       ├── phase04.md                  # Phase 4: メッセージ長制限、バッチ同期（完了）
+│       ├── phase05.md                  # Phase 5: スレッド型、聞き耳型（完了）
+│       └── phase06.md                  # Phase 6: レート制限、コマンド、エラーハンドリング強化（完了）
 │
 ├── testing/                           # テスト
 │   ├── test-plan.md                   # テスト戦略と計画

@@ -1125,7 +1125,7 @@ git push origin v0.2.0-phase2
 
 Phase 2 が完了したため、Phase 3（CI/CD・運用機能）に進むことができます。
 
-詳細は [Phase 3 実装計画](./phase3.md) を参照してください。
+詳細は [Phase 3 実装計画](./phase03.md) を参照してください。
 
 ---
 

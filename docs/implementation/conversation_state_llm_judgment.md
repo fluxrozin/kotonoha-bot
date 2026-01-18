@@ -273,7 +273,7 @@ if conversation_state in ("conflict", "misunderstanding"):
 
 - [聞き耳型介入機能 詳細仕様書](../specifications/eavesdrop-specification.md)
 - [「同じ会話」の定義](./conversation_definition.md)
-- [Phase 5 実装計画](./phases/phase5.md)
+- [Phase 5 実装計画](./phases/phase05.md)
 
 ## 変更履歴
 

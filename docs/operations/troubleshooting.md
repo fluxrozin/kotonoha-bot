@@ -628,7 +628,7 @@ docker login ghcr.io
      - ~/.docker/config.json:/config.json:ro # コメントアウトを解除
    ```
 
-   詳細は [Phase 3 実装ガイド](../implementation/phases/phase3.md) の「4.3 GHCR 認証の設定」を参照してください。
+   詳細は [Phase 3 実装ガイド](../implementation/phases/phase03.md) の「4.3 GHCR 認証の設定」を参照してください。
 
 2. **GHCR 認証が不要な場合（パブリックイメージを使用）**:
 

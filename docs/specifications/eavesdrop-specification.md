@@ -727,7 +727,7 @@ Kotonoha: 問題を整理しましょう...（介入）
 
 ### 実装計画
 
-- [Phase 5 実装計画](../implementation/phases/phase5.md)
+- [Phase 5 実装計画](../implementation/phases/phase05.md)
   - 聞き耳型機能の実装計画
   - 会話の契機拡張について
 
