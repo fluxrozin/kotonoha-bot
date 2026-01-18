@@ -38,7 +38,8 @@ NNNN-title-with-dashes.md
 | 0003 | [SQLite の採用](0003-use-sqlite.md)                                       | Accepted   | 2026-01-14 |
 | 0004 | [ハイブリッドセッション管理](0004-hybrid-session-management.md)           | Accepted   | 2026-01-14 |
 | 0005 | [4 つの会話の契機](0005-four-conversation-triggers.md)                    | Accepted   | 2026-01-14 |
-| 0006 | [aiosqlite への移行](0006-migrate-to-aiosqlite.md)                       | Proposed   | 2026-01-15 |
+| 0006 | [aiosqlite への移行](0006-migrate-to-aiosqlite.md)                       | Accepted   | 2026-01-15 |
+| 0007 | [PostgreSQL への移行](0007-migrate-to-postgresql.md)                     | Accepted   | 2026-01-16 |
 
 ## ADR テンプレート
 
@@ -132,4 +133,4 @@ NNNN-title-with-dashes.md
 ---
 
 **作成日**: 2026 年 1 月 14 日
-**最終更新日**: 2026 年 1 月 15 日
+**最終更新日**: 2026 年 1 月 16 日

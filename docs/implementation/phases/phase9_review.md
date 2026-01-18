@@ -116,7 +116,6 @@ async def main():
 
 **推奨改善**:
 
-```markdown
 ### 6.7.1 既存テストの移行戦略
 
 1. **移行前の準備**
@@ -131,7 +130,6 @@ async def main():
 3. **移行中のテスト実行**
    - 各Step完了時に既存テストが動作することを確認
    - 新構造のテストは別ディレクトリに配置し、並行実行
-```
 
 ---
 
@@ -156,7 +154,6 @@ async def main():
 
 **推奨改善**:
 
-```markdown
 ### 9.6 CI/CDパイプライン戦略
 
 1. **ブランチ戦略**
@@ -172,7 +169,6 @@ async def main():
 3. **マージ戦略**
    - Step 1-3完了後: 中間レビュー、CI通過後にマージ検討
    - Step 4-7完了後: 最終レビュー、全CI通過後にマージ
-```
 
 ---
 
@@ -197,22 +193,23 @@ async def main():
 
 **推奨改善**:
 
-```markdown
 ### 8.4 パフォーマンス検証
 
 **ベースライン測定**（リファクタリング前）:
+
 - メッセージ処理時間: 目標3秒以内
 - セッション取得時間: 目標100ms以内
 - データベース操作時間: 目標50ms以内
 
 **リファクタリング後の検証**:
+
 - 各Step完了時に主要機能のパフォーマンスを測定
 - 10%以上の劣化が発生した場合は要調査
 
 **測定方法**:
+
 - `pytest-benchmark`を使用したベンチマークテスト
 - または、手動での計測
-```
 
 ---
 
@@ -229,7 +226,6 @@ async def main():
 
 **推奨改善**:
 
-```markdown
 ### 6.9 Step 8: ドキュメント更新（0.5日）
 
 **実施内容**:
@@ -247,10 +243,10 @@ async def main():
    - 開発者向けガイドの更新
 
 **完了基準**:
+
 - [ ] 全ドキュメントが新構造を反映
 - [ ] リンク切れがない
 - [ ] コード例が最新の実装と一致
-```
 
 **期間の見直し**: Step 7の後にStep 8を追加し、合計期間を7日→7.5日に延長
 
@@ -272,7 +268,6 @@ async def main():
 
 **推奨改善**:
 
-```markdown
 ### 6.2.2 `errors/messages.py` の作成（詳細化）
 
 ```python
@@ -280,7 +275,7 @@ async def main():
 
 class ErrorMessages:
     """エラーメッセージ（既存のget_user_friendly_messageと統合）"""
-    
+
     GENERIC = "すみません。一時的に反応できませんでした。\n少し時間をおいて、もう一度試してみてください。"
     # ...
 
@@ -299,8 +294,6 @@ def get_user_friendly_message(error: Exception) -> str:
 2. 既存の`get_user_friendly_message()`を`ErrorMessages`を使用するように更新
 3. 既存コードの`get_user_friendly_message()`呼び出しはそのまま維持（後方互換性）
 
-```
-
 ---
 
 ### 3.7 【軽微】型ヒントの完全化の範囲
@@ -308,6 +301,7 @@ def get_user_friendly_message(error: Exception) -> str:
 **問題**: Step 7で「型ヒント100%カバレッジ」とあるが、内部実装の詳細度が不明確。
 
 **不足している内容**:
+
 1. **型ヒントの優先順位**
    - 公開API（`__init__`、公開メソッド）は必須
    - プライベートメソッド（`_`で始まる）も必須か
@@ -317,15 +311,17 @@ def get_user_friendly_message(error: Exception) -> str:
    - 型チェックの厳格度（`--strict`モードの使用可否）
 
 **推奨改善**:
-```markdown
+
 ### 6.8 Step 7: 型ヒント・docstring 追加（詳細化）
 
 **型ヒントの優先順位**:
+
 1. **最優先**: 公開API（クラス、公開メソッド、関数）
 2. **優先**: 内部メソッド（`_`で始まるメソッドも含む）
 3. **推奨**: ローカル変数（複雑な型の場合のみ）
 
 **型チェックの実行**:
+
 ```bash
 # 基本チェック
 uv run ty check src/
@@ -340,8 +336,6 @@ uv run ty check src/ --strict
 - [ ] 全内部メソッドに型ヒントが存在
 - [ ] `ty check src/`が警告なしで通過（`--strict`は警告のみ許容）
 
-```
-
 ---
 
 ### 3.8 【軽微】依存関係グラフ生成ツールの確認
@@ -349,13 +343,15 @@ uv run ty check src/ --strict
 **問題**: Step 0で`pydeps`を使用すると記載されているが、インストール状況と実行方法の確認が必要。
 
 **現状**:
+
 - `pyproject.toml`に`pydeps>=3.0.2`が`dev`依存に含まれている ✅
 
 **推奨改善**:
-```markdown
+
 ### 6.1 Step 0: 依存方向の確定（詳細化）
 
 **事前確認**:
+
 ```bash
 # pydepsのインストール確認
 uv run pydeps --version
@@ -382,8 +378,6 @@ uv run pydeps src/kotonoha_bot/ --show-deps -T svg -o docs/deps_after.svg
 - Graphvizがインストールされていない場合、SVG生成は失敗する
 - その場合は`-T png`またはテキスト形式（`-T dot`）を使用
 
-```
-
 ---
 
 ## 4. 実装上の懸念事項
@@ -394,7 +388,8 @@ uv run pydeps src/kotonoha_bot/ --show-deps -T svg -o docs/deps_after.svg
 
 **計画書の提案**: DIパターンで`SessionManager(db)`として受け取る。
 
-**懸念**: 
+**懸念**:
+
 - `SessionManager`の`__init__`シグネチャを変更する必要がある
 - 既存のテストフィクスチャ（`conftest.py`）は既に`manager.db = temp_db`で置き換えているため、移行は容易
 
@@ -432,10 +427,10 @@ uv run pydeps src/kotonoha_bot/ --show-deps -T svg -o docs/deps_after.svg
 
 **推奨**: Step 0の前に「ベースライン確立」を追加
 
-```markdown
 ### Step -1: ベースライン確立（0.5日）
 
 **実施内容**:
+
 1. **コードメトリクスの記録**
    - コード行数（本体、テスト）
    - 循環的複雑度（`radon cc`）
@@ -449,10 +444,10 @@ uv run pydeps src/kotonoha_bot/ --show-deps -T svg -o docs/deps_after.svg
    - `pydeps`で現在の依存関係を可視化
 
 **完了基準**:
+
 - [ ] コードメトリクスが記録されている
 - [ ] パフォーマンスベンチマークが記録されている
 - [ ] 依存関係グラフが生成されている
-```
 
 **期間の見直し**: 合計期間を6.5日→7日に延長
 
@@ -462,10 +457,10 @@ uv run pydeps src/kotonoha_bot/ --show-deps -T svg -o docs/deps_after.svg
 
 **推奨**: Step 7の後に「総合検証」ステップを追加
 
-```markdown
 ### Step 8: 総合検証（1日）
 
 **実施内容**:
+
 1. **機能検証**
    - 全機能の動作確認（回帰テスト）
    - 手動テストシナリオの実行
@@ -483,11 +478,11 @@ uv run pydeps src/kotonoha_bot/ --show-deps -T svg -o docs/deps_after.svg
    - READMEの更新
 
 **完了基準**:
+
 - [ ] 全機能が正常動作
 - [ ] パフォーマンスが許容範囲内
 - [ ] コードメトリクスが改善
 - [ ] ドキュメントが更新済み
-```
 
 **期間の見直し**: 合計期間を7日→8日に延長
 
@@ -497,23 +492,21 @@ uv run pydeps src/kotonoha_bot/ --show-deps -T svg -o docs/deps_after.svg
 
 **推奨**: 各Step完了時のコミットメッセージ規約を追加
 
-```markdown
 ### 9.7 コミットメッセージ規約
 
 **フォーマット**:
-```
 
+```text
 refactor(phase8): [Step X] 簡潔な説明
 
 - 実施内容の詳細
 - 変更ファイルのリスト
 - テスト結果
-
 ```
 
 **例**:
-```
 
+```text
 refactor(phase8): [Step 1] 重複コード削除
 
 - utils/datetime.py を作成（日付フォーマット関数を統合）
@@ -521,14 +514,13 @@ refactor(phase8): [Step 1] 重複コード削除
 - handlers.py の3箇所の重複コードを削除
 
 Tests: 137 passed, 0 failed
-
 ```
 
 **利点**:
+
 - 各Stepの変更内容が明確
 - ロールバック時の特定が容易
 - 変更履歴の追跡が容易
-```
 
 ---
 

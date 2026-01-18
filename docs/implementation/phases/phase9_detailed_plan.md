@@ -71,7 +71,7 @@
 
 ### 2.1 現在のファイル構造
 
-```
+```text
 src/kotonoha_bot/           (3,649行)
 ├── main.py                 (175行) - エントリーポイント + ログ設定
 ├── config.py               (116行) - 設定管理
@@ -109,7 +109,7 @@ src/kotonoha_bot/           (3,649行)
 
 ### 2.2 テスト構造
 
-```
+```text
 tests/                      (3,193行)
 ├── conftest.py             (79行)
 ├── test_basic.py           (62行)
@@ -148,7 +148,8 @@ current_date_info = (
 
 #### 2.3.3 エラーメッセージ（10箇所以上）
 
-**場所**: `handlers.py` 249-252行, 305-307行, 392-395行, 402-405行, 410-413行, 418-421行, 511-514行, 623-626行
+**場所**: `handlers.py` 249-252行, 305-307行, 392-395行, 402-405行,
+410-413行, 418-421行, 511-514行, 623-626行
 
 ```python
 # 同一メッセージが複数箇所に散在
@@ -351,7 +352,7 @@ await asyncio.sleep(1)
 
 ### 4.2 アーキテクチャレイヤー
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │  Presentation Layer (bot/)                              │
 │  - Discord イベントの受信・送信                          │
@@ -391,7 +392,7 @@ class MentionHandler(BaseHandler):
 
 ### 5.1 プロジェクト全体構造
 
-```
+```text
 kotonoha-bot/
 ├── src/kotonoha_bot/     # ソースコード
 ├── tests/                # テストコード
@@ -657,7 +658,7 @@ rmdir router/ commands/ session/ ai/ eavesdrop/
 
 **実装方針**: Pydantic Settings または dataclass によるインスタンス化
 
-**オプション1: Pydantic Settings（推奨）**
+##### オプション1: Pydantic Settings（推奨）
 
 ```python
 # config.py
@@ -687,7 +688,7 @@ def get_config() -> Config:
     return _config_instance
 ```
 
-**オプション2: dataclass（シンプル）**
+##### オプション2: dataclass（シンプル）
 
 ```python
 # config.py
@@ -799,7 +800,8 @@ class MessageHandler:
         # 各ハンドラーのインスタンス化（依存を渡す）
         self.mention = MentionHandler(bot, session_manager, ai_provider)
         self.thread = ThreadHandler(bot, session_manager, ai_provider, self.router)
-        self.eavesdrop = EavesdropHandler(bot, session_manager, ai_provider, llm_judge, buffer)
+        self.eavesdrop = EavesdropHandler(
+            bot, session_manager, ai_provider, llm_judge, buffer)
 
     # タスクとイベントハンドラー
     @tasks.loop(hours=1)
@@ -878,7 +880,8 @@ from kotonoha_bot.bot.handlers import MessageHandler, setup_handlers
    - `await db.initialize()` でテーブル作成と接続確立
 
 2. **サービスの初期化**（依存関係順）
-   - `SessionManager` は `SQLiteDatabase` に依存 → `await session_manager.initialize()` でDB接続とセッション読み込み
+   - `SessionManager` は `SQLiteDatabase` に依存 →
+     `await session_manager.initialize()` でDB接続とセッション読み込み
    - `LiteLLMProvider` は独立（初期化不要、または同期的な初期化のみ）
    - `LLMJudge` は `LiteLLMProvider` に依存（初期化不要、コンストラクタで依存注入）
 
@@ -949,7 +952,9 @@ def setup_handlers(
     """
     # 初期化済みチェック（オプション、デバッグ用）
     if not hasattr(session_manager, '_initialized') or not session_manager._initialized:
-        logger.warning("SessionManager may not be initialized. Ensure initialize() is called in main().")
+        logger.warning(
+            "SessionManager may not be initialized. "
+            "Ensure initialize() is called in main().")
     
     handler = MessageHandler(
         bot, session_manager, ai_provider, router, llm_judge, buffer
@@ -1142,7 +1147,10 @@ class LiteLLMProvider:
         except litellm.RateLimitError as e:
             logger.warning(f"AI rate limit error: {e}")
             raise AIRateLimitError(f"レート制限に達しました: {e}") from e
-        except (litellm.InternalServerError, litellm.ServiceUnavailableError) as e:
+        except (
+            litellm.InternalServerError,
+            litellm.ServiceUnavailableError
+        ) as e:
             logger.warning(f"AI service error: {e}")
             raise AIServiceError(f"AIサービスで一時的なエラーが発生しました: {e}") from e
         # その他の litellm 例外も適切にラッピング
@@ -1341,8 +1349,12 @@ async def session_manager(memory_db):
 
 **重要ルール**:
 
-- アプリケーションコード（SQLiteDatabase クラスなど）は、外部から aiosqlite.Connection オブジェクトを受け取れるように設計するか、あるいは path を受け取るなら確実に close する責務を持つ
-- テスト: フィクスチャで yield する前にテーブル作成（migrate）を済ませた状態のDBオブジェクトを渡すと、各テストで await db.initialize() を呼ぶ重複を排除できる
+- アプリケーションコード（SQLiteDatabase クラスなど）は、外部から
+  aiosqlite.Connection オブジェクトを受け取れるように設計するか、
+  あるいは path を受け取るなら確実に close する責務を持つ
+- テスト: フィクスチャで yield する前にテーブル作成（migrate）を済ませた
+  状態のDBオブジェクトを渡すと、各テストで await db.initialize() を呼ぶ
+  重複を排除できる
 
 1. **テストデータファクトリーの導入（必須スコープに格上げ）**:
 
@@ -1512,7 +1524,7 @@ def create_mock_message(
 
 ### 7.4 テストデータファクトリー（推奨）
 
-**詳細は「10.3 テストデータのファクトリー化」を参照**
+#### 詳細は「10.3 テストデータのファクトリー化」を参照
 
 DBモデル（Session 等）のテストデータ生成を容易にするため、`tests/fixtures/factories.py` を作成することを推奨します。
 
@@ -1670,7 +1682,10 @@ uv run ruff format --check src/ tests/
 uv run pytest --cov=src/kotonoha_bot --cov-report=term-missing --cov-fail-under=80
 
 # 全チェック
-uv run ruff check src/ tests/ && uv run ruff format --check src/ tests/ && uv run ty src/ && uv run pytest --cov=src/kotonoha_bot --cov-fail-under=80
+uv run ruff check src/ tests/ && \
+uv run ruff format --check src/ tests/ && \
+uv run ty src/ && \
+uv run pytest --cov=src/kotonoha_bot --cov-fail-under=80
 ```
 
 ### 8.3 各 Step の完了基準
@@ -1730,7 +1745,9 @@ uv run pytest --cov=src/kotonoha_bot --cov-report=html
 
 ### 9.4 非同期DBテストの複雑性
 
-**問題**: `aiosqlite` を使用しているため、テスト実行時も `pytest-asyncio` ループ内で正しく DB コネクション（または `:memory:` DB）をセットアップ・ティアダウンする必要があります。
+**問題**: `aiosqlite` を使用しているため、テスト実行時も `pytest-asyncio` ループ内で
+正しく DB コネクション（または `:memory:` DB）をセットアップ・ティアダウンする
+必要があります。
 
 **追加チェック項目**:
 
@@ -1780,8 +1797,12 @@ async def memory_db():
 
 **追加ルール**:
 
-- アプリケーションコード（SQLiteDatabase クラスなど）は、外部から aiosqlite.Connection オブジェクトを受け取れるように設計するか、あるいは path を受け取るなら確実に close する責務を持つ
-- テスト: フィクスチャで yield する前にテーブル作成（migrate）を済ませた状態のDBオブジェクトを渡すと、各テストで await db.initialize() を呼ぶ重複を排除できる
+- アプリケーションコード（SQLiteDatabase クラスなど）は、外部から
+  aiosqlite.Connection オブジェクトを受け取れるように設計するか、
+  あるいは path を受け取るなら確実に close する責務を持つ
+- テスト: フィクスチャで yield する前にテーブル作成（migrate）を済ませた
+  状態のDBオブジェクトを渡すと、各テストで await db.initialize() を呼ぶ
+  重複を排除できる
 
 **テスト実行時の注意点**:
 
