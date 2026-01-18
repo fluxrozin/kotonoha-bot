@@ -3,8 +3,8 @@
 import logging
 from datetime import datetime, timedelta
 
-from ..config import Config
-from ..db.sqlite import SQLiteDatabase
+from ..config import Config, settings
+from ..db.postgres import PostgreSQLDatabase
 from .models import ChatSession, MessageRole, SessionType
 
 logger = logging.getLogger(__name__)
@@ -13,12 +13,27 @@ logger = logging.getLogger(__name__)
 class SessionManager:
     """セッション管理クラス
 
-    メモリ内のセッションとSQLiteの同期を管理する。
+    メモリ内のセッションとPostgreSQLの同期を管理する。
     """
 
     def __init__(self):
         self.sessions: dict[str, ChatSession] = {}
-        self.db = SQLiteDatabase()
+        # PostgreSQL接続設定
+        if settings.database_url:
+            self.db = PostgreSQLDatabase(connection_string=settings.database_url)
+        elif settings.postgres_host and settings.postgres_db and settings.postgres_user and settings.postgres_password:
+            self.db = PostgreSQLDatabase(
+                host=settings.postgres_host,
+                port=settings.postgres_port,
+                database=settings.postgres_db,
+                user=settings.postgres_user,
+                password=settings.postgres_password,
+            )
+        else:
+            raise ValueError(
+                "Either DATABASE_URL or (POSTGRES_HOST, POSTGRES_DB, "
+                "POSTGRES_USER, POSTGRES_PASSWORD) must be set"
+            )
         self._initialized = False
 
     async def initialize(self) -> None:
@@ -29,11 +44,11 @@ class SessionManager:
             self._initialized = True
 
     async def _load_active_sessions(self) -> None:
-        """アクティブなセッションをSQLiteから読み込み"""
+        """アクティブなセッションをPostgreSQLから読み込み"""
         try:
             all_sessions = await self.db.load_all_sessions()
             now = datetime.now()
-            timeout = timedelta(hours=Config.SESSION_TIMEOUT_HOURS)
+            timeout = timedelta(hours=settings.session_timeout_hours)
 
             for session in all_sessions:
                 # タイムアウトしていないセッションのみメモリに読み込む
@@ -54,7 +69,7 @@ class SessionManager:
         if session_key in self.sessions:
             return self.sessions[session_key]
 
-        # SQLiteから復元を試みる
+        # PostgreSQLから復元を試みる
         session = await self.db.load_session(session_key)
         if session:
             self.sessions[session_key] = session
@@ -89,7 +104,7 @@ class SessionManager:
         logger.debug(f"Added message to session: {session_key}")
 
     async def save_session(self, session_key: str) -> None:
-        """セッションをSQLiteに保存"""
+        """セッションをPostgreSQLに保存"""
         session = self.sessions.get(session_key)
         if not session:
             raise KeyError(f"Session not found: {session_key}")
@@ -98,7 +113,7 @@ class SessionManager:
         logger.debug(f"Saved session to DB: {session_key}")
 
     async def save_all_sessions(self) -> None:
-        """全セッションをSQLiteに保存"""
+        """全セッションをPostgreSQLに保存"""
         for session_key, session in self.sessions.items():
             try:
                 await self.db.save_session(session)
@@ -111,12 +126,12 @@ class SessionManager:
     async def cleanup_old_sessions(self) -> None:
         """古いセッションをメモリから削除"""
         now = datetime.now()
-        timeout = timedelta(hours=Config.SESSION_TIMEOUT_HOURS)
+        timeout = timedelta(hours=settings.session_timeout_hours)
 
         to_remove = []
         for session_key, session in self.sessions.items():
             if now - session.last_active_at > timeout:
-                # SQLiteに保存してからメモリから削除
+                # PostgreSQLに保存してからメモリから削除
                 try:
                     await self.db.save_session(session)
                     to_remove.append(session_key)

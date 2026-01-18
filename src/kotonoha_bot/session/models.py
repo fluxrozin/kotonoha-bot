@@ -50,13 +50,15 @@ class ChatSession:
     session_key: str
     session_type: SessionType
     messages: list[Message] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.now)
-    last_active_at: datetime = field(default_factory=datetime.now)
-
-    # メタデータ
+    status: str = "active"  # セッションの状態（'active', 'archived'など）
+    guild_id: int | None = None  # Discord Guild ID（Discord URL生成に必要）
     channel_id: int | None = None
     thread_id: int | None = None
     user_id: int | None = None
+    version: int = 1  # 楽観的ロック用（更新ごとにインクリメント）
+    last_archived_message_index: int = 0  # アーカイブ済みメッセージのインデックス（0=未アーカイブ）
+    created_at: datetime = field(default_factory=datetime.now)
+    last_active_at: datetime = field(default_factory=datetime.now)
 
     def add_message(self, role: MessageRole, content: str) -> None:
         """メッセージを追加"""
@@ -76,11 +78,15 @@ class ChatSession:
             "session_key": self.session_key,
             "session_type": self.session_type,
             "messages": [msg.to_dict() for msg in self.messages],
-            "created_at": self.created_at.isoformat(),
-            "last_active_at": self.last_active_at.isoformat(),
+            "status": self.status,
+            "guild_id": self.guild_id,
             "channel_id": self.channel_id,
             "thread_id": self.thread_id,
             "user_id": self.user_id,
+            "version": self.version,
+            "last_archived_message_index": self.last_archived_message_index,
+            "created_at": self.created_at.isoformat(),
+            "last_active_at": self.last_active_at.isoformat(),
         }
 
     @classmethod
@@ -91,9 +97,13 @@ class ChatSession:
             session_key=data["session_key"],
             session_type=data["session_type"],
             messages=messages,
-            created_at=datetime.fromisoformat(data["created_at"]),
-            last_active_at=datetime.fromisoformat(data["last_active_at"]),
+            status=data.get("status", "active"),
+            guild_id=data.get("guild_id"),
             channel_id=data.get("channel_id"),
             thread_id=data.get("thread_id"),
             user_id=data.get("user_id"),
+            version=data.get("version", 1),
+            last_archived_message_index=data.get("last_archived_message_index", 0),
+            created_at=datetime.fromisoformat(data["created_at"]),
+            last_active_at=datetime.fromisoformat(data["last_active_at"]),
         )

@@ -159,9 +159,12 @@ class MessageHandler:
                 # セッションを取得または作成
                 session = await self.session_manager.get_session(session_key)
                 if not session:
+                    # ⚠️ 重要: guild_id は Discord URL生成に必要
+                    guild_id = message.guild.id if message.guild else None
                     session = await self.session_manager.create_session(
                         session_key=session_key,
                         session_type="mention",
+                        guild_id=guild_id,
                         channel_id=message.channel.id,
                         user_id=message.author.id,
                     )
@@ -431,9 +434,12 @@ class MessageHandler:
             # セッションを取得または作成
             session = await self.session_manager.get_session(session_key)
             if not session:
+                # ⚠️ 重要: guild_id は Discord URL生成に必要
+                guild_id = thread.guild.id if thread.guild else None
                 session = await self.session_manager.create_session(
                     session_key=session_key,
                     session_type="thread",
+                    guild_id=guild_id,
                     channel_id=message.channel.id,
                     thread_id=thread.id,
                     user_id=message.author.id,
@@ -530,10 +536,13 @@ class MessageHandler:
         session = await self.session_manager.get_session(session_key)
         if not session:
             # スレッドが既に存在する場合、会話履歴を復元
+            # ⚠️ 重要: guild_id は Discord URL生成に必要
+            guild_id = thread.guild.id if thread.guild else None
             parent_id = thread.parent_id if thread.parent_id else None
             session = await self.session_manager.create_session(
                 session_key=session_key,
                 session_type="thread",
+                guild_id=guild_id,
                 channel_id=parent_id,
                 thread_id=thread.id,
                 user_id=message.author.id,
@@ -688,9 +697,12 @@ class MessageHandler:
                 # セッションを取得または作成
                 session = await self.session_manager.get_session(session_key)
                 if not session:
+                    # ⚠️ 重要: guild_id は Discord URL生成に必要
+                    guild_id = message.guild.id if message.guild else None
                     session = await self.session_manager.create_session(
                         session_key=session_key,
                         session_type="eavesdrop",
+                        guild_id=guild_id,
                         channel_id=message.channel.id,
                     )
                     logger.info(f"Created new eavesdrop session: {session_key}")

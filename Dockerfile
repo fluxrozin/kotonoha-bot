@@ -38,6 +38,7 @@ RUN apt update && apt install -y --no-install-recommends \
     gosu \
     gzip \
     tzdata \
+    libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
 # 非rootユーザーを作成（UID/GID 1000）
@@ -48,6 +49,8 @@ RUN groupadd -r -g 1000 botuser && \
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/src /app/src
 COPY scripts/ /app/scripts/
+COPY alembic.ini /app/alembic.ini
+COPY alembic/ /app/alembic/
 
 # スクリプトに実行権限を付与
 RUN chmod +x /app/scripts/*.sh
