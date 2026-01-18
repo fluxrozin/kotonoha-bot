@@ -1,8 +1,12 @@
-"""エラーハンドリングのテスト"""
+"""エラーハンドリングのテスト
 
-import sqlite3
+⚠️ 注意: PostgreSQL（asyncpg）への移行に伴い、PostgreSQLのエラーにも対応しています。
+SQLiteのエラーテストは後方互換性のため残していますが、将来的に削除される可能性があります。
+"""
+
 from unittest.mock import MagicMock
 
+import asyncpg
 import discord
 
 from kotonoha_bot.errors.database_errors import (
@@ -98,25 +102,83 @@ class TestDiscordErrors:
 
 
 class TestDatabaseErrors:
-    """データベースエラーの分類テスト"""
+    """データベースエラーの分類テスト
 
-    def test_classify_locked_error(self):
-        """データベースロックエラーの分類"""
-        error = sqlite3.OperationalError("database is locked")
-        error_type = classify_database_error(error)
-        assert error_type == DatabaseErrorType.LOCKED
+    ⚠️ 注意: PostgreSQL（asyncpg）のエラーを優先的にテストします。
+    SQLiteのエラーテストは後方互換性のため残しています。
+    """
 
-    def test_classify_integrity_error(self):
-        """整合性エラーの分類"""
-        error = sqlite3.IntegrityError("UNIQUE constraint failed")
+    # PostgreSQL（asyncpg）のエラーテスト
+    def test_classify_postgres_unique_violation_error(self):
+        """PostgreSQLのUNIQUE制約違反エラーの分類"""
+        error = asyncpg.exceptions.UniqueViolationError(
+            "duplicate key value violates unique constraint"
+        )
         error_type = classify_database_error(error)
         assert error_type == DatabaseErrorType.INTEGRITY
 
-    def test_classify_operational_error(self):
-        """操作エラーの分類"""
-        error = sqlite3.OperationalError("no such table")
+    def test_classify_postgres_foreign_key_violation_error(self):
+        """PostgreSQLの外部キー制約違反エラーの分類"""
+        error = asyncpg.exceptions.ForeignKeyViolationError(
+            "violates foreign key constraint"
+        )
+        error_type = classify_database_error(error)
+        assert error_type == DatabaseErrorType.INTEGRITY
+
+    def test_classify_postgres_deadlock_error(self):
+        """PostgreSQLのデッドロックエラーの分類"""
+        error = asyncpg.exceptions.DeadlockDetectedError("deadlock detected")
+        error_type = classify_database_error(error)
+        assert error_type == DatabaseErrorType.LOCKED
+
+    def test_classify_postgres_lock_not_available_error(self):
+        """PostgreSQLのロックエラーの分類"""
+        error = asyncpg.exceptions.LockNotAvailableError("could not obtain lock")
+        error_type = classify_database_error(error)
+        assert error_type == DatabaseErrorType.LOCKED
+
+    def test_classify_postgres_operational_error(self):
+        """PostgreSQLの操作エラーの分類"""
+        error = asyncpg.exceptions.PostgresError("relation does not exist")
         error_type = classify_database_error(error)
         assert error_type == DatabaseErrorType.OPERATIONAL
+
+    # SQLiteのエラーテスト（後方互換性のため）
+    def test_classify_sqlite_locked_error(self):
+        """SQLiteのデータベースロックエラーの分類（後方互換性）"""
+        try:
+            import sqlite3
+
+            error = sqlite3.OperationalError("database is locked")
+            error_type = classify_database_error(error)
+            assert error_type == DatabaseErrorType.LOCKED
+        except ImportError:
+            # sqlite3が利用できない場合はスキップ
+            pass
+
+    def test_classify_sqlite_integrity_error(self):
+        """SQLiteの整合性エラーの分類（後方互換性）"""
+        try:
+            import sqlite3
+
+            error = sqlite3.IntegrityError("UNIQUE constraint failed")
+            error_type = classify_database_error(error)
+            assert error_type == DatabaseErrorType.INTEGRITY
+        except ImportError:
+            # sqlite3が利用できない場合はスキップ
+            pass
+
+    def test_classify_sqlite_operational_error(self):
+        """SQLiteの操作エラーの分類（後方互換性）"""
+        try:
+            import sqlite3
+
+            error = sqlite3.OperationalError("no such table")
+            error_type = classify_database_error(error)
+            assert error_type == DatabaseErrorType.OPERATIONAL
+        except ImportError:
+            # sqlite3が利用できない場合はスキップ
+            pass
 
     def test_classify_unknown_error(self):
         """不明なエラーの分類"""

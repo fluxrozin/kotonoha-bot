@@ -2,8 +2,6 @@
 
 import logging
 import os
-import tempfile
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -14,9 +12,7 @@ if "LOG_FILE" not in os.environ:
     os.environ["LOG_FILE"] = ""
 
 from kotonoha_bot.db.postgres import PostgreSQLDatabase
-from kotonoha_bot.db.sqlite import SQLiteDatabase
 from kotonoha_bot.external.embedding import EmbeddingProvider
-from kotonoha_bot.session.manager import SessionManager
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -37,39 +33,15 @@ def setup_test_environment():
         logging.root.removeHandler(handler)
 
 
-@pytest.fixture
-def temp_db_path():
-    """一時的なデータベースパス"""
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-        db_path = Path(f.name)
-    yield db_path
-    db_path.unlink(missing_ok=True)
-
-
-@pytest.fixture
-async def db(temp_db_path):
-    """SQLite データベースのフィクスチャ"""
-    database = SQLiteDatabase(db_path=temp_db_path)
-    await database.initialize()
-    yield database
-    # aiosqlite は接続プールを自動管理するため、明示的な close は不要
-
-
-@pytest.fixture
-async def session_manager(temp_db_path):
-    """SessionManager のフィクスチャ"""
-    # 一時的なデータベースを使用
-    # SessionManager の初期化前にデータベースパスを設定する必要があるため、
-    # 一時的なデータベースインスタンスを作成してから SessionManager に渡す
-    temp_db = SQLiteDatabase(db_path=temp_db_path)
-    manager = SessionManager()
-    # データベースインスタンスを置き換え
-    manager.db = temp_db
-    # セッション辞書をクリア（_load_active_sessions で読み込まれたセッションを削除）
-    manager.sessions = {}
-    await manager.initialize()
-    yield manager
-    # aiosqlite は接続プールを自動管理するため、明示的な close は不要
+# ============================================
+# ⚠️ 非推奨: SQLiteフィクスチャ
+# ============================================
+# プロジェクトはPostgreSQLに移行したため、SQLiteフィクスチャは非推奨です。
+# 新しいテストは postgres_db フィクスチャを使用してください。
+#
+# 既存のSQLiteフィクスチャは後方互換性のため残していますが、
+# 将来的に削除される可能性があります。
+# ============================================
 
 
 @pytest.fixture(autouse=True)
