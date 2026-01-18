@@ -442,13 +442,16 @@ docker compose exec postgres psql -U kotonoha -d kotonoha -c "\dt"
 
 ```bash
 # pgvector拡張が有効化されているか確認
-docker compose exec postgres psql -U kotonoha -d kotonoha -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
+docker compose exec postgres psql -U kotonoha -d kotonoha \
+  -c "SELECT * FROM pg_extension WHERE extname = 'vector';"
 
 # pgvectorのバージョンを確認
-docker compose exec postgres psql -U kotonoha -d kotonoha -c "SELECT extversion FROM pg_extension WHERE extname = 'vector';"
+docker compose exec postgres psql -U kotonoha -d kotonoha \
+  -c "SELECT extversion FROM pg_extension WHERE extname = 'vector';"
 
 # halfvec型が使用可能か確認
-docker compose exec postgres psql -U kotonoha -d kotonoha -c "SELECT '[1,2,3]'::halfvec(3);"
+docker compose exec postgres psql -U kotonoha -d kotonoha \
+  -c "SELECT '[1,2,3]'::halfvec(3);"
 ```
 
 **確認項目**:
@@ -468,10 +471,14 @@ docker compose exec postgres psql -U kotonoha -d kotonoha -c "SELECT '[1,2,3]'::
 
 ```bash
 # セッションが保存されているか確認
-docker compose exec postgres psql -U kotonoha -d kotonoha -c "SELECT session_key, session_type, status, created_at FROM sessions ORDER BY created_at DESC LIMIT 5;"
+docker compose exec postgres psql -U kotonoha -d kotonoha \
+  -c "SELECT session_key, session_type, status, created_at \
+      FROM sessions ORDER BY created_at DESC LIMIT 5;"
 
 # メッセージが保存されているか確認
-docker compose exec postgres psql -U kotonoha -d kotonoha -c "SELECT session_key, jsonb_array_length(messages) as message_count FROM sessions;"
+docker compose exec postgres psql -U kotonoha -d kotonoha \
+  -c "SELECT session_key, jsonb_array_length(messages) as message_count \
+      FROM sessions;"
 ```
 
 **確認項目**:
@@ -489,14 +496,25 @@ docker compose exec postgres psql -U kotonoha -d kotonoha -c "SELECT session_key
 # 知識ソースを手動で作成（テスト用）
 docker compose exec -T postgres psql -U kotonoha -d kotonoha <<EOF
 INSERT INTO knowledge_sources (type, title, uri, metadata, status)
-VALUES ('discord_session', 'テストソース', 'https://example.com', '{"test": true}'::jsonb, 'pending')
+VALUES (
+  'discord_session',
+  'テストソース',
+  'https://example.com',
+  '{"test": true}'::jsonb,
+  'pending'
+)
 RETURNING id, type, title, status;
 EOF
 
 # 知識チャンクを手動で作成（テスト用）
 docker compose exec -T postgres psql -U kotonoha -d kotonoha <<EOF
 INSERT INTO knowledge_chunks (source_id, content, location, token_count)
-VALUES (1, 'これはテスト用のチャンクです', '{"url": "https://example.com", "label": "テスト"}'::jsonb, 10)
+VALUES (
+  1,
+  'これはテスト用のチャンクです',
+  '{"url": "https://example.com", "label": "テスト"}'::jsonb,
+  10
+)
 RETURNING id, source_id, content, token_count;
 EOF
 
@@ -527,7 +545,9 @@ Step 5（Embedding処理）を実装するか、手動でテスト用のベク�
 docker compose exec -T postgres psql -U kotonoha -d kotonoha <<EOF
 -- テスト用のベクトル1（すべて0.1の値）
 UPDATE knowledge_chunks
-SET embedding = (SELECT array_agg(0.1::real) FROM generate_series(1, 1536))::halfvec(1536)
+SET embedding = (
+  SELECT array_agg(0.1::real) FROM generate_series(1, 1536)
+)::halfvec(1536)
 WHERE id = 1;
 
 -- テスト用のベクトル2（交互に0.1と-0.1の値）を別のチャンクに追加
@@ -581,8 +601,14 @@ async def test_similarity_search():
     
     print(f"検索結果数: {len(results2)}")
     if len(results2) == 0:
-        print(f"  ⚠️  閾値({settings.kb_similarity_threshold})を下回るため結果がありません")
-        print(f"  実際の類似度を確認するため、閾値フィルタリングを無効化して再検索します...")
+        print(
+            f"  ⚠️  閾値({settings.kb_similarity_threshold})を下回るため"
+            f"結果がありません"
+        )
+        print(
+            f"  実際の類似度を確認するため、"
+            f"閾値フィルタリングを無効化して再検索します..."
+        )
         # 閾値フィルタリングを無効化して生の類似度スコアを取得
         results2_raw = await db.similarity_search(
             query_embedding=query_embedding2,
@@ -596,7 +622,11 @@ async def test_similarity_search():
                       f"similarity: {result['similarity']:.6f}, "
                       f"content: {result['content'][:50]}..., "
                       f"source_type: {result['source_type']}")
-                print(f"    閾値との差: {result['similarity'] - settings.kb_similarity_threshold:.6f}")
+                print(
+                    f"    閾値との差: "
+                    f"{result['similarity'] - "
+                    f"settings.kb_similarity_threshold:.6f}"
+                )
     else:
         for result in results2:
             print(f"  - chunk_id: {result['chunk_id']}, "
@@ -617,8 +647,14 @@ async def test_similarity_search():
     
     print(f"検索結果数: {len(results3)}")
     if len(results3) == 0:
-        print(f"  ⚠️  閾値({settings.kb_similarity_threshold})を下回るため結果がありません")
-        print(f"  実際の類似度を確認するため、閾値フィルタリングを無効化して再検索します...")
+        print(
+            f"  ⚠️  閾値({settings.kb_similarity_threshold})を下回るため"
+            f"結果がありません"
+        )
+        print(
+            f"  実際の類似度を確認するため、"
+            f"閾値フィルタリングを無効化して再検索します..."
+        )
         # 閾値フィルタリングを無効化して生の類似度スコアを取得
         results3_raw = await db.similarity_search(
             query_embedding=query_embedding3,
@@ -632,7 +668,11 @@ async def test_similarity_search():
                       f"similarity: {result['similarity']:.6f}, "
                       f"content: {result['content'][:50]}..., "
                       f"source_type: {result['source_type']}")
-                print(f"    閾値との差: {result['similarity'] - settings.kb_similarity_threshold:.6f}")
+                print(
+                    f"    閾値との差: "
+                    f"{result['similarity'] - "
+                    f"settings.kb_similarity_threshold:.6f}"
+                )
     else:
         for result in results3:
             print(f"  - chunk_id: {result['chunk_id']}, "
@@ -654,15 +694,21 @@ EOF
 
 **注意事項**:
 
-- コサイン類似度はベクトルの**方向**を比較するため、すべて同じ値のベクトル（例: `[0.1, 0.1, ..., 0.1]` と `[0.2, 0.2, ..., 0.2]`）は正規化すると同じ方向になるため、類似度は1.0になります
-- より意味のあるテストを行うには、異なる方向のベクトル（例: 交互に異なる値を持つベクトル）を使用してください
-- テスト2では、交互に0.1と-0.1の値を持つベクトルを使用しており、これは元のベクトル（すべて0.1）と直交に近い方向になるため、類似度は低くなります
+- コサイン類似度はベクトルの**方向**を比較するため、
+  すべて同じ値のベクトル（例: `[0.1, 0.1, ..., 0.1]` と
+  `[0.2, 0.2, ..., 0.2]`）は正規化すると同じ方向になるため、
+  類似度は1.0になります
+- より意味のあるテストを行うには、
+  異なる方向のベクトル（例: 交互に異なる値を持つベクトル）を使用してください
+- テスト2では、交互に0.1と-0.1の値を持つベクトルを使用しており、
+  これは元のベクトル（すべて0.1）と直交に近い方向になるため、
+  類似度は低くなります
 
 #### 閾値フィルタリングの制御
 
 `similarity_search`メソッドでは、`apply_threshold`パラメータを使用して閾値フィルタリングを制御できます。
 
-**基本的な使い方**:
+##### 基本的な使い方
 
 ```python
 # デフォルト: 閾値フィルタリングあり（設定値の閾値を使用）
@@ -686,7 +732,7 @@ results_raw = await db.similarity_search(
 )
 ```
 
-**使用例: 閾値を下回る結果も確認したい場合**
+##### 使用例: 閾値を下回る結果も確認したい場合
 
 ```python
 # 閾値フィルタリングあり（デフォルト）
@@ -709,8 +755,11 @@ if len(results_with_threshold) == 0:
 
 **パラメータ説明**:
 
-- `similarity_threshold` (float | None): 類似度閾値。`None`の場合は設定値（`KB_SIMILARITY_THRESHOLD`、デフォルト0.7）を使用
-- `apply_threshold` (bool): 閾値フィルタリングを適用するか。`False`の場合は閾値フィルタリングを無効化し、生の類似度スコアを返す（デフォルト: `True`）
+- `similarity_threshold` (float | None): 類似度閾値。
+  `None`の場合は設定値（`KB_SIMILARITY_THRESHOLD`、デフォルト0.7）を使用
+- `apply_threshold` (bool): 閾値フィルタリングを適用するか。
+  `False`の場合は閾値フィルタリングを無効化し、
+  生の類似度スコアを返す（デフォルト: `True`）
 
 **用途**:
 
@@ -734,8 +783,10 @@ docker compose logs kotonoha-bot | grep -i "embedding.*start\|processor.*start"
 
 **確認項目**:
 
-- [ ] Bot起動時にEmbeddingProcessorが初期化されている（ログに "EmbeddingProcessor initialized" などが表示される）
-- [ ] バックグラウンドタスクが開始されている（ログに "Starting embedding processing task" などが表示される）
+- [ ] Bot起動時にEmbeddingProcessorが初期化されている
+  （ログに "EmbeddingProcessor initialized" などが表示される）
+- [ ] バックグラウンドタスクが開始されている
+  （ログに "Starting embedding processing task" などが表示される）
 
 #### 7.2 テスト用チャンクの作成
 
@@ -744,11 +795,19 @@ docker compose logs kotonoha-bot | grep -i "embedding.*start\|processor.*start"
 docker compose exec -T postgres psql -U kotonoha -d kotonoha <<EOF
 -- テスト用の知識ソースを作成
 INSERT INTO knowledge_sources (type, title, uri, metadata, status)
-VALUES ('document_file', 'Embedding処理テスト', 'https://example.com/test', '{"test": true}'::jsonb, 'pending')
+VALUES (
+  'document_file',
+  'Embedding処理テスト',
+  'https://example.com/test',
+  '{"test": true}'::jsonb,
+  'pending'
+)
 RETURNING id, type, title, status;
 
 -- テスト用のチャンクを作成（embedding IS NULLの状態）
-INSERT INTO knowledge_chunks (source_id, content, location, token_count, embedding, retry_count)
+INSERT INTO knowledge_chunks (
+  source_id, content, location, token_count, embedding, retry_count
+)
 VALUES 
   ((SELECT id FROM knowledge_sources WHERE title = 'Embedding処理テスト'), 
    'これはEmbedding処理のテスト用チャンクです。', 
@@ -758,7 +817,12 @@ VALUES
    'もう一つのテスト用チャンクです。', 
    '{"url": "https://example.com/test", "label": "テストチャンク2"}'::jsonb, 
    8, NULL, 0)
-RETURNING id, source_id, content, token_count, embedding IS NULL as has_null_embedding;
+RETURNING
+  id,
+  source_id,
+  content,
+  token_count,
+  embedding IS NULL as has_null_embedding;
 EOF
 ```
 
@@ -810,7 +874,9 @@ SELECT
     retry_count,
     created_at
 FROM knowledge_chunks
-WHERE source_id = (SELECT id FROM knowledge_sources WHERE title = 'Embedding処理テスト')
+WHERE source_id = (
+  SELECT id FROM knowledge_sources WHERE title = 'Embedding処理テスト'
+)
 ORDER BY id;
 "
 
@@ -905,10 +971,14 @@ SELECT
     s.id,
     s.title,
     s.status,
-    COUNT(CASE WHEN c.embedding IS NULL AND c.retry_count < 3 THEN 1 END) as pending_chunks,
+    COUNT(
+      CASE WHEN c.embedding IS NULL AND c.retry_count < 3 THEN 1 END
+    ) as pending_chunks,
     COUNT(CASE WHEN c.embedding IS NOT NULL THEN 1 END) as processed_chunks,
     COUNT(CASE WHEN c.retry_count >= 3 THEN 1 END) as failed_chunks,
-    (SELECT COUNT(*) FROM knowledge_chunks_dlq WHERE source_id = s.id) as dlq_chunks
+    (
+      SELECT COUNT(*) FROM knowledge_chunks_dlq WHERE source_id = s.id
+    ) as dlq_chunks
 FROM knowledge_sources s
 LEFT JOIN knowledge_chunks c ON s.id = c.source_id
 GROUP BY s.id, s.title, s.status
@@ -979,10 +1049,26 @@ VALUES (
     'test:session:archiver:001',
     'mention',
     '[
-        {"role": "user", "content": "これはテスト用のセッションです。", "timestamp": "2026-01-19T10:00:00Z"},
-        {"role": "assistant", "content": "了解しました。テスト用のセッションですね。", "timestamp": "2026-01-19T10:00:05Z"},
-        {"role": "user", "content": "アーカイブ処理をテストします。", "timestamp": "2026-01-19T10:00:10Z"},
-        {"role": "assistant", "content": "アーカイブ処理のテストですね。", "timestamp": "2026-01-19T10:00:15Z"}
+        {
+          "role": "user",
+          "content": "これはテスト用のセッションです。",
+          "timestamp": "2026-01-19T10:00:00Z"
+        },
+        {
+          "role": "assistant",
+          "content": "了解しました。テスト用のセッションですね。",
+          "timestamp": "2026-01-19T10:00:05Z"
+        },
+        {
+          "role": "user",
+          "content": "アーカイブ処理をテストします。",
+          "timestamp": "2026-01-19T10:00:10Z"
+        },
+        {
+          "role": "assistant",
+          "content": "アーカイブ処理のテストですね。",
+          "timestamp": "2026-01-19T10:00:15Z"
+        }
     ]'::jsonb,
     'active',
     123456789,
@@ -992,7 +1078,12 @@ VALUES (
     1,
     0
 )
-RETURNING session_key, session_type, status, last_active_at, jsonb_array_length(messages) as message_count;
+RETURNING
+  session_key,
+  session_type,
+  status,
+  last_active_at,
+  jsonb_array_length(messages) as message_count;
 EOF
 ```
 
@@ -1176,7 +1267,8 @@ INSERT INTO sessions (
 VALUES (
     'test:session:short:001',
     'mention',
-    '[{"role": "user", "content": "短い", "timestamp": "2026-01-19T10:00:00Z"}]'::jsonb,
+    '[{"role": "user", "content": "短い", '
+    '"timestamp": "2026-01-19T10:00:00Z"}]'::jsonb,
     'active',
     NOW() - INTERVAL '2 hours',
     1
@@ -1195,7 +1287,11 @@ VALUES (
     'test:session:bot_only:001',
     'mention',
     '[
-        {"role": "assistant", "content": "Botのみのセッション", "timestamp": "2026-01-19T10:00:00Z"}
+        {
+          "role": "assistant",
+          "content": "Botのみのセッション",
+          "timestamp": "2026-01-19T10:00:00Z"
+        }
     ]'::jsonb,
     'active',
     NOW() - INTERVAL '2 hours',
@@ -1229,10 +1325,12 @@ WHERE session_key IN ('test:session:short:001', 'test:session:bot_only:001');
 
 ```bash
 # Botの起動ログを確認（依存性注入が正しく行われているか）
-docker compose logs kotonoha-bot | grep -i "initializ\|embedding.*provider\|session.*archiver"
+docker compose logs kotonoha-bot | \
+  grep -i "initializ\|embedding.*provider\|session.*archiver"
 
 # main.pyでの初期化ログを確認
-docker compose logs kotonoha-bot | grep -i "postgresql.*database\|openai.*embedding"
+docker compose logs kotonoha-bot | \
+  grep -i "postgresql.*database\|openai.*embedding"
 ```
 
 **確認項目**:
@@ -1249,7 +1347,8 @@ docker compose logs kotonoha-bot | grep -i "postgresql.*database\|openai.*embedd
 docker compose logs kotonoha-bot | grep -i "start.*task\|task.*start"
 
 # タスクの実行間隔を確認
-docker compose exec kotonoha-bot env | grep -i "KB_EMBEDDING_INTERVAL\|KB_ARCHIVE_INTERVAL"
+docker compose exec kotonoha-bot env | \
+  grep -i "KB_EMBEDDING_INTERVAL\|KB_ARCHIVE_INTERVAL"
 ```
 
 **確認項目**:
@@ -1269,7 +1368,8 @@ docker compose exec kotonoha-bot env | grep -i "KB_EMBEDDING_INTERVAL\|KB_ARCHIV
 docker compose stop kotonoha-bot
 
 # シャットダウンログを確認
-docker compose logs kotonoha-bot | tail -50 | grep -i "shutdown\|graceful\|stopping"
+docker compose logs kotonoha-bot | tail -50 | \
+  grep -i "shutdown\|graceful\|stopping"
 
 # 処理中のタスクが完了するまで待機しているか確認
 docker compose logs kotonoha-bot | grep -i "waiting.*task\|task.*complete"
@@ -1503,7 +1603,10 @@ async def test_similarity_search():
     
     print(f"検索結果数: {len(results)}")
     for result in results:
-        print(f"  - chunk_id: {result['chunk_id']}, similarity: {result['similarity']:.4f}")
+        print(
+            f"  - chunk_id: {result['chunk_id']}, "
+            f"similarity: {result['similarity']:.4f}"
+        )
     
     await db.close()
 
@@ -1665,7 +1768,8 @@ LIMIT 10;
 **確認方法**:
 
 ```bash
-docker compose logs kotonoha-bot | grep -i "concurrently.*updated\|optimistic.*lock"
+docker compose logs kotonoha-bot | \
+  grep -i "concurrently.*updated\|optimistic.*lock"
 ```
 
 **解決方法**:

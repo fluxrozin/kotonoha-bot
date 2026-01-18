@@ -2,12 +2,19 @@
 
 import asyncio
 import random
+import time
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 import structlog
 import tiktoken
 from discord.ext import tasks
+
+from .metrics import (
+    session_archive_duration,
+    sessions_archived_counter,
+    sessions_archived_errors_counter,
+)
 
 if TYPE_CHECKING:
     from ...db.postgres import PostgreSQLDatabase
@@ -72,6 +79,7 @@ class SessionArchiver:
                 from asyncio import timeout
 
                 # 接続取得にタイムアウトを設定
+                assert self.db.pool is not None, "Database pool must be initialized"
                 async with timeout(30.0):
                     async with self.db.pool.acquire() as conn:
                         inactive_sessions = await conn.fetch(
@@ -101,6 +109,9 @@ class SessionArchiver:
                 return
 
             logger.info(f"Archiving {len(inactive_sessions)} inactive sessions...")
+
+            # メトリクス: アーカイブ処理時間の計測開始
+            archive_start_time = time.time()
 
             # ⚠️ 重要: セッションアーカイブの並列処理（高速化）
             # セマフォで同時実行数を制限しつつ並列処理（DBへの負荷に注意）
@@ -132,10 +143,20 @@ class SessionArchiver:
                 return_exceptions=True,
             )
 
+            # メトリクス: アーカイブ処理時間を記録
+            archive_elapsed_time = time.time() - archive_start_time
+            session_archive_duration.observe(archive_elapsed_time)
+
+            # メトリクス: アーカイブ済みセッション数を記録
+            sessions_archived_counter.inc(len(inactive_sessions))
+
             logger.info(f"Successfully archived {len(inactive_sessions)} sessions")
 
         except Exception as e:
             logger.error(f"Error during session archiving: {e}", exc_info=True)
+            # メトリクス: エラーを記録
+            error_type = type(e).__name__
+            sessions_archived_errors_counter.labels(error_type=error_type).inc()
         finally:
             self._processing = False
 
@@ -229,6 +250,7 @@ class SessionArchiver:
 
         if not messages_to_archive:
             # アーカイブ対象がない場合（すべてアーカイブ済み）、status='archived' に更新して終了
+            assert self.db.pool is not None, "Database pool must be initialized"
             async with self.db.pool.acquire() as conn, conn.transaction():
                 await conn.execute(
                     """
@@ -247,6 +269,7 @@ class SessionArchiver:
         if not self._should_archive_session(messages_to_archive):
             logger.debug(f"Skipping low-value session: {session_key}")
             # アーカイブしないが、last_archived_message_index を更新（再処理を避ける）
+            assert self.db.pool is not None, "Database pool must be initialized"
             async with self.db.pool.acquire() as conn, conn.transaction():
                 await conn.execute(
                     """
@@ -311,89 +334,92 @@ class SessionArchiver:
         }
 
         # ⚠️ 重要: すべての操作を1つのアトミックなトランザクション内で実行
-        async with self.db.pool.acquire() as conn:
-            # ⚠️ 重要: トランザクション分離レベルを REPEATABLE READ に設定（楽観的ロックのため）
-            async with conn.transaction(isolation="repeatable_read"):
-                # 1. knowledge_sources に登録（status='pending'）
-                source_id = await conn.fetchval(
-                    """
+        assert self.db.pool is not None, "Database pool must be initialized"
+        # ⚠️ 重要: トランザクション分離レベルを REPEATABLE READ に設定（楽観的ロックのため）
+        async with (
+            self.db.pool.acquire() as conn,
+            conn.transaction(isolation="repeatable_read"),
+        ):
+            # 1. knowledge_sources に登録（status='pending'）
+            source_id = await conn.fetchval(
+                """
                     INSERT INTO knowledge_sources (type, title, uri, metadata, status)
                     VALUES ($1, $2, $3, $4::jsonb, 'pending')
                     RETURNING id
                 """,
-                    "discord_session",
-                    title,
-                    uri,
-                    metadata,
-                )
+                "discord_session",
+                title,
+                uri,
+                metadata,
+            )
 
-                # 2. knowledge_chunks に登録（複数チャンクに対応）
-                for i, chunk_content in enumerate(chunks):
-                    chunk_token_count = len(encoding.encode(chunk_content))
-                    location = {
-                        "url": uri,
-                        "label": f"チャンク {i + 1}/{len(chunks)}",
-                        "session_key": session_key,
-                        "chunk_index": i,
-                        "total_chunks": len(chunks),
-                    }
-                    await conn.execute(
-                        """
+            # 2. knowledge_chunks に登録（複数チャンクに対応）
+            for i, chunk_content in enumerate(chunks):
+                chunk_token_count = len(encoding.encode(chunk_content))
+                location = {
+                    "url": uri,
+                    "label": f"チャンク {i + 1}/{len(chunks)}",
+                    "session_key": session_key,
+                    "chunk_index": i,
+                    "total_chunks": len(chunks),
+                }
+                await conn.execute(
+                    """
                         INSERT INTO knowledge_chunks
                         (source_id, content, embedding, location, token_count)
                         VALUES ($1, $2, NULL, $3::jsonb, $4)
                     """,
-                        source_id,
-                        chunk_content,
-                        location,
-                        chunk_token_count,
-                    )
+                    source_id,
+                    chunk_content,
+                    location,
+                    chunk_token_count,
+                )
 
-                # アーカイブ済み地点を記録（将来の差分アーカイブ用）
-                archived_message_count = len(messages)
-                archived_until_timestamp = None
-                if messages:
-                    last_msg = messages[-1]
-                    archived_until_timestamp = last_msg.get("timestamp")
-                    if not archived_until_timestamp:
-                        archived_until_timestamp = last_msg.get("created_at")
+            # アーカイブ済み地点を記録（将来の差分アーカイブ用）
+            archived_message_count = len(messages)
+            archived_until_timestamp = None
+            if messages:
+                last_msg = messages[-1]
+                archived_until_timestamp = last_msg.get("timestamp")
+                if not archived_until_timestamp:
+                    archived_until_timestamp = last_msg.get("created_at")
 
-                metadata["archived_message_count"] = archived_message_count
-                if archived_until_timestamp:
-                    metadata["archived_until_timestamp"] = archived_until_timestamp
+            metadata["archived_message_count"] = archived_message_count
+            if archived_until_timestamp:
+                metadata["archived_until_timestamp"] = archived_until_timestamp
 
-                # knowledge_sources の metadata を更新（アーカイブ済み地点を記録）
-                await conn.execute(
-                    """
+            # knowledge_sources の metadata を更新（アーカイブ済み地点を記録）
+            await conn.execute(
+                """
                     UPDATE knowledge_sources
                     SET metadata = $1::jsonb
                     WHERE id = $2
                 """,
-                    metadata,
-                    source_id,
+                metadata,
+                source_id,
+            )
+
+            # ⚠️ 改善（会話の分断対策）: スライディングウィンドウ（のりしろ）方式
+            KB_ARCHIVE_OVERLAP_MESSAGES = settings.kb_archive_overlap_messages
+
+            # アーカイブ済み地点を計算
+            new_archived_index = current_archived_index + len(messages_to_archive)
+
+            # すべてのメッセージがアーカイブ済みかどうかを判定
+            all_messages_archived = new_archived_index >= len(messages)
+
+            if all_messages_archived:
+                # すべてのメッセージがアーカイブ済みの場合
+                overlap_messages = (
+                    messages[-KB_ARCHIVE_OVERLAP_MESSAGES:]
+                    if len(messages) > KB_ARCHIVE_OVERLAP_MESSAGES
+                    else messages
                 )
 
-                # ⚠️ 改善（会話の分断対策）: スライディングウィンドウ（のりしろ）方式
-                KB_ARCHIVE_OVERLAP_MESSAGES = settings.kb_archive_overlap_messages
+                reset_index = 0
 
-                # アーカイブ済み地点を計算
-                new_archived_index = current_archived_index + len(messages_to_archive)
-
-                # すべてのメッセージがアーカイブ済みかどうかを判定
-                all_messages_archived = new_archived_index >= len(messages)
-
-                if all_messages_archived:
-                    # すべてのメッセージがアーカイブ済みの場合
-                    overlap_messages = (
-                        messages[-KB_ARCHIVE_OVERLAP_MESSAGES:]
-                        if len(messages) > KB_ARCHIVE_OVERLAP_MESSAGES
-                        else messages
-                    )
-
-                    reset_index = 0
-
-                    result = await conn.execute(
-                        """
+                result = await conn.execute(
+                    """
                         UPDATE sessions
                         SET status = 'archived',
                             messages = $3::jsonb,
@@ -403,24 +429,24 @@ class SessionArchiver:
                         AND status = 'active'
                         AND version = $2
                     """,
-                        session_key,
-                        original_version,
-                        overlap_messages,
-                        reset_index,
-                    )
-                else:
-                    # 一部のみアーカイブ済みの場合
-                    remaining_messages = messages[new_archived_index:]
-                    overlap_messages = (
-                        remaining_messages[-KB_ARCHIVE_OVERLAP_MESSAGES:]
-                        if len(remaining_messages) > KB_ARCHIVE_OVERLAP_MESSAGES
-                        else remaining_messages
-                    )
+                    session_key,
+                    original_version,
+                    overlap_messages,
+                    reset_index,
+                )
+            else:
+                # 一部のみアーカイブ済みの場合
+                remaining_messages = messages[new_archived_index:]
+                overlap_messages = (
+                    remaining_messages[-KB_ARCHIVE_OVERLAP_MESSAGES:]
+                    if len(remaining_messages) > KB_ARCHIVE_OVERLAP_MESSAGES
+                    else remaining_messages
+                )
 
-                    reset_index = 0
+                reset_index = 0
 
-                    result = await conn.execute(
-                        """
+                result = await conn.execute(
+                    """
                         UPDATE sessions
                         SET messages = $3::jsonb,
                             last_archived_message_index = $4,
@@ -429,23 +455,23 @@ class SessionArchiver:
                         AND status = 'active'
                         AND version = $2
                     """,
-                        session_key,
-                        original_version,
-                        overlap_messages,
-                        reset_index,
-                    )
+                    session_key,
+                    original_version,
+                    overlap_messages,
+                    reset_index,
+                )
 
-                # asyncpgのexecuteは "UPDATE N" 形式の文字列を返す
-                if result == "UPDATE 0":
-                    logger.warning(
-                        f"Session {session_key} was updated during archiving, "
-                        f"rolling back transaction to prevent duplicate "
-                        f"archive (will retry)"
-                    )
-                    raise ValueError(
-                        f"Session {session_key} was concurrently updated, "
-                        f"archiving aborted to prevent duplicate"
-                    )
+            # asyncpgのexecuteは "UPDATE N" 形式の文字列を返す
+            if result == "UPDATE 0":
+                logger.warning(
+                    f"Session {session_key} was updated during archiving, "
+                    f"rolling back transaction to prevent duplicate "
+                    f"archive (will retry)"
+                )
+                raise ValueError(
+                    f"Session {session_key} was concurrently updated, "
+                    f"archiving aborted to prevent duplicate"
+                )
 
         # トランザクションが正常にコミットされた場合のみ、このログが出力されます
         logger.info(
@@ -464,10 +490,7 @@ class SessionArchiver:
 
         # Botのみのセッションを除外（ユーザー発言がない）
         has_user_message = any(msg.get("role") == "user" for msg in messages)
-        if not has_user_message:
-            return False
-
-        return True
+        return has_user_message
 
     def _format_messages_for_knowledge(self, messages: list[dict]) -> str:
         """メッセージを知識ベース用のテキストに整形"""

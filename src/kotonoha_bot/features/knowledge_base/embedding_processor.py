@@ -1,12 +1,20 @@
 """Embedding処理のバックグラウンドタスク"""
 
 import asyncio
+import time
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, cast
 
 import asyncpg
 import structlog
 from discord.ext import tasks
+
+from .metrics import (
+    embedding_errors_counter,
+    embedding_processed_counter,
+    embedding_processing_duration,
+    pending_chunks_gauge,
+)
 
 if TYPE_CHECKING:
     from ...db.postgres import PostgreSQLDatabase
@@ -52,7 +60,9 @@ class EmbeddingProcessor:
         # 環境変数の遅延読み込みが必要な場合は、__init__で間隔を保存し、
         # start()メソッドでchange_interval()を呼び出します。
         self._interval = settings.kb_embedding_interval_minutes
-        logger.info(f"EmbeddingProcessor initialized: interval={self._interval} minutes")
+        logger.info(
+            f"EmbeddingProcessor initialized: interval={self._interval} minutes"
+        )
 
     @tasks.loop(minutes=1)  # デフォルト値（start()で動的に変更される）
     async def process_pending_embeddings(self):
@@ -89,6 +99,9 @@ class EmbeddingProcessor:
             logger.debug("Embedding processing already in progress, skipping...")
             return
 
+        # メトリクス: 処理時間の計測開始
+        start_time = time.time()
+
         async with self._lock:
             logger.info("Starting embedding processing...")
 
@@ -106,12 +119,15 @@ class EmbeddingProcessor:
             # Tx2: 結果を UPDATE
 
             # Tx1: 対象チャンクを取得（FOR UPDATE SKIP LOCKEDでロック）
-            async with self.db.pool.acquire() as conn:
-                async with conn.transaction():
-                    # FOR UPDATE SKIP LOCKED でロックを取得し、他のプロセスと競合しないようにする
-                    # ⚠️ 改善（パフォーマンス）: idx_chunks_queue 部分インデックスが使用される
-                    pending_chunks = await conn.fetch(
-                        """
+            assert self.db.pool is not None, "Database pool must be initialized"
+            async with (
+                self.db.pool.acquire() as conn,
+                conn.transaction(),
+            ):
+                # FOR UPDATE SKIP LOCKED でロックを取得し、他のプロセスと競合しないようにする
+                # ⚠️ 改善（パフォーマンス）: idx_chunks_queue 部分インデックスが使用される
+                pending_chunks = await conn.fetch(
+                    """
                         SELECT id, content, source_id, retry_count
                         FROM knowledge_chunks
                         WHERE embedding IS NULL
@@ -120,16 +136,20 @@ class EmbeddingProcessor:
                         LIMIT $2
                         FOR UPDATE SKIP LOCKED
                     """,
-                        MAX_RETRY_COUNT,
-                        self.batch_size,
-                    )
-                    # トランザクションを即コミット（ロックを解放）
+                    MAX_RETRY_COUNT,
+                    self.batch_size,
+                )
+                # トランザクションを即コミット（ロックを解放）
 
             if not pending_chunks:
                 logger.info("No pending chunks to process")
+                # メトリクス: pendingチャンク数を更新
+                pending_chunks_gauge.set(0)
                 return
 
             logger.info(f"Processing {len(pending_chunks)} pending chunks...")
+            # メトリクス: pendingチャンク数を更新
+            pending_chunks_gauge.set(len(pending_chunks))
 
             # No Tx: OpenAI Embedding APIのバッチリクエスト（時間かかる処理）
             # ⚠️ 重要: この時点ではトランザクションを保持していないため、
@@ -144,50 +164,55 @@ class EmbeddingProcessor:
                     f"Embedding API failed for batch: {error_code}",
                     exc_info=True,
                 )
+                # メトリクス: エラーを記録
+                embedding_errors_counter.labels(error_type=error_code).inc()
                 # Tx2: エラー時の更新（別トランザクション）
-                async with self.db.pool.acquire() as conn:
-                    async with conn.transaction():
-                        for chunk in pending_chunks:
-                            # retry_countをインクリメント
-                            new_retry_count = await conn.fetchval(
-                                """
+                assert self.db.pool is not None, "Database pool must be initialized"
+                async with (
+                    self.db.pool.acquire() as conn,
+                    conn.transaction(),
+                ):
+                    for chunk in pending_chunks:
+                        # retry_countをインクリメント
+                        new_retry_count = await conn.fetchval(
+                            """
                                 UPDATE knowledge_chunks
                                 SET retry_count = COALESCE(retry_count, 0) + 1
                                 WHERE id = $1
                                 RETURNING retry_count
                             """,
-                                chunk["id"],
+                            chunk["id"],
+                        )
+
+                        # ⚠️ 改善（データ整合性）: DLQへの移動ロジックを追加
+                        if new_retry_count >= MAX_RETRY_COUNT:
+                            await self._move_to_dlq(
+                                cast(asyncpg.Connection, conn),
+                                dict(chunk),
+                                e,
                             )
 
-                            # ⚠️ 改善（データ整合性）: DLQへの移動ロジックを追加
-                            if new_retry_count >= MAX_RETRY_COUNT:
-                                await self._move_to_dlq(
-                                    cast(asyncpg.Connection, conn),
-                                    dict(chunk),
-                                    e,
-                                )
-
-                        # retry_countが上限に達したソースはfailedに
-                        source_ids = {chunk["source_id"] for chunk in pending_chunks}
-                        for source_id in source_ids:
-                            failed_count = await conn.fetchval(
-                                """
+                    # retry_countが上限に達したソースはfailedに
+                    source_ids = {chunk["source_id"] for chunk in pending_chunks}
+                    for source_id in source_ids:
+                        failed_count = await conn.fetchval(
+                            """
                                 SELECT COUNT(*)
                                 FROM knowledge_chunks
                                 WHERE source_id = $1
                                 AND retry_count >= $2
                             """,
-                                source_id,
-                                MAX_RETRY_COUNT,
-                            )
+                            source_id,
+                            MAX_RETRY_COUNT,
+                        )
 
-                            if failed_count > 0:
-                                error_code = "EMBEDDING_MAX_RETRIES_EXCEEDED"
-                                error_message = (
-                                    f"Embedding failed after {MAX_RETRY_COUNT} retries"
-                                )
-                                await conn.execute(
-                                    """
+                        if failed_count > 0:
+                            error_code = "EMBEDDING_MAX_RETRIES_EXCEEDED"
+                            error_message = (
+                                f"Embedding failed after {MAX_RETRY_COUNT} retries"
+                            )
+                            await conn.execute(
+                                """
                                     UPDATE knowledge_sources
                                     SET status = 'failed',
                                         error_code = $1,
@@ -195,10 +220,10 @@ class EmbeddingProcessor:
                                         updated_at = CURRENT_TIMESTAMP
                                     WHERE id = $3
                                 """,
-                                    error_code,
-                                    error_message,
-                                    source_id,
-                                )
+                                error_code,
+                                error_message,
+                                source_id,
+                            )
                 return  # 処理を中断
 
             # Tx2: 結果を UPDATE（別トランザクション）
@@ -214,37 +239,50 @@ class EmbeddingProcessor:
             if successful_chunks:
                 successful_embeddings = [
                     emb
-                    for emb, chunk in zip(embeddings, pending_chunks)
+                    for emb, chunk in zip(embeddings, pending_chunks, strict=False)
                     if chunk.get("retry_count", 0) < MAX_RETRY_COUNT
                 ]
 
-                async with self.db.pool.acquire() as conn:
-                    async with conn.transaction():
-                        # ⚠️ 改善（パフォーマンス）: executemany のバッチサイズ制御
-                        from ...config import settings
+                assert self.db.pool is not None, "Database pool must be initialized"
+                async with (
+                    self.db.pool.acquire() as conn,
+                    conn.transaction(),
+                ):
+                    # ⚠️ 改善（パフォーマンス）: executemany のバッチサイズ制御
+                    from ...config import settings
 
-                        update_data = [
-                            (emb, chunk["id"])
-                            for emb, chunk in zip(
-                                successful_embeddings, successful_chunks
-                            )
-                        ]
-                        BATCH_SIZE = settings.kb_chunk_update_batch_size
+                    update_data = [
+                        (emb, chunk["id"])
+                        for emb, chunk in zip(
+                            successful_embeddings, successful_chunks, strict=True
+                        )
+                    ]
+                    BATCH_SIZE = settings.kb_chunk_update_batch_size
 
-                        for i in range(0, len(update_data), BATCH_SIZE):
-                            batch = update_data[i : i + BATCH_SIZE]
-                            await conn.executemany(
-                                f"""
+                    for i in range(0, len(update_data), BATCH_SIZE):
+                        batch = update_data[i : i + BATCH_SIZE]
+                        await conn.executemany(
+                            f"""
                                 UPDATE knowledge_chunks
                                 SET embedding = $1::{vector_cast}({vector_dimension}),
                                     retry_count = 0
                                 WHERE id = $2
                             """,
-                                batch,
-                            )
+                            batch,
+                        )
 
             # Sourceのステータスも更新
             await self._update_source_status([dict(chunk) for chunk in pending_chunks])
+
+            # メトリクス: 処理時間を記録
+            elapsed_time = time.time() - start_time
+            embedding_processing_duration.observe(elapsed_time)
+
+            # メトリクス: 処理済みチャンク数を記録
+            embedding_processed_counter.inc(len(successful_chunks))
+
+            # メトリクス: pendingチャンク数を更新
+            pending_chunks_gauge.set(0)
 
             logger.info(f"Successfully processed {len(successful_chunks)} chunks")
 
@@ -380,7 +418,6 @@ class EmbeddingProcessor:
         Returns:
             エラーコード（例: 'EMBEDDING_API_TIMEOUT', 'RATE_LIMIT', 'UNKNOWN_ERROR'）
         """
-        error_type = type(error).__name__
         error_str = str(error).lower()
 
         # エラータイプとメッセージからエラーコードを分類
@@ -434,6 +471,7 @@ class EmbeddingProcessor:
 
         source_ids = {chunk["source_id"] for chunk in processed_chunks}
 
+        assert self.db.pool is not None, "Database pool must be initialized"
         async with self.db.pool.acquire() as conn:
             for source_id in source_ids:
                 MAX_RETRY_COUNT = settings.kb_embedding_max_retry

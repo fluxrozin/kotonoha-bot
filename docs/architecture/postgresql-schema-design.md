@@ -95,7 +95,8 @@ erDiagram
     %% Real-time read/write area for Discord Bot. Optimized for speed.
     sessions {
         BIGSERIAL id PK "Session ID (for future foreign key references)"
-        TEXT session_key UK "Discord ChannelID or ThreadID (for application lookup)"
+        TEXT session_key UK
+            "Discord ChannelID or ThreadID (for application lookup)"
         TEXT session_type "Session type"
         JSONB messages "Conversation history"
         session_status_enum status "Status (active/archived)"
@@ -270,7 +271,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     version INT DEFAULT 1,  -- ⚠️ 追加: 楽観的ロック用（更新ごとにインクリメント）
     
     -- アーカイブ管理
-    last_archived_message_index INT DEFAULT 0,  -- ⚠️ 改善: アーカイブ済みメッセージのインデックス（0=未アーカイブ）
+    last_archived_message_index INT DEFAULT 0,
+        -- ⚠️ 改善: アーカイブ済みメッセージのインデックス（0=未アーカイブ）
 
     -- 時間管理
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -283,7 +285,10 @@ CREATE TABLE IF NOT EXISTS sessions (
 | カラム名 | データ型 | 制約 | 説明 |
 |---------|---------|------|------|
 | `id` | BIGSERIAL | PRIMARY KEY | セッションID（自動採番）。将来的な外部キー参照用 |
-| `session_key` | TEXT | UNIQUE NOT NULL | セッションキー（一意）。形式: `"mention:{user_id}"`, `"thread:{thread_id}"`, `"eavesdrop:{channel_id}"`。アプリケーション内部での参照用 |
+| `session_key` | TEXT | UNIQUE NOT NULL | セッションキー（一意）。形式: `"mention:{user_id}"`, |
+  | | | | `"thread:{thread_id}"`, `"eavesdrop:{channel_id}"`。 |
+  | | | | `"thread:{thread_id}"`, `"eavesdrop:{channel_id}"`。 |
+  | | | | アプリケーション内部での参照用 |
 | `session_type` | TEXT | NOT NULL | セッションタイプ（`mention`, `thread`, `eavesdrop`） |
 | `messages` | JSONB | NOT NULL, DEFAULT `'[]'::jsonb` | 会話履歴。JSON配列形式で保存 |
 | `status` | session_status_enum | DEFAULT `'active'` | セッション状態。`'active'` または `'archived'` |
@@ -291,8 +296,15 @@ CREATE TABLE IF NOT EXISTS sessions (
 | `channel_id` | BIGINT | NULL | Discord チャンネル ID |
 | `thread_id` | BIGINT | NULL | Discord スレッド ID（スレッド型の場合） |
 | `user_id` | BIGINT | NULL | Discord ユーザー ID |
-| `version` | INT | DEFAULT 1 | ⚠️ 追加: 楽観的ロック用（更新ごとにインクリメント）。TIMESTAMPTZの精度（マイクロ秒）で競合検出に依存していると、同一マイクロ秒内の更新で誤検知の可能性があるため、versionカラムを使用する方が堅牢 |
-| `last_archived_message_index` | INT | DEFAULT 0 | ⚠️ 改善: アーカイブ済みメッセージのインデックス（0=未アーカイブ）。高頻度でチャットが続く場合でも、確定した過去部分だけをアーカイブでき、リトライループに陥ることを防ぐ |
+| `version` | INT | DEFAULT 1 | ⚠️ 追加: 楽観的ロック用（更新ごとにインクリメント）。 |
+  | | | | TIMESTAMPTZの精度（マイクロ秒）で競合検出に依存していると、 |
+  | | | | TIMESTAMPTZの精度（マイクロ秒）で競合検出に依存していると、 |
+  | | | | 同一マイクロ秒内の更新で誤検知の可能性があるため、 |
+  | | | | versionカラムを使用する方が堅牢 |
+| `last_archived_message_index` | INT | DEFAULT 0 | ⚠️ 改善: アーカイブ済みメッセージのインデックス（0=未アーカイブ）。 |
+  | | | | 高頻度でチャットが続く場合でも、確定した過去部分だけをアーカイブでき、 |
+  | | | | 高頻度でチャットが続く場合でも、確定した過去部分だけをアーカイブでき、 |
+  | | | | リトライループに陥ることを防ぐ |
 | `created_at` | TIMESTAMPTZ | DEFAULT CURRENT_TIMESTAMP | セッション作成日時 |
 | `last_active_at` | TIMESTAMPTZ | DEFAULT CURRENT_TIMESTAMP | 最後のアクティビティ日時 |
 
@@ -330,7 +342,9 @@ CREATE TABLE IF NOT EXISTS knowledge_sources (
 
     -- 処理状態
     status source_status_enum DEFAULT 'pending',
-    error_code TEXT,  -- ⚠️ 改善（セキュリティ）: エラーコード（例: 'EMBEDDING_API_TIMEOUT', 'RATE_LIMIT'）
+    error_code TEXT,
+        -- ⚠️ 改善（セキュリティ）: エラーコード
+        -- （例: 'EMBEDDING_API_TIMEOUT', 'RATE_LIMIT'）
     error_message TEXT,  -- ⚠️ 改善（セキュリティ）: 一般化されたメッセージのみ（詳細なスタックトレースはログのみに出力）
 
     -- 柔軟なメタデータ (JSONB)
@@ -341,7 +355,8 @@ CREATE TABLE IF NOT EXISTS knowledge_sources (
     -- 理由: 「短期記憶（Sessions）」と「長期記憶（Knowledge）」はライフサイクルが異なるため、
     -- 外部キー制約による強い依存関係を避け、知識として独立した存在として扱う
     -- これにより、「削除時の挙動」を設計する必要がなくなり、シンプルな設計になる
-    -- セッションからアーカイブされたソースの場合、metadata に origin_session_id と origin_session_key を記録
+    -- セッションからアーカイブされたソースの場合、
+    -- metadata に origin_session_id と origin_session_key を記録
     metadata JSONB DEFAULT '{}'::jsonb,
 
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -354,13 +369,26 @@ CREATE TABLE IF NOT EXISTS knowledge_sources (
 | カラム名 | データ型 | 制約 | 説明 |
 |---------|---------|------|------|
 | `id` | BIGSERIAL | PRIMARY KEY | 知識ソースID（自動採番） |
-| `type` | source_type_enum | NOT NULL | ソースタイプ（`discord_session`, `document_file`, `web_page`, `image_caption`, `audio_transcript`） |
+| `type` | source_type_enum | NOT NULL | ソースタイプ（`discord_session`, `document_file`, `web_page`, |
+  | | | | `image_caption`, `audio_transcript`） |
+  | | | | `image_caption`, `audio_transcript`） |
 | `title` | TEXT | NOT NULL | 検索結果に表示する見出し |
 | `uri` | TEXT | NULL | 元データへのリンク（Discord URL、S3 Path、Web URLなど） |
-| `status` | source_status_enum | DEFAULT `'pending'` | 処理状態（`pending`, `processing`, `completed`, `partial`, `failed`）。`partial`は一部のチャンクがDLQに移動した場合 |
-| `error_code` | TEXT | NULL | ⚠️ 改善（セキュリティ）: エラーコード（例: 'EMBEDDING_API_TIMEOUT', 'RATE_LIMIT'）。詳細なスタックトレースはログのみに出力し、データベースには保存しない |
-| `error_message` | TEXT | NULL | ⚠️ 改善（セキュリティ）: 一般化されたエラーメッセージのみ（`status='failed'` の場合）。APIエラーやスタックトレースが含まれる可能性があるため、一般化されたメッセージのみを保存 |
-| `metadata` | JSONB | DEFAULT `'{}'::jsonb` | 柔軟なメタデータ（ソースタイプごとに異なる属性を格納）。セッションからアーカイブされたソースの場合、`origin_session_id` と `origin_session_key` を含む。⚠️ 改善（疎結合）: 外部キー制約ではなく metadata に記録することで、ライフサイクルの完全分離を実現 |
+| `status` | source_status_enum | DEFAULT `'pending'` | 処理状態（`pending`, `processing`, `completed`, `partial`, `failed`）。 |
+  | | | | `partial`は一部のチャンクがDLQに移動した場合 |
+| `error_code` | TEXT | NULL | ⚠️ 改善（セキュリティ）: エラーコード |
+  | | | | （例: 'EMBEDDING_API_TIMEOUT', 'RATE_LIMIT'）。 |
+  | | | | 詳細なスタックトレースはログのみに出力し、 |
+  | | | | データベースには保存しない |
+| `error_message` | TEXT | NULL | ⚠️ 改善（セキュリティ）: 一般化されたエラーメッセージのみ |
+  | | | | （`status='failed'` の場合）。 |
+  | | | | APIエラーやスタックトレースが含まれる可能性があるため、 |
+  | | | | 一般化されたメッセージのみを保存 |
+| `metadata` | JSONB | DEFAULT `'{}'::jsonb` | 柔軟なメタデータ（ソースタイプごとに異なる属性を格納）。 |
+  | | | | セッションからアーカイブされたソースの場合、 |
+  | | | | `origin_session_id` と `origin_session_key` を含む。 |
+  | | | | ⚠️ 改善（疎結合）: 外部キー制約ではなく metadata に記録することで、 |
+  | | | | ライフサイクルの完全分離を実現 |
 | `created_at` | TIMESTAMPTZ | DEFAULT CURRENT_TIMESTAMP | 作成日時 |
 | `updated_at` | TIMESTAMPTZ | DEFAULT CURRENT_TIMESTAMP | 更新日時 |
 
@@ -451,7 +479,9 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks (
 
 #### location JSONB 構造
 
-⚠️ **重要**: `location` フィールドは柔軟なJSONBですが、検索結果を表示する際にBotが「どこへのリンクを生成すべきか」を判断するために、**共通のインターフェース**を定義します。
+⚠️ **重要**: `location` フィールドは柔軟なJSONBですが、
+検索結果を表示する際にBotが「どこへのリンクを生成すべきか」を
+判断するために、**共通のインターフェース**を定義します。
 
 **共通インターフェース（必須フィールド）**:
 
@@ -642,12 +672,17 @@ WHERE embedding IS NULL AND retry_count < 3;
 **⚠️ 重要: `embedding IS NOT NULL` 条件の必須性**:
 
 - **理由**: HNSWインデックス（`idx_chunks_embedding`）は `embedding` が NULL でない場合にのみ有効です
-- **リスク**: 検索クエリで `embedding IS NOT NULL` 条件を忘れると、HNSWインデックスが使われずフルスキャンになるリスクがあります。実装漏れが発生すると、意図せずフルスキャンが発生し、本番環境で突然死（タイムアウト）する原因になります。
+- **リスク**: 検索クエリで `embedding IS NOT NULL` 条件を忘れると、
+  HNSWインデックスが使われずフルスキャンになるリスクがあります。
+  実装漏れが発生すると、意図せずフルスキャンが発生し、
+  本番環境で突然死（タイムアウト）する原因になります。
 - **改善案（Strong Recommendation）**:
   - クエリビルダーやラッパー関数（`similarity_search`）側で、強制的にこの条件が付与される仕組みをコードレベルで保証してください
   - アプリケーション実装者の注意深さに依存した設計ではなく、コードレベルで保証することで、実装漏れを防ぎます
   - すべてのベクトル検索クエリで必ず `WHERE embedding IS NOT NULL` を含める必要があります
-- **実装時の注意**: クエリ構築時にこの条件を忘れないよう、コメントや定数化を推奨しますが、それだけでは不十分です。コードレベルで強制付与する仕組みを実装してください
+- **実装時の注意**: クエリ構築時にこの条件を忘れないよう、
+  コメントや定数化を推奨しますが、それだけでは不十分です。
+  コードレベルで強制付与する仕組みを実装してください
 
 **HNSWインデックスパラメータ説明**:
 
@@ -667,13 +702,18 @@ WHERE embedding IS NULL AND retry_count < 3;
   - 特に以下のパラメータの調整を検討してください:
     - `maintenance_work_mem`: インデックス構築時のメモリ使用量（デフォルト: 64MB）
       - ⚠️ **重要**: インデックス構築時（INSERT/UPDATE時）とリストア時にOOM Killerが発動する可能性があります
-      - NASのメモリが少ない場合、大量のデータを COPY や INSERT した直後のインデックス構築でOOM Killerが発動し、Postgresプロセスが落ちる可能性があります
+      - NASのメモリが少ない場合、大量のデータを COPY や INSERT した
+        直後のインデックス構築でOOM Killerが発動し、
+        Postgresプロセスが落ちる可能性があります
       - **推奨設定**: システムメモリの10〜20%程度（最小128MB、最大1GB）
       - 例: NASのメモリが4GBなら、256MB〜512MB程度に抑える
       - **設定方法**:
-        - docker-compose.yml: `POSTGRES_INITDB_ARGS: --maintenance-work-mem=256MB`（初期化時のみ）
+        - docker-compose.yml:
+          `POSTGRES_INITDB_ARGS: --maintenance-work-mem=256MB`
+          （初期化時のみ）
         - postgresql.conf: `maintenance_work_mem = 256MB`（実行時も有効、推奨）
-        - または: `ALTER SYSTEM SET maintenance_work_mem = '256MB';` + `SELECT pg_reload_conf();`
+        - または: `ALTER SYSTEM SET maintenance_work_mem = '256MB';` +
+          `SELECT pg_reload_conf();`
     - `work_mem`: クエリ実行時のメモリ使用量（デフォルト: 4MB）
     - `shared_buffers`: 共有バッファプールのサイズ（デフォルト: 128MB）
 - **推奨監視項目**:
@@ -684,9 +724,14 @@ WHERE embedding IS NULL AND retry_count < 3;
 
 **⚠️ 重要: HNSWのビルドコストと maintenance_work_mem**:
 
-- **リスク**: 設計書には「データが増えるとメモリを食う」とありますが、具体的な危険性は**「インデックス構築時（INSERT/UPDATE時）」と「リストア時」**にあります
-- **問題**: NASのメモリが少ない場合、大量のデータを COPY や INSERT した直後のインデックス構築でOOM Killerが発動し、Postgresプロセスが落ちる可能性があります
-- **対策**: docker-compose.yml または postgresql.conf で `maintenance_work_mem` を制限してください
+- **リスク**: 設計書には「データが増えるとメモリを食う」とありますが、
+  具体的な危険性は**「インデックス構築時（INSERT/UPDATE時）」と
+  「リストア時」**にあります
+- **問題**: NASのメモリが少ない場合、大量のデータを COPY や INSERT した
+  直後のインデックス構築でOOM Killerが発動し、
+  Postgresプロセスが落ちる可能性があります
+- **対策**: docker-compose.yml または postgresql.conf で
+  `maintenance_work_mem` を制限してください
   - 例: NASのメモリが4GBなら、256MB〜512MB程度に抑える
   - デフォルトのままだと危険な場合があります
 - **設定方法**:
@@ -749,7 +794,8 @@ CHECK (status IN ('pending', 'processing', 'completed', 'partial', 'failed'));
 
 ### 7.1 JSONB
 
-**使用箇所**: `sessions.messages`, `knowledge_sources.metadata`, `knowledge_chunks.location`
+**使用箇所**: `sessions.messages`, `knowledge_sources.metadata`,
+`knowledge_chunks.location`
 
 **メリット**:
 
@@ -1043,8 +1089,11 @@ results = await db.similarity_search(
   - `source_types`: 複数のソースタイプを指定（リスト）
   - `channel_id`: チャンネルIDでフィルタ
   - `user_id`: ユーザーIDでフィルタ
-- `similarity_threshold` (float | None): 類似度閾値。`None`の場合は設定値（デフォルト0.7）を使用
-- `apply_threshold` (bool): 閾値フィルタリングを適用するか。`False`の場合は閾値フィルタリングを無効化し、生の類似度スコアを返す（デフォルト: `True`）
+- `similarity_threshold` (float | None): 類似度閾値。
+  `None`の場合は設定値（デフォルト0.7）を使用
+- `apply_threshold` (bool): 閾値フィルタリングを適用するか。
+  `False`の場合は閾値フィルタリングを無効化し、
+  生の類似度スコアを返す（デフォルト: `True`）
 
 ### 8.4 バッチ処理用クエリ
 
@@ -1059,7 +1108,10 @@ LIMIT 100;
 
 #### Embedding未処理のチャンク検索（並行処理安全版）
 
-**重要**: 複数のワーカープロセスが同時に実行される場合、`FOR UPDATE SKIP LOCKED` を使用してDBレベルで排他制御を行います。これにより、アプリケーションレベルのロック（`asyncio.Lock`）に依存せず、安全にバッチ処理が可能になります。
+**重要**: 複数のワーカープロセスが同時に実行される場合、
+`FOR UPDATE SKIP LOCKED` を使用してDBレベルで排他制御を行います。
+これにより、アプリケーションレベルのロック（`asyncio.Lock`）に依存せず、
+安全にバッチ処理が可能になります。
 
 ```sql
 -- 取得と同時にロックする（他のワーカーはこの行をスキップする）
@@ -1135,7 +1187,11 @@ WHERE status = 'processing'
 
 #### FOR UPDATE SKIP LOCKED パターン
 
-複数のワーカープロセスが同時に実行される場合、DBレベルでの排他制御が必須です。`FOR UPDATE SKIP LOCKED` を使用することで、アプリケーションレベルのロック（`asyncio.Lock`）に依存せず、安全にバッチ処理が可能になります。
+複数のワーカープロセスが同時に実行される場合、
+DBレベルでの排他制御が必須です。
+`FOR UPDATE SKIP LOCKED` を使用することで、
+アプリケーションレベルのロック（`asyncio.Lock`）に依存せず、
+安全にバッチ処理が可能になります。
 
 **問題点（アプリケーションレベルのロック）**:
 
@@ -1176,7 +1232,9 @@ COMMIT;
 **実装例（Python/asyncpg）**:
 
 ```python
-async def process_embedding_batch(conn: asyncpg.Connection, batch_size: int = 100):
+async def process_embedding_batch(
+    conn: asyncpg.Connection, batch_size: int = 100
+):
     """並行処理安全なEmbeddingバッチ処理"""
     async with conn.transaction():
         # FOR UPDATE SKIP LOCKED で取得
@@ -1237,7 +1295,11 @@ FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
 
 ### 10.4 ハイブリッド検索（Hybrid Search）の導入
 
-**背景**: ベクトル検索は「概念的な類似」には強いですが、「固有名詞（例：プロジェクトコード名、特定のエラーコード）」の完全一致検索には弱いです。PostgreSQLの強みを生かし、全文検索を組み合わせたハイブリッド検索を設計段階で考慮することを推奨します。
+**背景**: ベクトル検索は「概念的な類似」には強いですが、
+「固有名詞（例：プロジェクトコード名、特定のエラーコード）」の
+完全一致検索には弱いです。
+PostgreSQLの強みを生かし、全文検索を組み合わせたハイブリッド検索を
+設計段階で考慮することを推奨します。
 
 ⚠️ **重要**: 日本語検索においては、**pg_bigm** を強く推奨します。
 
@@ -1257,7 +1319,9 @@ FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
 
 **Dockerfile での pg_bigm の導入**:
 
-pg_bigm は標準の PostgreSQL イメージには含まれていないため、pgvector のイメージをベースにして、pg_bigm をコンパイルして追加したカスタムイメージを作成する必要があります。
+pg_bigm は標準の PostgreSQL イメージには含まれていないため、
+pgvector のイメージをベースにして、pg_bigm をコンパイルして追加した
+カスタムイメージを作成する必要があります。
 
 ```dockerfile
 # Dockerfile.postgres
@@ -1320,8 +1384,12 @@ FROM pgvector/pgvector:0.8.1-pg18
 USER root
 
 # ビルド済みのpg_bigmをコピー（ビルド依存関係は含めない）
-COPY --from=builder /usr/share/postgresql/18/extension/pg_bigm* /usr/share/postgresql/18/extension/
-COPY --from=builder /usr/lib/postgresql/18/lib/pg_bigm.so /usr/lib/postgresql/18/lib/
+COPY --from=builder \
+  /usr/share/postgresql/18/extension/pg_bigm* \
+  /usr/share/postgresql/18/extension/
+COPY --from=builder \
+  /usr/lib/postgresql/18/lib/pg_bigm.so \
+  /usr/lib/postgresql/18/lib/
 
 USER postgres
 
@@ -1419,8 +1487,12 @@ LIMIT 10;
 
 **注意点とデメリット**:
 
-1. **インデックスサイズ**: pg_bigm のインデックスは pg_trgm よりも大きくなる傾向があります（2文字の組み合わせの方が3文字よりも多いため）
-   - **対策**: NASのストレージ容量には注意してください。ただしテキストデータのみのインデックスなので、ベクトルデータ（HNSW）に比べればそこまで巨大にはなりません。
+1. **インデックスサイズ**: pg_bigm のインデックスは pg_trgm よりも
+   大きくなる傾向があります
+   （2文字の組み合わせの方が3文字よりも多いため）
+   - **対策**: NASのストレージ容量には注意してください。
+     ただしテキストデータのみのインデックスなので、
+     ベクトルデータ（HNSW）に比べればそこまで巨大にはなりません。
 
 2. **更新速度**: インデックス作成・更新にかかるCPU負荷が若干高いです。
    - **対策**: Botの知識化処理はバックグラウンドで行われるため、ユーザー体験への影響は軽微です。
@@ -1439,7 +1511,8 @@ ADD COLUMN content_tsvector tsvector
 GENERATED ALWAYS AS (to_tsvector('japanese', content)) STORED;
 
 -- GINインデックスの作成
-CREATE INDEX idx_chunks_content_fts ON knowledge_chunks USING gin (content_tsvector);
+CREATE INDEX idx_chunks_content_fts
+  ON knowledge_chunks USING gin (content_tsvector);
 ```
 
 **使用例**:
@@ -1535,7 +1608,9 @@ def format_messages_for_knowledge(messages: list[dict]) -> tuple[str, dict]:
 
 ### 11.2 halfvec使用時の型キャスト
 
-**問題**: `halfvec` 固定採用のため、クエリ時の型キャストも `halfvec` に合わせる必要があります。pgvectorのバージョンによっては、型の不一致でエラーが発生する可能性があります。
+**問題**: `halfvec` 固定採用のため、クエリ時の型キャストも
+`halfvec` に合わせる必要があります。
+pgvectorのバージョンによっては、型の不一致でエラーが発生する可能性があります。
 
 **解決策**: halfvec固定採用のため、SQL構築時に型キャストは `halfvec(1536)` を使用します。
 
@@ -1583,7 +1658,8 @@ PostgreSQL側で `float[]` から `halfvec` へのキャストは自動で行わ
 2. **pgvector-python の register_vector の動作**:
    - `pgvector.asyncpg.register_vector()` は `vector` 型と `halfvec` 型の両方をサポートします
    - ⚠️ **重要**: `register_vector()` は通常 `float32` として扱います
-   - Python側から `list[float]` を渡すと、PostgreSQL側で `float32[] -> halfvec` のキャストが行われるため機能はします
+   - Python側から `list[float]` を渡すと、PostgreSQL側で
+     `float32[] -> halfvec` のキャストが行われるため機能はします
    - ⚠️ **注意**: ドライバ層でのオーバーヘッドが微増しますが、許容範囲内です
    - 明示的な型キャスト（`$1::halfvec(1536)`）により、PostgreSQL側で適切に変換されます
 
@@ -1652,7 +1728,10 @@ async def test_halfvec_insert_and_select():
 
 ### 11.3 pgvectorの型登録（asyncpg接続プール）
 
-**問題**: `pgvector` Pythonライブラリを使用する場合、asyncpgの接続プールの各接続に対して型登録を行う必要があります。接続プール作成後に1つの接続に対してのみ登録すると、他の接続では型が認識されません。
+**問題**: `pgvector` Pythonライブラリを使用する場合、
+asyncpgの接続プールの各接続に対して型登録を行う必要があります。
+接続プール作成後に1つの接続に対してのみ登録すると、
+他の接続では型が認識されません。
 
 **解決策**: `asyncpg.create_pool()` の `init` パラメータを使用して、各接続の初期化時に型登録を行います。
 
@@ -1706,13 +1785,17 @@ async def initialize(self):
 - **型安全性**: Pythonの型チェッカーが正しく動作
 - **JSONB自動変換**: dict/listを直接渡せる（orjsonによる高速処理）
 
-**注意**: `init` パラメータは接続プール作成時に指定する必要があります。接続プール作成後に個別の接続に対して登録しても、プール内の他の接続には反映されません。
+**注意**: `init` パラメータは接続プール作成時に指定する必要があります。
+接続プール作成後に個別の接続に対して登録しても、
+プール内の他の接続には反映されません。
 
 ### 11.4 JSONBの自動変換（asyncpgカスタムコーデック）
 
-**問題**: `asyncpg` で `json.dumps` して文字列として挿入している場合、コード内で `json.dumps/loads` を書く必要があり、コードが冗長になります。
+**問題**: `asyncpg` で `json.dumps` して文字列として挿入している場合、
+コード内で `json.dumps/loads` を書く必要があり、コードが冗長になります。
 
-**解決策**: `asyncpg` のカスタムコーデックを設定することで、Pythonの `dict` と PostgreSQLの `JSONB` を自動変換できます。
+**解決策**: `asyncpg` のカスタムコーデックを設定することで、
+Pythonの `dict` と PostgreSQLの `JSONB` を自動変換できます。
 
 ⚠️ **重要**: JSONBコーデックの登録は、pgvectorの型登録と同じ `_init_connection` 関数内で行います。
 `asyncpg.create_pool()` の `init` パラメータには単一の関数しか渡せないため、両方を1つのラッパー関数にまとめる必要があります。
@@ -1723,7 +1806,9 @@ async def initialize(self):
 
 ```python
 # コーデック設定後は、dictを直接渡せる
-async def save_session(conn: asyncpg.Connection, session_key: str, messages: list[dict]):
+async def save_session(
+    conn: asyncpg.Connection, session_key: str, messages: list[dict]
+):
     """セッション保存（orjson.dumps不要）"""
     await conn.execute("""
         INSERT INTO sessions (session_key, messages)
@@ -1881,13 +1966,19 @@ class PostgreSQLDatabase:
 
 ### 11.7 楽観的ロックの再試行ロジック
 
-**問題**: 楽観的ロック（`UPDATE ... WHERE last_active_at = old_value`）が失敗した場合（0件更新）、例外を投げてロールバックしますが、自動リトライがない場合、Botが高頻度で使われている場合、アーカイブが何度も失敗し続ける可能性があります。
+**問題**: 楽観的ロック（`UPDATE ... WHERE last_active_at = old_value`）が
+失敗した場合（0件更新）、例外を投げてロールバックしますが、
+自動リトライがない場合、Botが高頻度で使われている場合、
+アーカイブが何度も失敗し続ける可能性があります。
 
 #### ⚠️ 改善（データ整合性）: versionカラムを使用した楽観的ロック
 
-- **現状の問題**: TIMESTAMPTZの精度（マイクロ秒）で競合検出に依存していると、同一マイクロ秒内の更新で誤検知の可能性（極めて稀だが理論上あり得る）
+- **現状の問題**: TIMESTAMPTZの精度（マイクロ秒）で競合検出に依存していると、
+  同一マイクロ秒内の更新で誤検知の可能性
+  （極めて稀だが理論上あり得る）
 - **改善案**: `version`カラム（INT、更新ごとにインクリメント）を追加する方が堅牢です
-- **実装**: `UPDATE ... SET version = version + 1 WHERE version = $expected_version`
+- **実装**: `UPDATE ... SET version = version + 1
+  WHERE version = $expected_version`
 
 **解決策**: `tenacity` ライブラリを使用して、競合時のリトライ（指数バックオフ付き）を実装します。
 
@@ -1922,7 +2013,9 @@ async def _archive_session_with_retry():
 
 ### 11.8 PostgreSQL 18 用テストスクリプトの実装
 
-**背景**: PostgreSQL 18は比較的新しいバージョンであるため、本番環境での安定性を確保するために、テストスクリプトを充実させる方針を採用しています。
+**背景**: PostgreSQL 18は比較的新しいバージョンであるため、
+本番環境での安定性を確保するために、
+テストスクリプトを充実させる方針を採用しています。
 
 #### テストフィクスチャの実装
 
@@ -2301,7 +2394,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     thread_id BIGINT,
     user_id BIGINT,
     version INT DEFAULT 1,  -- ⚠️ 追加: 楽観的ロック用（更新ごとにインクリメント）
-    last_archived_message_index INT DEFAULT 0,  -- ⚠️ 改善: アーカイブ済みメッセージのインデックス（0=未アーカイブ）
+    last_archived_message_index INT DEFAULT 0,
+        -- ⚠️ 改善: アーカイブ済みメッセージのインデックス（0=未アーカイブ）
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     last_active_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -2313,10 +2407,13 @@ CREATE TABLE IF NOT EXISTS knowledge_sources (
     title TEXT NOT NULL,
     uri TEXT,
     status source_status_enum DEFAULT 'pending',
-    error_code TEXT,  -- ⚠️ 改善（セキュリティ）: エラーコード（例: 'EMBEDDING_API_TIMEOUT', 'RATE_LIMIT'）
+    error_code TEXT,
+        -- ⚠️ 改善（セキュリティ）: エラーコード
+        -- （例: 'EMBEDDING_API_TIMEOUT', 'RATE_LIMIT'）
     error_message TEXT,  -- ⚠️ 改善（セキュリティ）: 一般化されたメッセージのみ（詳細なスタックトレースはログのみに出力）
     -- ⚠️ 改善（疎結合）: origin_session_id は外部キーではなく metadata に記録
-    -- セッションからアーカイブされたソースの場合、metadata に origin_session_id と origin_session_key を記録
+    -- セッションからアーカイブされたソースの場合、
+    -- metadata に origin_session_id と origin_session_key を記録
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -2356,9 +2453,11 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks_dlq (
 CREATE INDEX IF NOT EXISTS idx_sessions_session_key ON sessions(session_key);
 -- アプリケーション内部での参照用
 CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
-CREATE INDEX IF NOT EXISTS idx_sessions_last_active_at ON sessions(last_active_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_last_active_at
+  ON sessions(last_active_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_channel_id ON sessions(channel_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_archive_candidates ON sessions(status, last_active_at)
+CREATE INDEX IF NOT EXISTS idx_sessions_archive_candidates
+  ON sessions(status, last_active_at)
 WHERE status = 'active';
 
 CREATE INDEX IF NOT EXISTS idx_sources_metadata ON knowledge_sources USING gin (metadata);
@@ -2405,7 +2504,8 @@ CHECK (status IN ('pending', 'processing', 'completed', 'partial', 'failed'));
 
 ### B. 環境変数一覧
 
-**⚠️ 重要**: 本番環境では `DATABASE_URL` にパスワードを含める形式ではなく、以下のように分離することを推奨します：
+**⚠️ 重要**: 本番環境では `DATABASE_URL` にパスワードを含める形式ではなく、
+以下のように分離することを推奨します：
 
 ```bash
 # 推奨: パスワードを分離

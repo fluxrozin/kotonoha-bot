@@ -5,10 +5,10 @@ import functools
 import logging
 import signal
 import sys
+from collections.abc import Callable
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any, Callable
 
 import structlog
 
@@ -25,22 +25,29 @@ from .health import HealthCheckServer
 
 def local_timestamper(_, __, event_dict):
     """ローカルタイムゾーンでタイムスタンプを追加するプロセッサー
-    
+
     フォーマット: YYYY-MM-DD HH:MM:SS.mmm (例: 2026-01-18 23:31:34.525)
     """
     # 現在時刻をローカルタイムゾーンで取得
     now = datetime.now().astimezone()
     # 読みやすい形式でフォーマット: YYYY-MM-DD HH:MM:SS.mmm
-    event_dict["timestamp"] = now.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]  # ミリ秒まで表示
+    event_dict["timestamp"] = now.strftime("%Y-%m-%d %H:%M:%S.%f")[
+        :-3
+    ]  # ミリ秒まで表示
     return event_dict
 
 
 def log_function_call(func: Callable) -> Callable:
     """関数の呼び出しをDEBUGログに記録するデコレータ（同期関数用）"""
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        logger = logging.getLogger(func.__module__)
-        func_name = f"{func.__qualname__}"
+        logger = logging.getLogger(getattr(func, "__module__", "unknown"))
+        func_name = getattr(
+            func,
+            "__qualname__",
+            func.__name__ if hasattr(func, "__name__") else "unknown",
+        )
         logger.debug(f"Calling {func_name}")
         try:
             result = func(*args, **kwargs)
@@ -49,15 +56,25 @@ def log_function_call(func: Callable) -> Callable:
         except Exception as e:
             logger.debug(f"{func_name} failed: {e}", exc_info=True)
             raise
+
     return wrapper
 
 
 def log_async_function_call(func: Callable) -> Callable:
     """非同期関数の呼び出しをDEBUGログに記録するデコレータ"""
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
-        logger = logging.getLogger(func.__module__)
-        func_name = f"{func.__qualname__}"
+        logger = logging.getLogger(getattr(func, "__module__", "unknown"))
+        func_name = (
+            getattr(func, "__qualname__", None)
+            if hasattr(func, "__qualname__")
+            else (
+                getattr(func, "__name__", "unknown")
+                if hasattr(func, "__name__")
+                else "unknown"
+            )
+        )
         logger.debug(f"Calling {func_name}")
         try:
             result = await func(*args, **kwargs)
@@ -66,6 +83,7 @@ def log_async_function_call(func: Callable) -> Callable:
         except Exception as e:
             logger.debug(f"{func_name} failed: {e}", exc_info=True)
             raise
+
     return wrapper
 
 
@@ -102,7 +120,7 @@ def setup_logging() -> None:
 
     # 標準のloggingフォーマット
     standard_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    
+
     # コンソールハンドラーにProcessorFormatterを適用（structlog用）
     console_handler = handlers[0]
     structlog_formatter = structlog.stdlib.ProcessorFormatter(
@@ -189,7 +207,9 @@ async def async_main():
     logger.info("Initializing embedding provider...")
     try:
         embedding_provider = OpenAIEmbeddingProvider()
-        logger.debug(f"OpenAIEmbeddingProvider created: {type(embedding_provider).__name__}")
+        logger.debug(
+            f"OpenAIEmbeddingProvider created: {type(embedding_provider).__name__}"
+        )
         logger.info("Embedding provider initialized")
     except Exception as e:
         logger.exception(f"Failed to initialize embedding provider: {e}")
@@ -205,10 +225,16 @@ async def async_main():
         f"interval_minutes={settings.kb_embedding_interval_minutes}"
     )
     try:
+        # Botインスタンスを先に作成（バックグラウンドタスクに渡すため）
+        logger.debug("Creating bot instance for background tasks...")
+        bot = KotonohaBot()
+        logger.debug("Bot instance created for background tasks")
+
         logger.debug("Creating EmbeddingProcessor instance...")
         embedding_processor = EmbeddingProcessor(
             db,
             embedding_provider,
+            bot=bot,  # Botインスタンスを渡す
             # batch_size と max_concurrent は環境変数から読み込まれる
         )
         logger.debug("EmbeddingProcessor instance created successfully")
@@ -221,7 +247,7 @@ async def async_main():
     except Exception as e:
         logger.exception(f"Failed to initialize embedding processor: {e}")
         raise
-    
+
     logger.debug("Starting session archiver initialization")
     logger.info("Initializing session archiver...")
     logger.debug(
@@ -233,28 +259,13 @@ async def async_main():
     session_archiver = SessionArchiver(
         db,
         embedding_provider,
+        bot=bot,  # Botインスタンスを渡す
         # archive_threshold_hours は環境変数から読み込まれる
     )
     logger.debug(
         f"SessionArchiver created: threshold={session_archiver.archive_threshold_hours} hours"
     )
     logger.info("Session archiver initialized")
-
-    # Botインスタンスの作成
-    logger.debug("Starting bot instance creation")
-    logger.info("Creating bot instance...")
-    bot = KotonohaBot()
-    logger.debug("KotonohaBot instance created")
-    logger.info("Bot instance created")
-
-    # EmbeddingProcessorとSessionArchiverにBotインスタンスを設定
-    # ⚠️ 重要: discord.pyの@tasks.loopはBotインスタンスに紐づいている必要があります
-    logger.debug("Setting bot instance to background tasks")
-    logger.info("Setting bot instance to embedding processor and session archiver...")
-    embedding_processor.bot = bot
-    session_archiver.bot = bot
-    logger.debug("Bot instance set to embedding_processor and session_archiver")
-    logger.info("Bot instance set to background tasks")
 
     # イベントハンドラーのセットアップ（依存性を注入）
     logger.debug("Starting event handlers setup")
@@ -300,14 +311,16 @@ async def async_main():
             loop = asyncio.get_running_loop()
             # bot.close() を非同期で呼び出す
             # これにより bot.start() がキャンセルされ、async with bot: ブロックが終了する
-            loop.create_task(shutdown_gracefully(
-                bot,
-                handler,
-                health_server,
-                embedding_processor,
-                session_archiver,
-                db,
-            ))
+            loop.create_task(
+                shutdown_gracefully(
+                    bot,
+                    handler,
+                    health_server,
+                    embedding_processor,
+                    session_archiver,
+                    db,
+                )
+            )
         except RuntimeError:
             # イベントループが実行されていない場合
             logger.warning("Event loop not running, forcing exit")
