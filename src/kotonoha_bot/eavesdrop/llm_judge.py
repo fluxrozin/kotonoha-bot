@@ -7,7 +7,7 @@ from pathlib import Path
 
 import discord
 
-from ..ai.litellm_provider import LiteLLMProvider
+from ..ai.anthropic_provider import AnthropicProvider
 from ..ai.prompts import DEFAULT_SYSTEM_PROMPT
 from ..config import Config
 from ..session.manager import SessionManager
@@ -71,7 +71,7 @@ class LLMJudge:
     会話ログを読み取り、LLM に「今、発言すべきか？」を判定させる。
     """
 
-    def __init__(self, session_manager: SessionManager, ai_provider: LiteLLMProvider):
+    def __init__(self, session_manager: SessionManager, ai_provider: AnthropicProvider):
         self.session_manager = session_manager
         self.ai_provider = ai_provider
         # 判定用の軽量モデル（Gemini Flash など）
@@ -150,7 +150,7 @@ class LLMJudge:
         try:
             # 判定用 AI に問い合わせ（軽量モデルを使用）
             judge_message = Message(role=MessageRole.USER, content=judge_prompt)
-            response = await self.ai_provider.generate_response(
+            response, _ = await self.ai_provider.generate_response(
                 messages=[judge_message],
                 system_prompt="",
                 model=self.judge_model,
@@ -198,7 +198,7 @@ class LLMJudge:
         try:
             # 通常の AI で応答を生成
             response_message = Message(role=MessageRole.USER, content=response_prompt)
-            response = await self.ai_provider.generate_response(
+            response, _ = await self.ai_provider.generate_response(
                 messages=[response_message],
                 system_prompt=DEFAULT_SYSTEM_PROMPT,
                 model=self.response_model,  # デフォルトモデル
@@ -285,7 +285,7 @@ class LLMJudge:
         try:
             # 判定用 AI に問い合わせ（軽量モデルを使用）
             judge_message = Message(role=MessageRole.USER, content=prompt)
-            response = await self.ai_provider.generate_response(
+            response, _ = await self.ai_provider.generate_response(
                 messages=[judge_message],
                 system_prompt="",
                 model=self.judge_model,
@@ -406,7 +406,7 @@ class LLMJudge:
         try:
             # 判定用 AI に問い合わせ（軽量モデルを使用）
             judge_message = Message(role=MessageRole.USER, content=prompt)
-            response = await self.ai_provider.generate_response(
+            response, _ = await self.ai_provider.generate_response(
                 messages=[judge_message],
                 system_prompt="",
                 model=self.judge_model,
@@ -457,7 +457,7 @@ class LLMJudge:
         try:
             # 判定用 AI に問い合わせ（軽量モデルを使用）
             judge_message = Message(role=MessageRole.USER, content=state_prompt)
-            response = await self.ai_provider.generate_response(
+            response, _ = await self.ai_provider.generate_response(
                 messages=[judge_message],
                 system_prompt="",
                 model=self.judge_model,

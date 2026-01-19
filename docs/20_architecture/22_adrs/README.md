@@ -1,0 +1,140 @@
+# Architecture Decision Records (ADR)
+
+このディレクトリには、Kotonoha プロジェクトの重要なアーキテクチャ上の決定を記録しています。
+
+## ADR とは
+
+Architecture Decision Record (ADR) は、ソフトウェアアーキテクチャの重要な決定とその理由を文書化する手法です。
+
+## ADR の目的
+
+- **透明性**: なぜその技術を選んだのかを明確にする
+- **継続性**: 将来のメンテナーが判断の背景を理解できる
+- **説明責任**: 決定の理由と代替案を記録する
+- **学習**: 過去の決定から学ぶ
+
+## ADR の命名規則
+
+```txt
+NNNN-title-with-dashes.md
+```
+
+- `NNNN`: 4 桁の連番（0001 から開始）
+- `title-with-dashes`: 簡潔なタイトル（ダッシュ区切り）
+
+## ADR のステータス
+
+- **Proposed**: 提案中（レビュー待ち）
+- **Accepted**: 承認済み（実装予定または実装済み）
+- **Deprecated**: 非推奨（新しい ADR で置き換えられた）
+- **Superseded**: 置き換えられた（by ADR-XXXX）
+
+## ADR 一覧
+
+| ID   | タイトル                                                                  | ステータス | 日付       |
+| ---- | ------------------------------------------------------------------------- | ---------- | ---------- |
+| 0001 | [Python 3.14 の採用](0001-use-python-3-14.md)                             | Accepted   | 2026-01-14 |
+| 0002 | [LiteLLM マルチプロバイダー戦略](0002-litellm-multi-provider-strategy.md) | Superseded | 2026-01-14 |
+| 0003 | [SQLite の採用](0003-use-sqlite.md)                                       | Accepted   | 2026-01-14 |
+| 0004 | [ハイブリッドセッション管理](0004-hybrid-session-management.md)           | Accepted   | 2026-01-14 |
+| 0005 | [4 つの会話の契機](0005-four-conversation-triggers.md)                    | Accepted   | 2026-01-14 |
+| 0006 | [aiosqlite への移行](0006-migrate-to-aiosqlite.md)                       | Accepted   | 2026-01-15 |
+| 0007 | [PostgreSQL への移行](0007-migrate-to-postgresql.md)                     | Accepted   | 2026-01-16 |
+| 0008 | [LangGraph の適用可能性検討](0008-langgraph-consideration.md)            | Accepted   | 2026-01-19 |
+| 0009 | [LangChain vs LiteLLM の選択](0009-langchain-vs-litellm.md)              | Accepted   | 2026-01-19 |
+| 0010 | [aisuite vs LiteLLM の選択](0010-aisuite-vs-litellm.md)                  | Accepted   | 2026-01-19 |
+| 0011 | [LiteLLM の削除とプロバイダー SDK の直接使用](0011-remove-litellm-direct-sdk.md) | Accepted   | 2026-01-19 |
+
+## ADR テンプレート
+
+新しい ADR を作成する際は、以下のテンプレートを使用してください:
+
+```markdown
+# ADR-NNNN: タイトル
+
+**ステータス**: Proposed | Accepted | Deprecated | Superseded
+
+**日付**: YYYY-MM-DD
+
+**決定者**: 名前/役割
+
+## コンテキスト
+
+なぜこの決定が必要になったのかの背景を記述。
+
+## 決定
+
+何を決定したのかを明確に記述。
+
+## 理由
+
+なぜこの決定をしたのかの理由を記述。
+
+## 代替案
+
+検討した他の選択肢とその評価。
+
+### 代替案 A
+
+- メリット:
+- デメリット:
+- 採用しなかった理由:
+
+### 代替案 B
+
+- メリット:
+- デメリット:
+- 採用しなかった理由:
+
+## 結果
+
+この決定による影響と結果。
+
+### メリット
+
+- ...
+
+### デメリット
+
+- ...
+
+### トレードオフ
+
+- ...
+
+## 参考資料
+
+関連するドキュメントやリンク。
+```
+
+## 新しい ADR の作成方法
+
+1. **テンプレートをコピー**
+
+   ```bash
+   cp adr/0000-template.md adr/0006-your-decision.md
+   ```
+
+2. **内容を記入**
+
+   - コンテキスト、決定、理由、代替案を記述
+   - ステータスは "Proposed" で開始
+
+3. **レビュー依頼**
+
+   - Pull Request を作成
+   - レビューを受ける
+
+4. **承認後に Accepted に変更**
+
+## ガイドライン
+
+- **簡潔に**: 1 ページ程度に収める
+- **客観的に**: 事実と理由を明確に
+- **代替案を記録**: なぜ他の選択肢を選ばなかったか
+- **更新する**: 決定が変わったら新しい ADR を作成
+
+---
+
+**作成日**: 2026 年 1 月 14 日
+**最終更新日**: 2026 年 1 月 19 日

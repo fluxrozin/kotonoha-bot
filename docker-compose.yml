@@ -13,6 +13,26 @@
 #   docker compose down --remove-orphans
 #
 services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg18
+    container_name: kotonoha-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kotonoha}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-kotonoha}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - kotonoha-network
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kotonoha}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   kotonoha-bot:
     build:
       context: .
@@ -22,6 +42,9 @@ services:
     restart: unless-stopped
     user: root
     stop_grace_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
 
     env_file:
       - .env
@@ -94,3 +117,6 @@ services:
 networks:
   kotonoha-network:
     driver: bridge
+
+volumes:
+  postgres_data:

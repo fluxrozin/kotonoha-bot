@@ -48,6 +48,7 @@ class ChatCommands(commands.Cog):
             # 会話履歴をクリア（messagesリストを空にする）
             session.messages.clear()
             session.last_active_at = datetime.now()  # 最終アクセス時刻を更新
+            session.last_archived_message_index = 0  # アーカイブインデックスもリセット
             await self.handler.session_manager.save_session(session_key)
 
             await interaction.followup.send(
@@ -119,10 +120,6 @@ async def setup(bot: commands.Bot, handler: MessageHandler):
         handler: メッセージハンドラー
     """
     await bot.add_cog(ChatCommands(bot, handler))
-    # スラッシュコマンドを同期（グローバルコマンドとして登録）
-    try:
-        synced = await bot.tree.sync()
-        logger.info(f"Synced {len(synced)} slash command(s)")
-    except Exception as e:
-        logger.error(f"Failed to sync slash commands: {e}")
+    # スラッシュコマンドの同期は on_ready イベント内で実行する
+    # （bot.start() が呼ばれる前に application_id が設定されていないため）
     logger.info("Chat commands registered")

@@ -1,9 +1,28 @@
-"""データベースエラーの分類"""
+"""データベースエラーの分類
+
+⚠️ 注意: PostgreSQL（asyncpg）への移行に伴い、PostgreSQLのエラーにも対応しています。
+SQLiteのエラーも後方互換性のためサポートしていますが、将来的に削除される可能性があります。
+"""
 
 import logging
-import sqlite3
 
 logger = logging.getLogger(__name__)
+
+# asyncpgのインポート（オプショナル）
+try:
+    import asyncpg
+
+    HAS_ASYNCPG = True
+except ImportError:
+    HAS_ASYNCPG = False
+
+# sqlite3のインポート（後方互換性のため）
+try:
+    import sqlite3
+
+    HAS_SQLITE = True
+except ImportError:
+    HAS_SQLITE = False
 
 
 class DatabaseErrorType:
@@ -18,19 +37,57 @@ class DatabaseErrorType:
 def classify_database_error(error: Exception) -> str:
     """データベースエラーを分類
 
+    ⚠️ 改善: PostgreSQL（asyncpg）のエラーにも対応
+    SQLiteのエラーも後方互換性のためサポートしていますが、将来的に削除される可能性があります。
+
     Args:
         error: データベースエラー
 
     Returns:
         エラータイプ
     """
-    if isinstance(error, sqlite3.OperationalError):
-        error_msg = str(error).lower()
-        if "locked" in error_msg or "database is locked" in error_msg:
+    # PostgreSQL（asyncpg）のエラーをチェック
+    if HAS_ASYNCPG:
+        if isinstance(
+            error,
+            (
+                asyncpg.exceptions.UniqueViolationError,
+                asyncpg.exceptions.ForeignKeyViolationError,
+                asyncpg.exceptions.NotNullViolationError,
+            ),
+        ):
+            return DatabaseErrorType.INTEGRITY
+        elif isinstance(
+            error,
+            (
+                asyncpg.exceptions.DeadlockDetectedError,
+                asyncpg.exceptions.LockNotAvailableError,
+            ),
+        ):
             return DatabaseErrorType.LOCKED
-        return DatabaseErrorType.OPERATIONAL
-    elif isinstance(error, sqlite3.IntegrityError):
-        return DatabaseErrorType.INTEGRITY
+        elif isinstance(error, asyncpg.exceptions.PostgresError):
+            error_msg = str(error).lower()
+            # ロック関連のエラーメッセージをチェック
+            if "lock" in error_msg or "deadlock" in error_msg:
+                return DatabaseErrorType.LOCKED
+            # 整合性関連のエラーメッセージをチェック
+            if (
+                "unique" in error_msg
+                or "foreign key" in error_msg
+                or "constraint" in error_msg
+            ):
+                return DatabaseErrorType.INTEGRITY
+            return DatabaseErrorType.OPERATIONAL
+
+    # SQLiteのエラーをチェック（後方互換性のため）
+    if HAS_SQLITE:
+        if isinstance(error, sqlite3.OperationalError):
+            error_msg = str(error).lower()
+            if "locked" in error_msg or "database is locked" in error_msg:
+                return DatabaseErrorType.LOCKED
+            return DatabaseErrorType.OPERATIONAL
+        elif isinstance(error, sqlite3.IntegrityError):
+            return DatabaseErrorType.INTEGRITY
 
     return DatabaseErrorType.UNKNOWN
 

@@ -6,6 +6,8 @@ from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
 from .config import Config
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,8 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self._handle_health()
         elif self.path == "/ready":
             self._handle_ready()
+        elif self.path == "/metrics":
+            self._handle_metrics()  # ⚠️ 追加: メトリクスエンドポイント
         else:
             self.send_error(404, "Not Found")
 
@@ -69,6 +73,17 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.wfile.write(
                 json.dumps({"ready": False, "error": str(e)}).encode() + b"\n"
             )
+
+    def _handle_metrics(self) -> None:
+        """Prometheusメトリクスエンドポイント"""
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", CONTENT_TYPE_LATEST)
+            self.end_headers()
+            self.wfile.write(generate_latest())
+        except Exception as e:
+            logger.error(f"Metrics endpoint error: {e}", exc_info=True)
+            self.send_error(500, "Internal Server Error")
 
 
 class HealthCheckServer:
