@@ -34,12 +34,16 @@ NNNN-title-with-dashes.md
 | ID   | タイトル                                                                  | ステータス | 日付       |
 | ---- | ------------------------------------------------------------------------- | ---------- | ---------- |
 | 0001 | [Python 3.14 の採用](0001-use-python-3-14.md)                             | Accepted   | 2026-01-14 |
-| 0002 | [LiteLLM マルチプロバイダー戦略](0002-litellm-multi-provider-strategy.md) | Accepted   | 2026-01-14 |
+| 0002 | [LiteLLM マルチプロバイダー戦略](0002-litellm-multi-provider-strategy.md) | Superseded | 2026-01-14 |
 | 0003 | [SQLite の採用](0003-use-sqlite.md)                                       | Accepted   | 2026-01-14 |
 | 0004 | [ハイブリッドセッション管理](0004-hybrid-session-management.md)           | Accepted   | 2026-01-14 |
 | 0005 | [4 つの会話の契機](0005-four-conversation-triggers.md)                    | Accepted   | 2026-01-14 |
 | 0006 | [aiosqlite への移行](0006-migrate-to-aiosqlite.md)                       | Accepted   | 2026-01-15 |
 | 0007 | [PostgreSQL への移行](0007-migrate-to-postgresql.md)                     | Accepted   | 2026-01-16 |
+| 0008 | [LangGraph の適用可能性検討](0008-langgraph-consideration.md)            | Accepted   | 2026-01-19 |
+| 0009 | [LangChain vs LiteLLM の選択](0009-langchain-vs-litellm.md)              | Accepted   | 2026-01-19 |
+| 0010 | [aisuite vs LiteLLM の選択](0010-aisuite-vs-litellm.md)                  | Accepted   | 2026-01-19 |
+| 0011 | [LiteLLM の削除とプロバイダー SDK の直接使用](0011-remove-litellm-direct-sdk.md) | Accepted   | 2026-01-19 |
 
 ## ADR テンプレート
 
@@ -133,4 +137,4 @@ NNNN-title-with-dashes.md
 ---
 
 **作成日**: 2026 年 1 月 14 日
-**最終更新日**: 2026 年 1 月 16 日
+**最終更新日**: 2026 年 1 月 19 日

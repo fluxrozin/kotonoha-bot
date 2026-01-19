@@ -153,9 +153,8 @@
 
 **対応プロバイダー**:
 
-- **開発**: `anthropic/claude-3-haiku-20240307`（Anthropic Claude API、レガシー、超低コスト）
-- **調整**: `anthropic/claude-sonnet-4-5`（Claude API）
-- **本番**: `anthropic/claude-opus-4-5`（Claude API）
+- **開発**: `claude-haiku-4-5`（Anthropic Claude API、超低コスト）
+- **本番**: `claude-opus-4-5`（Claude API）
 
 **依存関係**:
 

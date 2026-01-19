@@ -34,9 +34,8 @@ cp .env.example .env
 # エディタで開いて以下を設定
 # DISCORD_TOKEN=your_discord_bot_token_here
 # ANTHROPIC_API_KEY=your_anthropic_api_key_here
-# LLM_MODEL=anthropic/claude-opus-4-5  # 本番用（最高品質）
-# LLM_MODEL=anthropic/claude-haiku-4-5    # 開発用（最速・低コスト）
-# LLM_MODEL=anthropic/claude-sonnet-4-5   # バランス型
+# LLM_MODEL=claude-haiku-4-5  # 開発用（最速・低コスト）
+# LLM_MODEL=claude-opus-4-5  # 本番用（最高品質）
 ```
 
 ### 3. 依存関係のインストール

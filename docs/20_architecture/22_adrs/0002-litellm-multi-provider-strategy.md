@@ -1,6 +1,10 @@
 # ADR-0002: LiteLLM によるマルチ LLM プロバイダー戦略
 
-**ステータス**: Accepted
+**ステータス**: Superseded
+
+> **注意**: この ADR は [ADR-0011: LiteLLM の削除とプロバイダー SDK の直接使用](./0011-remove-litellm-direct-sdk.md) により置き換えられました。
+> 
+> ADR-0011 では、実際の使用状況（プロバイダー固定）と LiteLLM のデメリット（パフォーマンス、セキュリティ、オーバーヘッド）を踏まえ、LiteLLM を削除して Anthropic SDK を直接使用することを決定しました。
 
 **日付**: 2026-01-14
 

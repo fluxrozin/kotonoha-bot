@@ -1,4 +1,4 @@
-# Phase 9: ハイブリッド検索の実装
+# Phase 9: LiteLLM 削除、Anthropic SDK 直接使用への移行
 
 **作成日**: 2026年1月19日  
 **バージョン**: 1.0  
@@ -24,24 +24,47 @@
 
 ### 1.1 目的
 
-Phase 8で実装したベクトル検索に加えて、pg_bigmを使用したキーワード検索を組み合わせたハイブリッド検索を実装し、検索品質を向上させる。
+LiteLLM を削除し、Anthropic SDK を直接使用することで、以下の目的を達成する：
+
+1. **パフォーマンス向上**: オーバーヘッドの削減、メモリ使用量の削減
+2. **セキュリティ向上**: セキュリティリスクの削減（複数の CVE の解消）
+3. **コードのシンプル化**: 依存関係の削減、設定の簡素化、コードの理解しやすさ向上
+4. **保守性向上**: デバッグの容易さ、プロバイダー固有の機能を直接利用可能
 
 ### 1.2 背景
 
-ベクトル検索は「概念的な類似」には強いですが、「固有名詞（例：プロジェクトコード名、特定のエラーコード）」の完全一致検索には弱いです。日本語検索においては、pg_bigmを使用した2-gram（2文字単位）によるキーワード検索を組み合わせることで、検索精度を大幅に向上させることができます。
+現在の実装では、LLM API へのアクセスに LiteLLM を使用しているが、実際の使用状況は以下の通り：
+
+- **チャット/会話判定**: Claude のみ（すべて同じプロバイダー Anthropic）
+  - 開発: `claude-haiku-4-5`
+  - 本番: `claude-opus-4-5`
+- **ベクトル化**: OpenAI のみ（直接 OpenAI SDK を使用）
+
+プロバイダーを切り替える必要がないため、LiteLLM の主な価値（統一インターフェース）が不要である。
+
+また、LiteLLM には以下のデメリットがある：
+
+- **パフォーマンス劣化**: 長時間稼働時のレイテンシ増加
+- **メモリ使用量**: 高メモリ消費（24GB RAM @ 9 req/sec の報告）
+- **セキュリティ脆弱性**: 複数の CVE（CVE-2025-0628, CVE-2024-5710, CVE-2024-4888, CVE-2025-0330, CVE-2024-9606）
+- **オーバーヘッド**: 抽象化レイヤーによる追加のレイテンシ
+- **複雑性**: 設定が多岐にわたる
+- **接続プール問題**: 長時間稼働時の接続枯渇（現在の実装で対処している）
 
 ### 1.3 主要な実装項目
 
 | 項目 | 内容 |
 |------|------|
-| pg_bigm拡張の有効化 | Dockerfile.postgresでカスタムイメージを作成 |
-| ハイブリッド検索メソッド | ベクトル検索とキーワード検索を組み合わせた検索 |
-| スコアリング機能 | ベクトル類似度とキーワードスコアを組み合わせたスコア計算 |
-| インデックス最適化 | pg_bigm用のGINインデックスの追加 |
+| Anthropic SDK の導入 | `anthropic` パッケージを追加 |
+| AnthropicProvider の実装 | `LiteLLMProvider` を置き換え |
+| レート制限機能の移行 | 既存のレート制限機能を Anthropic SDK に適応 |
+| フォールバック機能の削除 | プロバイダー固定のため不要 |
+| 依存関係の整理 | `litellm` を削除 |
+| 設定の簡素化 | LiteLLM 固有の設定を削除 |
 
 ### 1.4 実装期間
 
-約 2-3 日
+約 3-5 日
 
 ---
 
@@ -49,73 +72,85 @@ Phase 8で実装したベクトル検索に加えて、pg_bigmを使用したキ
 
 ### 2.1 目的
 
-1. **検索品質の向上**: 固有名詞や特定のキーワードを含む検索の精度向上
-2. **日本語検索の最適化**: pg_bigmによる2-gram検索による日本語検索の高速化
-3. **ハイブリッド検索の実現**: ベクトル検索とキーワード検索を組み合わせた統合検索
+1. **パフォーマンス向上**: オーバーヘッドの削減、メモリ使用量の削減
+2. **セキュリティ向上**: セキュリティリスクの削減
+3. **コードのシンプル化**: 依存関係の削減、設定の簡素化
+4. **保守性向上**: デバッグの容易さ、プロバイダー固有の機能を直接利用可能
 
 ### 2.2 スコープ
 
-- **pg_bigm拡張の有効化**: Dockerfile.postgresでカスタムイメージを作成
-- **ハイブリッド検索メソッドの実装**: `PostgreSQLDatabase`クラスに`hybrid_search`メソッドを追加
-- **スコアリング機能**: ベクトル類似度とキーワードスコアを組み合わせたスコア計算
-- **インデックス最適化**: pg_bigm用のGINインデックスの追加（Alembicマイグレーション）
+- **Anthropic SDK の導入**: `anthropic` パッケージを追加
+- **AnthropicProvider の実装**: `src/kotonoha_bot/ai/anthropic_provider.py` を作成
+- **LiteLLMProvider の置き換え**: `LiteLLMProvider` を `AnthropicProvider` に置き換え
+- **既存の抽象化レイヤーの維持**: `AIProvider` インターフェースは維持
+- **レート制限機能の移行**: 既存のレート制限機能を Anthropic SDK に適応
+- **フォールバック機能の削除**: プロバイダー固定のため不要
+- **依存関係の整理**: `litellm` を削除
+- **設定の簡素化**: LiteLLM 固有の設定を削除
 
 ### 2.3 スコープ外
 
-- **pg_trgmの実装**: 日本語検索においてはpg_bigmを採用（2文字の単語に対応）
-- **tsvector（FTS）の実装**: オプションとして将来の拡張に備える（今回は実装しない）
-- **Reranking機能**: Phase 10で実装予定
+- **他のプロバイダーへの対応**: 現在は Anthropic のみを使用するため、他のプロバイダーへの対応は不要
+- **フォールバック機能**: プロバイダー固定のため不要
+- **LiteLLM の機能の完全な再実装**: 必要な機能のみを実装
 
 ---
 
 ## 3. 設計方針
 
-### 3.1 pg_bigmの採用理由
+### 3.1 Anthropic SDK の採用理由
 
-**pg_bigmの利点**:
+**Anthropic SDK のメリット**:
 
-- **2-gram（2文字単位）**: 日本語の多くは2文字以上の熟語で構成されるため、検索漏れがほぼゼロ
-- **2文字の単語に対応**: 「設計」「開発」のような2文字の単語も確実に検索可能
-- **LIKE演算子の高速化**: PostgreSQL標準の `LIKE '%...%'` 検索を爆速化
-- **pg_trgmとの違い**: pg_trgm（3-gram）は2文字の単語が検索漏れしたり、精度が出にくい場合がある
+- **シンプルさ**: 依存関係が少ない、設定がシンプル、コードが理解しやすい
+- **パフォーマンス**: オーバーヘッドが少ない、直接的な API 呼び出し、メモリ使用量が少ない
+- **セキュリティ**: セキュリティリスクが少ない、プロバイダー固有の機能を直接利用できる
+- **保守性**: コードが理解しやすい、デバッグが容易
 
-**pg_trgmの限界**:
+**LiteLLM のデメリット**:
 
-- 3文字単位のため、「設計」「開発」のような2文字の単語の検索が苦手
-- ひらがなの助詞などがノイズになりやすい
+- **パフォーマンス劣化**: 長時間稼働時のレイテンシ増加
+- **メモリ使用量**: 高メモリ消費（24GB RAM @ 9 req/sec の報告）
+- **セキュリティ脆弱性**: 複数の CVE
+- **オーバーヘッド**: 抽象化レイヤーによる追加のレイテンシ
+- **複雑性**: 設定が多岐にわたる
 
-### 3.2 ハイブリッド検索の設計
+### 3.2 既存の抽象化レイヤーの維持
 
-**UNION ALL方式の採用**:
+`AIProvider` インターフェースは維持し、実装のみを変更する。これにより：
 
-FULL OUTER JOINは両方のCTEを完全評価するため非効率です。UNION ALLを使用した方が効率的です。
+- 既存のコードへの影響を最小化
+- 将来の拡張性を維持
+- テストの互換性を維持
 
-**スコアリング方式**:
+### 3.3 レート制限機能の移行
 
-- **ベクトル類似度**: 0.7の重み（概念的な類似に強い）
-- **キーワードスコア**: 0.3の重み（固有名詞の完全一致に強い）
+既存のレート制限機能（`RateLimitMonitor`、`TokenBucket`）は維持し、Anthropic SDK に適応する。
 
-**実装方針**:
+### 3.4 トークン情報の取得
 
-1. ベクトル検索で上位50件を取得（候補を広めに取る）
-2. キーワード検索で上位100件を取得（`LIKE '%キーワード%'`で検索）
-3. 両方の結果をUNION ALLで結合
-4. スコアを合計して降順にソート
-5. 上位10件を返す
+Anthropic SDK のレスポンスからトークン情報を取得し、Phase 14（コスト管理機能）と Phase 15（監査ログ機能）で使用できるようにする。
 
-### 3.3 インデックス設計
+**重要**: `anthropic_provider.py` の戻り値を `tuple[str, dict]` に変更する（Phase 14 と Phase 15 で必要）。
 
-**pg_bigm用のGINインデックス**:
-
-```sql
-CREATE INDEX idx_chunks_content_bigm ON knowledge_chunks 
-USING gin (content gin_bigm_ops);
+```python
+async def generate_response(
+    self,
+    messages: list[Message],
+    system_prompt: str | None = None,
+    model: str | None = None,
+    max_tokens: int | None = None,
+) -> tuple[str, dict]:
+    """Anthropic SDK 経由で LLM API を呼び出して応答を生成
+    
+    Returns:
+        tuple[str, dict]: (応答テキスト, メタデータ)
+        - メタデータには以下のキーが含まれる:
+          - "input_tokens": int
+          - "output_tokens": int
+          - "model": str
+    """
 ```
-
-**注意点**:
-
-- インデックスサイズが大きくなる傾向がある（2文字の組み合わせの方が3文字よりも多いため）
-- 更新速度が若干遅くなる（バックグラウンド処理のため、ユーザー体験への影響は軽微）
 
 ---
 
@@ -126,11 +161,12 @@ USING gin (content gin_bigm_ops);
 | Step | 内容 | 期間 | 完了状況 | 詳細ドキュメント |
 |------|------|------|---------|------------------|
 | 0 | 依存関係の確認と設計レビュー | 0.5日 | ⏳ 未実装 | - |
-| 1 | Dockerfile.postgresの作成 | 0.5日 | ⏳ 未実装 | [PostgreSQL実装ガイド](../../50_implementation/51_guides/postgresql-implementation-guide.md#dockerfile-での-pg_bigm-の導入) |
-| 2 | pg_bigm拡張の有効化（Alembicマイグレーション） | 0.5日 | ⏳ 未実装 | - |
-| 3 | ハイブリッド検索メソッドの実装 | 1日 | ⏳ 未実装 | - |
-| 4 | テストの実装 | 0.5日 | ⏳ 未実装 | - |
-| **合計** | | **2-3日** | **⏳ 未実装** | |
+| 1 | Anthropic SDK の導入 | 0.5日 | ⏳ 未実装 | - |
+| 2 | AnthropicProvider の実装 | 1.5日 | ⏳ 未実装 | - |
+| 3 | LiteLLMProvider の置き換え | 0.5日 | ⏳ 未実装 | - |
+| 4 | テストの実装と更新 | 0.5日 | ⏳ 未実装 | - |
+| 5 | 依存関係の整理 | 0.5日 | ⏳ 未実装 | - |
+| **合計** | | **3-5日** | **⏳ 未実装** | |
 
 ### 4.2 各ステップの詳細
 
@@ -139,183 +175,342 @@ USING gin (content gin_bigm_ops);
 **完了内容**:
 
 - Phase 8の実装状況を確認
-- pg_bigmのバージョンと互換性を確認
+- Anthropic SDK のバージョンと互換性を確認
 - 設計方針のレビュー
 
 **確認事項**:
 
 - PostgreSQL 18 + pgvector 0.8.1 が正常に動作していること
-- `PostgreSQLDatabase`クラスの`similarity_search`メソッドが実装されていること
-- `knowledge_chunks`テーブルが存在すること
+- `LiteLLMProvider` クラスの実装を確認
+- `AIProvider` インターフェースの定義を確認
+- 既存のレート制限機能の実装を確認
 
-#### Step 1: Dockerfile.postgresの作成
-
-**完了内容**:
-
-- `Dockerfile.postgres`の作成
-- pg_bigmのビルドとインストール
-- マルチステージビルドによる最適化
-
-**実装ファイル**: `Dockerfile.postgres`
-
-**参考**: [PostgreSQL実装ガイド - Dockerfileでのpg_bigmの導入](../../50_implementation/51_guides/postgresql-implementation-guide.md#dockerfile-での-pg_bigm-の導入)
-
-**注意点**:
-
-- pg_bigmのバージョンは`1.2-20240606`を使用
-- GitHubリリースへの依存があるため、チェックサム検証を推奨
-- 開発環境では標準のpgvectorイメージを使用（ビルド時間の短縮）
-
-#### Step 2: pg_bigm拡張の有効化（Alembicマイグレーション）
+#### Step 1: Anthropic SDK の導入
 
 **完了内容**:
 
-- Alembicマイグレーションファイルの作成
-- pg_bigm拡張の有効化
-- GINインデックスの作成
+- `pyproject.toml` に `anthropic` パッケージを追加
+- 依存関係のインストール
 
-**実装ファイル**: `alembic/versions/XXXXX_add_pg_bigm_extension.py`
+**実装ファイル**: `pyproject.toml`
 
-**マイグレーション内容**:
+**追加する依存関係**:
 
-```sql
--- pg_bigm拡張の有効化
-CREATE EXTENSION IF NOT EXISTS pg_bigm;
-
--- knowledge_chunks.contentにGINインデックス（pg_bigm）を追加
-CREATE INDEX idx_chunks_content_bigm ON knowledge_chunks 
-USING gin (content gin_bigm_ops);
+```toml
+[project]
+dependencies = [
+    # ... 既存の依存関係 ...
+    "anthropic>=0.34.0",  # Anthropic SDK
+]
 ```
 
 **注意点**:
 
-- 既存のデータがある場合、インデックス作成に時間がかかる可能性がある
-- 本番環境ではメンテナンスウィンドウを設けることを推奨
+- Anthropic SDK の最新バージョンを確認
+- 互換性のあるバージョンを選択
 
-#### Step 3: ハイブリッド検索メソッドの実装
+#### Step 2: AnthropicProvider の実装
 
 **完了内容**:
 
-- `PostgreSQLDatabase`クラスに`hybrid_search`メソッドを追加
-- ベクトル検索とキーワード検索を組み合わせた検索ロジックの実装
-- スコアリング機能の実装
+- `src/kotonoha_bot/ai/anthropic_provider.py` の作成
+- `AnthropicProvider` クラスの実装
+- レート制限機能の統合
+- トークン情報の取得と返却
 
-**実装ファイル**: `src/kotonoha_bot/db/postgres.py`
+**実装ファイル**: `src/kotonoha_bot/ai/anthropic_provider.py`
 
-**メソッドシグネチャ**:
+**クラス構造**:
 
 ```python
-async def hybrid_search(
-    self,
-    query_embedding: list[float],
-    query_text: str,
-    limit: int = 10,
-    vector_weight: float = 0.7,
-    keyword_weight: float = 0.3,
-    **filters: Any,
-) -> list[SearchResult]:
-    """ハイブリッド検索（ベクトル検索 + キーワード検索）
+from anthropic import Anthropic
+from ..config import Config
+from ..rate_limit.monitor import RateLimitMonitor
+from ..rate_limit.token_bucket import TokenBucket
+from ..session.models import Message, MessageRole
+from .provider import AIProvider
+
+class AnthropicProvider(AIProvider):
+    """Anthropic SDK を使用した LLM プロバイダー
     
-    Args:
-        query_embedding: クエリのベクトル（1536次元）
-        query_text: クエリのテキスト（キーワード検索用）
-        limit: 返却する結果の数（デフォルト: 10）
-        vector_weight: ベクトル類似度の重み（デフォルト: 0.7）
-        keyword_weight: キーワードスコアの重み（デフォルト: 0.3）
-        **filters: フィルタ条件（source_type, channel_id, user_id等）
-    
-    Returns:
-        検索結果のリスト（スコア順）
+    Anthropic SDK を直接使用して Claude API を呼び出す。
+    - 開発: claude-haiku-4-5（超低コスト）
+    - 本番: claude-opus-4-5（最高品質）
     """
-```
-
-**実装ロジック**:
-
-1. ベクトル検索で上位50件を取得（`similarity_search`メソッドを使用）
-2. キーワード検索で上位100件を取得（`LIKE '%キーワード%'`で検索）
-3. 両方の結果をUNION ALLで結合
-4. スコアを合計して降順にソート
-5. 上位`limit`件を返す
-
-**SQL実装例**:
-
-```sql
-WITH vector_results AS (
-    SELECT 
-        id,
-        source_id,
-        content,
-        1 - (embedding <=> $1::halfvec(1536)) AS vector_similarity
-    FROM knowledge_chunks
-    WHERE embedding IS NOT NULL
-    ORDER BY embedding <=> $1::halfvec(1536)
-    LIMIT 50
-),
-keyword_results AS (
-    SELECT 
-        id,
-        source_id,
-        content,
-        1.0 AS keyword_score
-    FROM knowledge_chunks
-    WHERE content LIKE $2
-      AND embedding IS NOT NULL
-    LIMIT 100
-),
-combined AS (
-    SELECT id, source_id, content, vector_similarity * 0.7 AS score 
-    FROM vector_results
-    UNION ALL
-    SELECT id, source_id, content, keyword_score * 0.3 AS score 
-    FROM keyword_results
-)
-SELECT 
-    id,
-    source_id,
-    content,
-    SUM(score) AS combined_score
-FROM combined
-GROUP BY id, source_id, content
-ORDER BY combined_score DESC
-LIMIT 10;
+    
+    def __init__(self, model: str = Config.LLM_MODEL):
+        self.model = model
+        self.max_retries = Config.LLM_MAX_RETRIES
+        self.retry_delay_base = Config.LLM_RETRY_DELAY_BASE
+        
+        # Anthropic SDK クライアントの初期化
+        self.client = Anthropic(api_key=Config.ANTHROPIC_API_KEY)
+        
+        # レート制限モニターとトークンバケットの初期化
+        self.rate_limit_monitor = RateLimitMonitor(
+            window_seconds=Config.RATE_LIMIT_WINDOW,
+            warning_threshold=Config.RATE_LIMIT_THRESHOLD,
+        )
+        self.token_bucket = TokenBucket(
+            capacity=Config.RATE_LIMIT_CAPACITY,
+            refill_rate=Config.RATE_LIMIT_REFILL,
+        )
+        # デフォルトのレート制限を設定（1分間に50リクエスト）
+        self.rate_limit_monitor.set_rate_limit(
+            "claude-api", limit=50, window_seconds=60
+        )
+    
+    async def generate_response(
+        self,
+        messages: list[Message],
+        system_prompt: str | None = None,
+        model: str | None = None,
+        max_tokens: int | None = None,
+    ) -> tuple[str, dict]:
+        """Anthropic SDK 経由で LLM API を呼び出して応答を生成
+        
+        Returns:
+            tuple[str, dict]: (応答テキスト, メタデータ)
+            - メタデータには以下のキーが含まれる:
+              - "input_tokens": int
+              - "output_tokens": int
+              - "model": str
+        """
+        # レート制限チェックとトークン取得
+        endpoint = "claude-api"
+        self.rate_limit_monitor.record_request(endpoint)
+        self.rate_limit_monitor.check_rate_limit(endpoint)
+        
+        # トークンバケットからトークンを取得（タイムアウト: 30秒）
+        if not await self.token_bucket.wait_for_tokens(tokens=1, timeout=30.0):
+            raise RuntimeError("Rate limit: Could not acquire token within timeout")
+        
+        # Anthropic SDK 用のメッセージ形式に変換
+        anthropic_messages = self._convert_messages(messages, system_prompt)
+        
+        # 使用するモデルを決定（LiteLLM の形式から Anthropic SDK の形式に変換）
+        use_model = self._convert_model_name(model or self.model)
+        use_max_tokens = max_tokens or Config.LLM_MAX_TOKENS
+        
+        # リトライロジック
+        last_exception = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                # APIリクエスト
+                response = await self.client.messages.create(
+                    model=use_model,
+                    max_tokens=use_max_tokens,
+                    temperature=Config.LLM_TEMPERATURE,
+                    system=system_prompt,
+                    messages=anthropic_messages,
+                )
+                
+                # レスポンスからテキストを取得
+                if not response.content or len(response.content) == 0:
+                    raise ValueError("No content in response")
+                
+                # Anthropic SDK のレスポンス形式に合わせて処理
+                result_text = ""
+                for content_block in response.content:
+                    if content_block.type == "text":
+                        result_text += content_block.text
+                
+                if not result_text:
+                    raise ValueError("Empty response content")
+                
+                # メタデータを構築
+                metadata = {
+                    "input_tokens": response.usage.input_tokens,
+                    "output_tokens": response.usage.output_tokens,
+                    "model": response.model,
+                }
+                
+                logger.info(
+                    f"Generated response: {len(result_text)} chars, "
+                    f"tokens: input={metadata['input_tokens']}, "
+                    f"output={metadata['output_tokens']}"
+                )
+                
+                return result_text, metadata
+                
+            except anthropic.APIError as e:
+                # API エラー: リトライ可能なエラーかどうかを判定
+                if e.status_code in [429, 500, 502, 503, 504]:
+                    # 一時的なエラー: リトライ可能
+                    last_exception = e
+                    if attempt < self.max_retries:
+                        delay = self.retry_delay_base * (2**attempt)
+                        logger.warning(
+                            f"API error (attempt {attempt + 1}/{self.max_retries + 1}): {e}. "
+                            f"Retrying in {delay}s..."
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        logger.error(
+                            f"API error after {self.max_retries + 1} attempts: {e}"
+                        )
+                        raise
+                else:
+                    # 認証エラーなど、リトライ不可なエラー
+                    logger.error(f"API error (non-retryable): {e}")
+                    raise
+                    
+            except Exception as e:
+                # その他の予期しないエラー
+                logger.error(f"Unexpected Anthropic API error: {e}")
+                raise
+        
+        # この行には到達しないはずだが、念のため
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("Unexpected error in generate_response")
+    
+    def _convert_model_name(self, model: str) -> str:
+        """LiteLLM のモデル名を Anthropic SDK のモデル名に変換
+        
+        Args:
+            model: LiteLLM 形式のモデル名（例: "anthropic/claude-haiku-4-5"）
+        
+        Returns:
+            Anthropic SDK 形式のモデル名（例: "claude-haiku-4-5"）
+        """
+        # "anthropic/" プレフィックスを削除
+        if model.startswith("anthropic/"):
+            return model[len("anthropic/"):]
+        return model
+    
+    def _convert_messages(
+        self, messages: list[Message], system_prompt: str | None
+    ) -> list[dict]:
+        """Anthropic SDK 用のメッセージ形式に変換
+        
+        Args:
+            messages: 会話履歴
+            system_prompt: システムプロンプト（Anthropic SDK では messages に含めない）
+        
+        Returns:
+            Anthropic SDK 形式のメッセージリスト
+        """
+        anthropic_messages = []
+        
+        # 会話履歴を追加（システムプロンプトは messages.create の system パラメータで指定）
+        for message in messages:
+            role = "user" if message.role == MessageRole.USER else "assistant"
+            anthropic_messages.append({"role": role, "content": message.content})
+        
+        return anthropic_messages
 ```
 
 **注意点**:
 
-- `embedding IS NOT NULL`条件を必ず付与（HNSWインデックス使用のため）
-- キーワード検索にも上限を設ける（巨大なテーブルでのボトルネックを防ぐ）
-- SQLインジェクション対策（Allow-list方式）を維持
+- Anthropic SDK は非同期 API を提供しているため、`async/await` を使用
+- モデル名の変換が必要（LiteLLM 形式: `anthropic/claude-haiku-4-5` → Anthropic SDK 形式: `claude-haiku-4-5`）
+- システムプロンプトは `messages.create` の `system` パラメータで指定
+- レスポンスの `content` はリスト形式（`content_block.type == "text"` をチェック）
 
-#### Step 4: テストの実装
+#### Step 3: LiteLLMProvider の置き換え
 
 **完了内容**:
 
-- ハイブリッド検索のユニットテスト
-- 統合テストの実装
-- パフォーマンステストの実施
+- `LiteLLMProvider` を `AnthropicProvider` に置き換え
+- 呼び出し元のコードを更新（戻り値の変更に対応）
 
 **実装ファイル**:
 
-- `tests/unit/test_postgres_hybrid_search.py`: ハイブリッド検索のユニットテスト
-- `tests/integration/test_hybrid_search.py`: ハイブリッド検索の統合テスト
-- `tests/performance/test_hybrid_search_performance.py`: パフォーマンステスト
+- `src/kotonoha_bot/bot/handlers.py`
+- `src/kotonoha_bot/eavesdrop/llm_judge.py`
+- `src/kotonoha_bot/main.py`（プロバイダーの初期化部分）
+
+**変更内容**:
+
+```python
+# 変更前
+from kotonoha_bot.ai.litellm_provider import LiteLLMProvider
+
+provider = LiteLLMProvider()
+
+# 変更後
+from kotonoha_bot.ai.anthropic_provider import AnthropicProvider
+
+provider = AnthropicProvider()
+```
+
+**戻り値の変更に対応**:
+
+```python
+# 変更前
+response = await provider.generate_response(messages, system_prompt)
+
+# 変更後
+response, metadata = await provider.generate_response(messages, system_prompt)
+# metadata は Phase 14, 15 で使用するため、現時点では使用しない
+```
+
+**注意点**:
+
+- すべての呼び出し元で戻り値の変更に対応する必要がある
+- メタデータは現時点では使用しないが、Phase 14, 15 で使用するため保持する
+
+#### Step 4: テストの実装と更新
+
+**完了内容**:
+
+- `AnthropicProvider` のユニットテスト
+- 既存のテストの更新（`LiteLLMProvider` → `AnthropicProvider`）
+- 統合テストの更新
+
+**実装ファイル**:
+
+- `tests/unit/test_anthropic_provider.py`: `AnthropicProvider` のユニットテスト
+- `tests/unit/test_litellm_provider.py`: 削除または `test_anthropic_provider.py` に統合
+- `tests/integration/test_ai_provider.py`: 統合テストの更新
 
 **テスト項目**:
 
 1. **基本機能テスト**:
-   - ベクトル検索のみの結果が正しく返されること
-   - キーワード検索のみの結果が正しく返されること
-   - ハイブリッド検索の結果が正しく返されること
-   - スコアリングが正しく計算されること
+   - `generate_response` メソッドの基本動作
+   - メタデータの返却
+   - エラーハンドリング
 
-2. **フィルタリングテスト**:
-   - `source_type`フィルタが正しく動作すること
-   - `channel_id`フィルタが正しく動作すること
-   - `user_id`フィルタが正しく動作すること
+2. **レート制限テスト**:
+   - レート制限の動作確認
+   - トークンバケットの動作確認
 
-3. **パフォーマンステスト**:
-   - 大量データ（10万件以上）での検索性能
-   - インデックスが正しく使用されていること（EXPLAIN ANALYZE）
+3. **リトライテスト**:
+   - 一時的なエラーに対するリトライ
+   - 最大リトライ回数の確認
+
+4. **モデル名変換テスト**:
+   - LiteLLM 形式から Anthropic SDK 形式への変換
+
+#### Step 5: 依存関係の整理
+
+**完了内容**:
+
+- `litellm` パッケージの削除
+- `pyproject.toml` の更新
+- 環境変数の整理（LiteLLM 固有の設定を削除）
+
+**実装ファイル**: `pyproject.toml`, `.env.example`
+
+**削除する依存関係**:
+
+```toml
+# 削除
+litellm = "^1.0.0"  # または該当するバージョン
+```
+
+**削除する環境変数**（`.env.example` から）:
+
+```bash
+# LiteLLM 固有の設定（削除）
+# LITELLM_* などの環境変数
+```
+
+**注意点**:
+
+- 依存関係の削除前に、すべてのテストが通過することを確認
+- 環境変数の削除前に、既存の設定ファイルを確認
 
 ---
 
@@ -323,21 +518,23 @@ LIMIT 10;
 
 ### 5.1 実装完了基準
 
-- ✅ `Dockerfile.postgres`が作成されている
-- ✅ pg_bigm拡張が有効化されている（Alembicマイグレーション）
-- ✅ GINインデックス（pg_bigm）が作成されている
-- ✅ `hybrid_search`メソッドが実装されている
-- ✅ ベクトル検索とキーワード検索が正しく組み合わせられている
-- ✅ スコアリングが正しく計算されている
-- ✅ フィルタリング機能が正しく動作している
+- ✅ `anthropic` パッケージが追加されている
+- ✅ `AnthropicProvider` クラスが実装されている
+- ✅ `LiteLLMProvider` が `AnthropicProvider` に置き換えられている
+- ✅ 既存の抽象化レイヤー（`AIProvider` インターフェース）が維持されている
+- ✅ レート制限機能が正常に動作している
+- ✅ トークン情報が取得できている（メタデータとして返却）
 - ✅ テストが実装されている
 - ✅ テストが通過する
+- ✅ `litellm` パッケージが削除されている
+- ✅ LiteLLM 固有の設定が削除されている
 
 ### 5.2 品質基準
 
-- **パフォーマンス**: 検索クエリが1秒以内に完了すること（10万件のデータで）
-- **精度**: 固有名詞を含む検索の精度が向上していること
-- **互換性**: 既存の`similarity_search`メソッドが正常に動作すること
+- **パフォーマンス**: 既存の実装と同等またはそれ以上のパフォーマンス
+- **互換性**: 既存の `AIProvider` インターフェースとの互換性を維持
+- **セキュリティ**: セキュリティリスクの削減（CVE の解消）
+- **コード品質**: コードの可読性、保守性の向上
 
 ---
 
@@ -345,47 +542,36 @@ LIMIT 10;
 
 ### 6.1 ユニットテスト
 
-**テストファイル**: `tests/unit/test_postgres_hybrid_search.py`
+**テストファイル**: `tests/unit/test_anthropic_provider.py`
 
 **テスト項目**:
 
-1. `hybrid_search`メソッドの基本動作
-2. スコアリングの計算ロジック
-3. フィルタリング機能
-4. エラーハンドリング
+1. `AnthropicProvider` の基本動作
+2. メタデータの返却
+3. エラーハンドリング
+4. レート制限機能
+5. リトライ機能
+6. モデル名変換
 
 ### 6.2 統合テスト
 
-**テストファイル**: `tests/integration/test_hybrid_search.py`
+**テストファイル**: `tests/integration/test_ai_provider.py`
 
 **テスト項目**:
 
-1. ベクトル検索とキーワード検索の組み合わせ
-2. 大量データでの検索性能
-3. インデックスの使用確認（EXPLAIN ANALYZE）
+1. `AnthropicProvider` と既存のコードの統合
+2. 実際の API 呼び出し（モックを使用）
+3. エラーケースの処理
 
-### 6.3 パフォーマンステスト
-
-**テストファイル**: `tests/performance/test_hybrid_search_performance.py`
-
-**テスト項目**:
-
-1. 検索クエリの実行時間測定
-2. インデックスサイズの確認
-3. メモリ使用量の確認
-
-### 6.4 テスト実行方法
+### 6.3 テスト実行方法
 
 ```bash
 # 全テスト実行
 pytest tests/ -v
 
-# ハイブリッド検索のテストのみ実行
-pytest tests/unit/test_postgres_hybrid_search.py -v
-pytest tests/integration/test_hybrid_search.py -v
-
-# パフォーマンステスト
-pytest tests/performance/test_hybrid_search_performance.py -v
+# AnthropicProvider のテストのみ実行
+pytest tests/unit/test_anthropic_provider.py -v
+pytest tests/integration/test_ai_provider.py -v
 
 # カバレッジ付きテスト実行
 pytest tests/ -v --cov=src/kotonoha_bot --cov-report=term-missing
@@ -397,105 +583,89 @@ pytest tests/ -v --cov=src/kotonoha_bot --cov-report=term-missing
 
 ### 7.1 開発環境での導入
 
-1. **Dockerfile.postgresの作成**
+1. **Anthropic SDK の導入**
 
    ```bash
-   # Dockerfile.postgresを作成
-   # （実装ガイドを参照）
+   # 依存関係のインストール
+   poetry install
+   # または
+   pip install -e .
    ```
 
-2. **docker-compose.ymlの更新**
-
-   ```yaml
-   services:
-     postgres:
-       # 開発環境では標準イメージを使用（ビルド時間の短縮）
-       image: pgvector/pgvector:0.8.1-pg18
-       # 本番環境ではカスタムイメージを使用
-       # build:
-       #   context: .
-       #   dockerfile: Dockerfile.postgres
-   ```
-
-3. **Alembicマイグレーションの適用**
+2. **環境変数の確認**
 
    ```bash
-   # Bot起動時に自動適用されます
-   # または手動で実行:
-   alembic upgrade head
+   # .env ファイルに ANTHROPIC_API_KEY が設定されていることを確認
+   ANTHROPIC_API_KEY=sk-ant-...
    ```
 
-4. **Botの起動**
+3. **Bot の起動**
 
    ```bash
    docker compose up kotonoha-bot
    ```
 
+4. **動作確認**
+
+   - Bot が正常に起動することを確認
+   - メンション応答が正常に動作することを確認
+   - ログにエラーが出力されないことを確認
+
 ### 7.2 本番環境でのデプロイ
 
-1. **カスタムイメージのビルド**
+1. **依存関係の更新**
 
    ```bash
-   docker build -f Dockerfile.postgres -t kotonoha-postgres:latest .
+   # Docker イメージの再ビルド
+   docker compose build kotonoha-bot
    ```
 
-2. **docker-compose.ymlの更新**
+2. **環境変数の確認**
 
-   ```yaml
-   services:
-     postgres:
-       image: kotonoha-postgres:latest
-       # または build: を使用
-   ```
+   - `ANTHROPIC_API_KEY` が設定されていることを確認
+   - LiteLLM 固有の環境変数が削除されていることを確認
 
-3. **データベースのメンテナンス**
+3. **段階的なデプロイ**
 
-   - メンテナンスウィンドウを設ける（インデックス作成に時間がかかる可能性がある）
-   - バックアップを取得
+   - まず開発環境で動作確認
+   - 問題がなければ本番環境にデプロイ
 
-4. **Alembicマイグレーションの適用**
+4. **動作確認**
 
-   ```bash
-   alembic upgrade head
-   ```
-
-5. **動作確認**
-
-   - ハイブリッド検索が正常に動作することを確認
-   - 既存のベクトル検索が正常に動作することを確認
+   - Bot が正常に起動することを確認
+   - メンション応答が正常に動作することを確認
+   - ログにエラーが出力されないことを確認
+   - パフォーマンスの改善を確認
 
 ---
 
 ## 8. 今後の改善計画
 
-### 8.1 Phase 10: Rerankingの実装（オプション）
+### 8.1 Phase 14: コスト管理機能
 
-**目的**: Cross-Encoder（Reranker）を使用して検索精度を向上させる
+**目的**: トークン情報を使用してコスト管理機能を実装
 
-**実装方法**: ベクトル検索の結果を再ランキング
+**実装方法**: `AnthropicProvider` から返却されるメタデータを使用
 
-**注意点**: CPU負荷を考慮
+### 8.2 Phase 15: 監査ログ機能
 
-### 8.2 スコアリングの最適化
+**目的**: トークン情報を使用して監査ログ機能を実装
 
-**目的**: ベクトル類似度とキーワードスコアの重みを動的に調整
+**実装方法**: `AnthropicProvider` から返却されるメタデータを使用
 
-**実装方法**: クエリの種類に応じて重みを変更
+### 8.3 パフォーマンス最適化
 
-### 8.3 多言語対応
+**目的**: Anthropic SDK の機能を活用してパフォーマンスを最適化
 
-**目的**: 英語やその他の言語での検索精度向上
-
-**実装方法**: 言語ごとに最適な検索方法を選択
+**実装方法**: ストリーミング、バッチ処理などの機能を検討
 
 ---
 
 ## 参考資料
 
-- **スキーマ設計書**: [PostgreSQL スキーマ設計書](../../40_design_detailed/42_db-schema-physical/postgresql-schema-overview.md)
-- **実装ガイド**: [PostgreSQL実装ガイド](../../50_implementation/51_guides/postgresql-implementation-guide.md)
-- **クエリガイド**: [PostgreSQLクエリガイド](../../50_implementation/51_guides/postgresql-query-guide.md)
-- **Phase 8実装計画**: [Phase 8実装計画](./phase08.md)
+- **ADR-0011**: [LiteLLM の削除とプロバイダー SDK の直接使用](../../20_architecture/22_adrs/0011-remove-litellm-direct-sdk.md)
+- **Anthropic Python SDK**: [Anthropic Python SDK Documentation](https://github.com/anthropics/anthropic-sdk-python)
+- **Phase 8 実装計画**: [Phase 8 実装計画](./phase08.md)
 
 ---
 

@@ -120,7 +120,7 @@ LiteLLM を使用して、複数の LLM プロバイダーを統一インター�
 import litellm
 
 response = litellm.completion(
-    model="anthropic/claude-sonnet-4-5",  # デフォルトモデル
+    model="claude-haiku-4-5",  # 開発モデル
     messages=[
         {"role": "system", "content": "システムプロンプト"},
         {"role": "user", "content": "ユーザーメッセージ"}
@@ -157,16 +157,15 @@ response = litellm.completion(
 
 ### 2.2 対応プロバイダーとモデル
 
-| 用途           | プロバイダー | モデル名                            | 環境変数                | 料金（2026 年 1 月現在）              |
-| -------------- | ------------ | ----------------------------------- | ----------------------- | ------------------------------------- |
-| デフォルト     | Anthropic    | `anthropic/claude-sonnet-4-5`       | `LLM_MODEL`             | \$3/input MTok, \$15/output MTok      |
-| フォールバック | Anthropic    | `anthropic/claude-3-haiku-20240307` | `LLM_FALLBACK_MODEL`    | \$0.25/input MTok, \$1.25/output MTok |
-| 判定用         | Anthropic    | `anthropic/claude-haiku-4-5`        | `EAVESDROP_JUDGE_MODEL` | \$1.00/input MTok, \$5.00/output MTok |
-| 本番用         | Anthropic    | `anthropic/claude-opus-4-5`         | `LLM_MODEL`（設定時）   | \$5/input MTok, \$25/output MTok      |
+| 用途           | プロバイダー | モデル名                     | 環境変数                | 料金（2026 年 1 月現在）              |
+| -------------- | ------------ | ---------------------------- | ----------------------- | ------------------------------------- |
+| 開発           | Anthropic    | `claude-haiku-4-5`           | `LLM_MODEL`             | \$1.00/input MTok, \$5.00/output MTok |
+| 判定用         | Anthropic    | `claude-haiku-4-5`           | `EAVESDROP_JUDGE_MODEL` | \$1.00/input MTok, \$5.00/output MTok |
+| 本番用         | Anthropic    | `claude-opus-4-5`            | `LLM_MODEL`（設定時）   | \$5/input MTok, \$25/output MTok      |
 
 **実装状況**:
 
-- デフォルトモデル: `anthropic/claude-sonnet-4-5`（`Config.LLM_MODEL`）
+- 開発モデル: `claude-haiku-4-5`（`Config.LLM_MODEL`）
 - フォールバックモデル: 環境変数 `LLM_FALLBACK_MODEL` で設定可能（未設定の場合は `None`）
 - 判定用モデル: `anthropic/claude-haiku-4-5`（`Config.EAVESDROP_JUDGE_MODEL`）
 
@@ -197,9 +196,8 @@ litellm.AuthenticationError: Invalid API key
 
 ```python
 response = litellm.completion(
-    model="anthropic/claude-sonnet-4-5",
-    messages=messages,
-    fallbacks=["anthropic/claude-3-haiku-20240307"]  # フォールバック先
+    model="claude-haiku-4-5",
+    messages=messages
 )
 ```
 

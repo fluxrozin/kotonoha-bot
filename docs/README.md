@@ -25,8 +25,9 @@
   - [Phase 6](./00_planning/phases/phase06.md): レート制限、コマンド、エラーハンドリング強化の詳細実装ステップ（完了）
   - [Phase 7](./00_planning/phases/phase07.md): aiosqliteへの移行（完了）
   - [Phase 8](./00_planning/phases/phase08.md): PostgreSQLへの移行（pgvector対応）
-  - [Phase 9](./00_planning/phases/phase09.md): ハイブリッド検索（pg_bigm）
-  - [Phase 11](./00_planning/phases/phase11.md): 完全リファクタリング
+  - [Phase 9](./00_planning/phases/phase09.md): LiteLLM 削除、Anthropic SDK 直接使用への移行
+  - [Phase 10](./00_planning/phases/phase10.md): 完全リファクタリング
+  - [Phase 11](./00_planning/phases/phase11.md): ハイブリッド検索（pg_bigm）
 - [**将来機能レビュー**](./00_planning/future-features-review.md): 将来実装予定の機能のレビュー
 
 ### 10_requirements/（要件定義 - Why & What）
@@ -62,14 +63,15 @@
 
 - [**ADR について**](./20_architecture/22_adrs/README.md): ADRの目的、命名規則、ステータス、テンプレート、作成方法
 - [**ADR-0001: Python 3.14 の採用**](./20_architecture/22_adrs/0001-use-python-3-14.md): Python 3.14採用の理由
-- [**ADR-0002: LiteLLM マルチプロバイダー戦略**](./20_architecture/22_adrs/0002-litellm-multi-provider-strategy.md): Claude API（LiteLLM経由）採用の理由、代替案の比較と評価
+- [**ADR-0002: LiteLLM マルチプロバイダー戦略**](./20_architecture/22_adrs/0002-litellm-multi-provider-strategy.md): ~~Claude API（LiteLLM経由）採用の理由~~（[ADR-0011](./20_architecture/22_adrs/0011-remove-litellm-direct-sdk.md)により置き換え）
+- [**ADR-0011: LiteLLM の削除とプロバイダー SDK の直接使用**](./20_architecture/22_adrs/0011-remove-litellm-direct-sdk.md): Anthropic SDK 直接使用への移行理由と決定
 - [**ADR-0003: SQLite の採用**](./20_architecture/22_adrs/0003-use-sqlite.md): SQLite採用の理由と代替案比較
 - [**ADR-0004: ハイブリッドセッション管理**](./20_architecture/22_adrs/0004-hybrid-session-management.md): SQLite + ChatSessionハイブリッド管理の採用理由、同期戦略、代替案比較
 - [**ADR-0005: 4つの会話の契機**](./20_architecture/22_adrs/0005-four-conversation-triggers.md): メンション型・スレッド型・DM型・聞き耳型の採用理由
 - [**ADR-0006: aiosqlite への移行**](./20_architecture/22_adrs/0006-migrate-to-aiosqlite.md): 非同期データベースアクセスのためのaiosqlite移行の理由と計画
 - [**ADR-0007: PostgreSQL への移行**](./20_architecture/22_adrs/0007-migrate-to-postgresql.md): PostgreSQL + pgvectorへの移行の理由と計画
 - [**ミドルウェア選定書**](./20_architecture/22_adrs/middleware-selection.md): Python 3.14、discord.py、uv、Claude APIなど使用技術の選定理由と代替案比較
-- [**LiteLLM 必要性分析**](./20_architecture/22_adrs/litellm-necessity-analysis.md): LiteLLM採用の必要性と検討資料
+- [**LiteLLM 必要性分析**](./20_architecture/22_adrs/litellm-necessity-analysis.md): ~~LiteLLM採用の必要性と検討資料~~（[ADR-0011](./20_architecture/22_adrs/0011-remove-litellm-direct-sdk.md)により置き換え、参考資料として保持）
 - [**LLM プロバイダー比較**](./20_architecture/22_adrs/llm-provider-comparison.md): LLMプロバイダーの比較と選定理由
 - [**聞き耳型判定モデル比較**](./20_architecture/22_adrs/eavesdrop-judge-model-comparison.md): 聞き耳型判定に使用するLLMモデルの比較
 - [**監査ログ検討資料**](./20_architecture/22_adrs/audit-logging-considerations.md): 監査ログ機能の検討資料
@@ -212,7 +214,10 @@ docs_new/
 │       ├── phase06.md                # Phase 6: レート制限、コマンド（完了）
 │       ├── phase07.md                # Phase 7: aiosqlite移行（完了）
 │       ├── phase08.md                # Phase 8: PostgreSQL移行
-│       └── phase11.md                # Phase 11: 完全リファクタリング
+│       ├── phase09.md                # Phase 9: LiteLLM削除、Anthropic SDK直接使用への移行
+│       ├── phase10.md                # Phase 10: 完全リファクタリング
+│       ├── phase10-implementation.md  # Phase 10: 完全リファクタリング実装ガイド
+│       └── phase11.md                 # Phase 11: ハイブリッド検索（pg_bigm）
 │
 ├── 10_requirements/                   # 要件定義
 │   ├── 11_business-reqs/              # ビジネス要件
@@ -359,7 +364,7 @@ docs_new/
 
 - **プロジェクト名**: Kotonoha（コトノハ）Discord Bot
 - **目的**: 場面緘黙自助グループの運営支援
-- **技術スタック**: Python 3.14, discord.py, Claude API (LiteLLM), PostgreSQL 18 + pgvector, Docker
+- **技術スタック**: Python 3.14, discord.py, Claude API (Anthropic SDK), PostgreSQL 18 + pgvector, Docker
 - **ホスティング**: Synology NAS + Docker + Watchtower
 - **CI/CD**: GitHub Actions → GHCR → Watchtower
 

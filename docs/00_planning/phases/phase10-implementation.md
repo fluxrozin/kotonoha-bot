@@ -1,20 +1,18 @@
-# Phase 8 リファクタリング詳細計画書
+# Phase 10: 完全リファクタリング - 実装ガイド
 
-**作成日**: 2026年1月18日
-**バージョン**: 1.2
-**対象プロジェクト**: kotonoha-bot v0.8.0
-**前提条件**: Phase 7（aiosqlite 移行）完了済み、全テスト通過
+Phase 10 の詳細な実装手順、コーディング規約、コード例を記載したドキュメント
+
+**作成日**: 2026年1月19日  
+**バージョン**: 2.0  
+**対象プロジェクト**: kotonoha-bot v0.9.0  
+**前提条件**: Phase 7（aiosqlite 移行）完了済み、Phase 8（PostgreSQL への移行）完了済み、全テスト通過  
 **開発体制**: 1人開発（将来的に機能は倍増予定）
 
-**v1.2 更新内容**: フィードバック反映により以下の項目を必須スコープに格上げ
+**関連ドキュメント**:
 
-- handlers.py の物理分割（Step 3）
-- Config のインスタンス化（Step 2）
-- 例外のラッピング（抽象化の徹底）（Step 4）
-- 終了処理（Graceful Shutdown）の明記（Step 8）
-- テストデータファクトリーの導入（Step 6）
-- aiosqlite テストのコネクション管理の詳細化（Step 6）
-- 初期化順序の明確化（Step 3）
+- [Phase 10 基本方針](./phase10.md): リファクタリングの基本方針、目標、概要
+
+**注意**: このドキュメントは詳細な実装手順を記載しています。基本方針や概要については [Phase 10 基本方針](./phase10.md) を先に確認してください。
 
 ---
 
@@ -35,35 +33,17 @@
 
 ## 1. エグゼクティブサマリー
 
-### 1.1 目的
+このドキュメントは Phase 10 の詳細な実装手順を記載しています。
 
-機能や仕様を一切変更せず、コードベースの品質向上と技術的負債の解消を実現する。
+**基本方針や概要については [Phase 10 基本方針](./phase10.md) を先に確認してください。**
 
-### 1.2 スコープ
+### 1.1 このドキュメントの内容
 
-- 本体コード (`src/kotonoha_bot/`): 約3,649行
-- テストコード (`tests/`): 約3,193行
-- **後方互換性は不要**（完全リファクタリング）
-
-### 1.3 主要な改善項目
-
-| 項目 | 現状 | 目標 |
-|------|------|------|
-| handlers.py | 832行（単一ファイル） | 物理分割（handlers/パッケージ化） |
-| 重複コード | 6箇所以上 | 0箇所 |
-| 設定管理 | main.py にログ設定混在 | config.py に統合 |
-| エラーメッセージ | 各所に散在 | errors/messages.py に一元管理 |
-| テスト構造 | フラット | ソース構造に対応 |
-| 型ヒント | 部分的 | 100%カバレッジ |
-
-### 1.4 設計方針
-
-**1人開発に適したシンプルな構造を維持**:
-
-- ディレクトリ深度は最大2階層
-- 1ファイル800-1000行は許容（超えたら分割検討）
-- 関連コードは近くに配置（ファイル間の行き来を減らす）
-- 過度な抽象化を避ける
+- コーディング規約（命名規則、型ヒント、docstring、エラーハンドリングなど）
+- 各ステップ（Step 0-8）の詳細な実装手順とコード例
+- テストコードリファクタリングの詳細
+- 完了基準とチェックリスト
+- リスク管理の詳細
 
 ---
 
@@ -81,7 +61,7 @@ src/kotonoha_bot/           (3,649行)
 │   └── handlers.py         (832行) ← 最大の問題
 ├── ai/
 │   ├── provider.py         (30行)
-│   ├── litellm_provider.py (289行)
+│   ├── anthropic_provider.py (289行)
 │   └── prompts.py          (45行)
 ├── db/
 │   └── sqlite.py           (242行)
@@ -257,7 +237,7 @@ from pathlib import Path
 
 # サードパーティ（アルファベット順）
 import discord
-import litellm
+from anthropic import Anthropic
 from discord.ext import tasks
 
 # ローカル（相対インポート、アルファベット順）
@@ -274,10 +254,10 @@ from .base import BaseHandler
 # ✅ 推奨: services/ai.py で例外をラッピング
 # services/ai.py 内部
 try:
-    response = litellm.completion(...)
-except litellm.AuthenticationError:
+    response = client.messages.create(...)
+except anthropic.AuthenticationError:
     raise errors.ai.AIAuthenticationError("API認証に失敗しました")
-except litellm.RateLimitError as e:
+except anthropic.RateLimitError as e:
     raise errors.ai.AIRateLimitError(f"レート制限: {e}")
 
 # ✅ 推奨: Handler層では独自例外のみをキャッチ
@@ -291,10 +271,10 @@ except errors.ai.AIRateLimitError as e:
     logger.warning(f"Rate limited: {e}")
     await self._handle_rate_limit()
 
-# ❌ 非推奨: Handler層で litellm の例外を直接キャッチ（抽象化の漏れ）
+# ❌ 非推奨: Handler層で Anthropic SDK の例外を直接キャッチ（抽象化の漏れ）
 try:
     await self.ai_provider.generate_response(messages)
-except litellm.AuthenticationError:  # 具体的なライブラリの例外を知っている
+except anthropic.AuthenticationError:  # 具体的なライブラリの例外を知っている
     logger.error("Authentication failed")
     raise
 ```
@@ -429,7 +409,7 @@ src/kotonoha_bot/
 ├── services/               # ビジネスロジック
 │   ├── __init__.py
 │   ├── session.py          # SessionManager（session/から移動）
-│   ├── ai.py               # LiteLLMProvider（ai/から移動）
+│   ├── ai.py               # AnthropicProvider（ai/から移動）
 │   └── eavesdrop.py        # LLMJudge + ConversationBuffer 統合
 │
 ├── db/                     # データ層（そのまま維持）
@@ -466,7 +446,7 @@ src/kotonoha_bot/
 | `session/manager.py` | `services/session.py` | 移動 |
 | `session/models.py` | `db/models.py` | 移動 |
 | `ai/provider.py` | `services/ai.py` | 統合 |
-| `ai/litellm_provider.py` | `services/ai.py` | 統合 |
+| `ai/anthropic_provider.py` | `services/ai.py` | 統合 |
 | `ai/prompts.py` | `utils/prompts.py` | 移動 |
 | `eavesdrop/llm_judge.py` | `services/eavesdrop.py` | 統合 |
 | `eavesdrop/conversation_buffer.py` | `services/eavesdrop.py` | 統合 |
@@ -638,7 +618,7 @@ mv session/manager.py services/session.py
 mv session/models.py db/models.py
 
 # 統合（手動でコード結合）
-# ai/provider.py + ai/litellm_provider.py → services/ai.py
+# ai/provider.py + ai/anthropic_provider.py → services/ai.py
 # eavesdrop/llm_judge.py + eavesdrop/conversation_buffer.py → services/eavesdrop.py
 
 # プロンプト移動
@@ -668,7 +648,7 @@ from pathlib import Path
 class Config(BaseSettings):
     """アプリケーション設定（Pydantic Settings）"""
     discord_token: str
-    llm_model: str = "anthropic/claude-sonnet-4-5"
+    llm_model: str = "claude-sonnet-4-5"
     database_path: Path = Path("./data/sessions.db")
     log_level: str = "INFO"
     # ... その他の設定
@@ -710,7 +690,7 @@ class Config:
         """環境変数から設定を読み込む"""
         return cls(
             discord_token=os.getenv("DISCORD_TOKEN", ""),
-            llm_model=os.getenv("LLM_MODEL", "anthropic/claude-sonnet-4-5"),
+            llm_model=os.getenv("LLM_MODEL", "claude-sonnet-4-5"),
             database_path=Path(os.getenv("DATABASE_PATH", "./data/sessions.db")),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             # ... その他の設定
@@ -787,7 +767,7 @@ class MessageHandler:
         self,
         bot: discord.Client,
         session_manager: SessionManager,
-        ai_provider: LiteLLMProvider,
+        ai_provider: AnthropicProvider,
         router: MessageRouter | None = None,
         llm_judge: LLMJudge | None = None,
         buffer: ConversationBuffer | None = None,
@@ -812,7 +792,7 @@ class MessageHandler:
 def setup_handlers(
     bot: discord.Client,
     session_manager: SessionManager,
-    ai_provider: LiteLLMProvider,
+    ai_provider: AnthropicProvider,
     router: MessageRouter | None = None,
     llm_judge: LLMJudge | None = None,
     buffer: ConversationBuffer | None = None,
@@ -834,7 +814,7 @@ __all__ = ["MessageHandler", "setup_handlers"]
 import logging
 import discord
 from ..services.session import SessionManager
-from ..services.ai import LiteLLMProvider
+from ..services.ai import AnthropicProvider
 
 logger = logging.getLogger(__name__)
 
@@ -846,7 +826,7 @@ class MentionHandler:
         self,
         bot: discord.Client,
         session_manager: SessionManager,
-        ai_provider: LiteLLMProvider,
+        ai_provider: AnthropicProvider,
     ):
         self.bot = bot
         self.session_manager = session_manager
@@ -882,8 +862,8 @@ from kotonoha_bot.bot.handlers import MessageHandler, setup_handlers
 2. **サービスの初期化**（依存関係順）
    - `SessionManager` は `SQLiteDatabase` に依存 →
      `await session_manager.initialize()` でDB接続とセッション読み込み
-   - `LiteLLMProvider` は独立（初期化不要、または同期的な初期化のみ）
-   - `LLMJudge` は `LiteLLMProvider` に依存（初期化不要、コンストラクタで依存注入）
+   - `AnthropicProvider` は独立（初期化不要、または同期的な初期化のみ）
+   - `LLMJudge` は `AnthropicProvider` に依存（初期化不要、コンストラクタで依存注入）
 
 3. **ハンドラーのセットアップ**（初期化済みサービスを使用）
    - `setup_handlers` は初期化済みのサービスインスタンスを受け取る
@@ -903,7 +883,7 @@ async def main():
     await session_manager.initialize()  # DB接続とセッション読み込み
     # 注: この時点で session_manager は使用可能な状態
     
-    ai_provider = LiteLLMProvider()  # 初期化不要（必要に応じて同期的な初期化）
+    ai_provider = AnthropicProvider()  # 初期化不要（必要に応じて同期的な初期化）
     router = MessageRouter()
     llm_judge = LLMJudge(ai_provider)  # コンストラクタで依存注入
     buffer = ConversationBuffer()
@@ -932,7 +912,7 @@ async def main():
 def setup_handlers(
     bot: discord.Client,
     session_manager: SessionManager,  # 初期化済みであることを前提
-    ai_provider: LiteLLMProvider,
+    ai_provider: AnthropicProvider,
     router: MessageRouter | None = None,
     llm_judge: LLMJudge | None = None,
     buffer: ConversationBuffer | None = None,
@@ -995,7 +975,7 @@ async def on_ready():
 
 from kotonoha_bot.db.sqlite import SQLiteDatabase
 from kotonoha_bot.services.session import SessionManager
-from kotonoha_bot.services.ai import LiteLLMProvider
+from kotonoha_bot.services.ai import AnthropicProvider
 from kotonoha_bot.services.eavesdrop import LLMJudge, ConversationBuffer
 from kotonoha_bot.bot.router import MessageRouter
 from kotonoha_bot.bot.handlers import setup_handlers
@@ -1008,7 +988,7 @@ async def main():
     # 2. サービスの初期化（依存関係を組み立て）
     session_manager = SessionManager(db)  # ← DIパターン適用
     await session_manager.initialize()  # ← 明示的に初期化（重要）
-    ai_provider = LiteLLMProvider()
+    ai_provider = AnthropicProvider()
     router = MessageRouter()
     llm_judge = LLMJudge(ai_provider)
     buffer = ConversationBuffer()
@@ -1067,8 +1047,8 @@ class TokenInfo:
         )
 
 
-class LiteLLMProvider:
-    """LiteLLM 統合プロバイダー"""
+class AnthropicProvider:
+    """Anthropic SDK 統合プロバイダー"""
 
     async def generate_response(
         self,
@@ -1092,7 +1072,7 @@ class LiteLLMProvider:
 
 #### 6.5.2 例外のラッピング（抽象化の徹底）
 
-**理由**: Handler層が litellm という具体的なライブラリの例外を知っている必要があるのは抽象化の漏れ（Leaky Abstraction）。将来AIライブラリを変える際にHandlerも修正が必要になる。
+**理由**: Handler層が Anthropic SDK という具体的なライブラリの例外を知っている必要があるのは抽象化の漏れ（Leaky Abstraction）。将来AIライブラリを変える際にHandlerも修正が必要になる。
 
 **実装**:
 
@@ -1119,15 +1099,20 @@ class AIServiceError(AIError):
 
 ```python
 # services/ai.py
-import litellm
+from anthropic import Anthropic
+from anthropic import APIError, AuthenticationError, RateLimitError
 from ..errors.ai import (
     AIAuthenticationError,
     AIRateLimitError,
     AIServiceError,
 )
 
-class LiteLLMProvider:
-    """LiteLLM 統合プロバイダー"""
+class AnthropicProvider:
+    """Anthropic SDK 統合プロバイダー"""
+
+    def __init__(self, api_key: str | None = None):
+        """Anthropic SDK クライアントを初期化"""
+        self.client = Anthropic(api_key=api_key)
 
     async def generate_response(
         self,
@@ -1138,22 +1123,24 @@ class LiteLLMProvider:
     ) -> tuple[str, TokenInfo]:
         """応答を生成し、トークン情報も返す"""
         try:
-            response = litellm.completion(...)
+            response = await self.client.messages.create(
+                model=model or "claude-sonnet-4-5",
+                max_tokens=max_tokens or 2048,
+                system=system_prompt,
+                messages=messages,
+            )
             # ...
-        except litellm.AuthenticationError as e:
-            # litellm の例外を独自例外に変換
+        except AuthenticationError as e:
+            # Anthropic SDK の例外を独自例外に変換
             logger.error(f"AI authentication error: {e}")
             raise AIAuthenticationError("API認証に失敗しました") from e
-        except litellm.RateLimitError as e:
+        except RateLimitError as e:
             logger.warning(f"AI rate limit error: {e}")
             raise AIRateLimitError(f"レート制限に達しました: {e}") from e
-        except (
-            litellm.InternalServerError,
-            litellm.ServiceUnavailableError
-        ) as e:
+        except APIError as e:
             logger.warning(f"AI service error: {e}")
             raise AIServiceError(f"AIサービスで一時的なエラーが発生しました: {e}") from e
-        # その他の litellm 例外も適切にラッピング
+        # その他の Anthropic SDK 例外も適切にラッピング
 ```
 
 ```python
@@ -1213,12 +1200,12 @@ __all__ = [
 ```python
 """ビジネスロジック層"""
 from .session import SessionManager
-from .ai import LiteLLMProvider
+from .ai import AnthropicProvider
 from .eavesdrop import LLMJudge, ConversationBuffer
 
 __all__ = [
     "SessionManager",
-    "LiteLLMProvider",
+    "AnthropicProvider",
     "LLMJudge",
     "ConversationBuffer",
 ]
@@ -1837,11 +1824,11 @@ async def memory_db():
 ```python
 # ❌ 悪い例: 循環参照のリスク
 # services/session.py
-from ..services.ai import LiteLLMProvider  # 循環参照の可能性
+from ..services.ai import AnthropicProvider  # 循環参照の可能性
 
 class SessionManager:
     def __init__(self):
-        self.ai_provider = LiteLLMProvider()  # 直接依存
+        self.ai_provider = AnthropicProvider()  # 直接依存
 
 # ✅ 良い例: 依存性注入
 # services/session.py
@@ -1854,7 +1841,7 @@ class MessageHandler:
     def __init__(
         self,
         session_manager: SessionManager,
-        ai_provider: LiteLLMProvider,  # 依存を注入
+        ai_provider: AnthropicProvider,  # 依存を注入
     ):
         self.session_manager = session_manager
         self.ai_provider = ai_provider
@@ -1874,10 +1861,10 @@ class MessageHandler:
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..services.ai import LiteLLMProvider  # 型チェック時のみインポート
+    from ..services.ai import AnthropicProvider  # 型チェック時のみインポート
 
 class SessionManager:
-    def process_with_ai(self, ai_provider: "LiteLLMProvider"):  # 文字列型ヒント
+    def process_with_ai(self, ai_provider: "AnthropicProvider"):  # 文字列型ヒント
         # 実装時は引数として受け取る（循環参照回避）
         pass
 ```
@@ -1930,7 +1917,7 @@ class SessionManager:
 
 以下の提案は必須ではありませんが、将来の拡張性や保守性を考慮すると検討に値します。
 
-**注**: 以下の項目は Phase 8 の必須スコープに含まれています:
+**注**: 以下の項目は Phase 10 の必須スコープに含まれています:
 
 - handlers.py の物理分割（Step 3）
 - Config のインスタンス化（Step 2）
@@ -1966,7 +1953,7 @@ bot/
 
 services/
 ├── session.py (→ db, config)
-├── ai.py (→ config, rate_limit, db/models, errors/ai)
+├── ai.py (→ config, rate_limit, db/models, errors/ai, anthropic)
 └── eavesdrop.py (→ services/ai, config)
 
 db/
@@ -2001,6 +1988,7 @@ utils/
 
 **更新履歴**:
 
+- v2.0 (2026-01-19): Phase 10 として再構築、基本方針と詳細実装を分離
 - v1.2 (2026-01-18): フィードバック反映 - handlers.py物理分割、Configインスタンス化、例外ラッピング、終了処理、テストファクトリーを必須スコープに格上げ
 - v1.1 (2026-01-18): 1人開発向けにシンプルな構造に修正
 - v1.0 (2026-01-18): 初版作成

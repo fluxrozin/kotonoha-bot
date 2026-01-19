@@ -138,7 +138,7 @@ cp .env.example .env
 主要な環境変数:
 
 - `DISCORD_TOKEN`: Discord Bot トークン
-- `LLM_MODEL`: LLM モデル（デフォルト: `anthropic/claude-3-haiku-20240307`）
+- `LLM_MODEL`: LLM モデル（デフォルト: `claude-haiku-4-5`）
 - `ANTHROPIC_API_KEY`: Anthropic API キー
 - `LLM_MAX_RETRIES`: 最大リトライ回数（デフォルト: 3）
 - `LLM_RETRY_DELAY_BASE`: 指数バックオフのベース遅延（秒、デフォルト: 1.0）
@@ -309,7 +309,7 @@ class Config:
     BOT_PREFIX: str = os.getenv("BOT_PREFIX", "!")
 
     # LLM設定（LiteLLM）
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "anthropic/claude-3-haiku-20240307")
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "claude-haiku-4-5")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
     LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2048"))
     LLM_FALLBACK_MODEL: str | None = os.getenv("LLM_FALLBACK_MODEL")
@@ -837,9 +837,8 @@ class LiteLLMProvider(AIProvider):
     """LiteLLM統合プロバイダー
 
     LiteLLMを使用して複数のLLMプロバイダーを統一インターフェースで利用。
-    - 開発: anthropic/claude-3-haiku-20240307（レガシー、超低コスト: $0.25/input MTok, $1.25/output MTok）
-    - 調整: anthropic/claude-sonnet-4-5（バランス型: $3/input MTok, $15/output MTok）
-    - 本番: anthropic/claude-opus-4-5（最高品質: $5/input MTok, $25/output MTok）
+    - 開発: claude-haiku-4-5（超低コスト）
+    - 本番: claude-opus-4-5（最高品質: $5/input MTok, $25/output MTok）
     """
 
     def __init__(self, model: str = Config.LLM_MODEL):
@@ -1436,7 +1435,7 @@ litellm.AuthenticationError: Invalid API key
 1. API キーが正しく設定されているか確認（`ANTHROPIC_API_KEY`）
 2. Claude API のレート制限を確認（有料プランの場合は制限が緩和されます）
 3. 1 分待ってから再試行
-4. フォールバックモデルを設定する（`LLM_FALLBACK_MODEL`、例: `anthropic/claude-3-haiku-20240307`）
+4. フォールバックモデルを設定する（`LLM_FALLBACK_MODEL`、例: `claude-haiku-4-5`）
 
 ---
 

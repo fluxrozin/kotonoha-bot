@@ -36,16 +36,16 @@ graph TB
 
     subgraph "External Services"
         Discord[Discord API]
-        LiteLLM[LiteLLM]
+        AnthropicSDK[Anthropic SDK]
         ClaudeHaiku[Claude 3 Haiku<br/>Legacy for Dev]
         ClaudeSonnet[Claude Sonnet 4.5<br/>Default/Balanced]
         ClaudeOpus[Claude Opus 4.5<br/>Production]
 
         Container <-->|WebSocket/HTTP| Discord
-        Container -->|API Call| LiteLLM
-        LiteLLM -->|Dev| ClaudeHaiku
-        LiteLLM -->|Default| ClaudeSonnet
-        LiteLLM -->|Production| ClaudeOpus
+        Container -->|API Call| AnthropicSDK
+        AnthropicSDK -->|Dev| ClaudeHaiku
+        AnthropicSDK -->|Default| ClaudeSonnet
+        AnthropicSDK -->|Production| ClaudeOpus
     end
 ```
 
@@ -79,14 +79,14 @@ graph TB
     end
 
     subgraph "AI Services"
-        LiteLLM[LiteLLM<br/>Unified Interface]
+        AnthropicSDK[Anthropic SDK<br/>Direct API]
         ClaudeHaiku[Claude 3 Haiku<br/>Legacy for Dev]
         ClaudeSonnet[Claude Sonnet 4.5<br/>Default/Balanced]
         ClaudeOpus[Claude Opus 4.5<br/>Production]
-        AIService --> LiteLLM
-        LiteLLM --> ClaudeHaiku
-        LiteLLM -->|Default| ClaudeSonnet
-        LiteLLM --> ClaudeOpus
+        AIService --> AnthropicSDK
+        AnthropicSDK --> ClaudeHaiku
+        AnthropicSDK -->|Default| ClaudeSonnet
+        AnthropicSDK --> ClaudeOpus
     end
 ```
 
@@ -101,9 +101,8 @@ graph TB
 | **言語**                         | Python                         | 3.14       | アプリケーション開発                                            |
 | **パッケージ管理**               | uv                             | latest     | 依存関係管理                                                    |
 | **フレームワーク**               | discord.py                     | latest     | Discord Bot 開発                                                |
-| **AI 統合**                      | LiteLLM                        | latest     | マルチ LLM プロバイダー統合                                     |
-| **AI（デフォルト）**             | Claude Sonnet API              | 4.5        | デフォルトモデル（バランス型）、モデル: `claude-sonnet-4-5`     |
-| **AI（開発）**                   | Claude 3 Haiku API（レガシー） | -          | 開発・テスト用（超低コスト）、モデル: `claude-3-haiku-20240307` |
+| **AI 統合**                      | Anthropic SDK                 | latest     | Anthropic Claude API への直接アクセス                          |
+| **AI（開発）**                   | Claude Haiku API               | 4.5        | 開発・テスト用（超低コスト）、モデル: `claude-haiku-4-5`        |
 | **AI（本番）**                   | Claude Opus API                | 4.5        | 本番用（最高品質）、モデル: `claude-opus-4-5`                   |
 | **データベース**                 | SQLite                         | 3.x        | 会話履歴の永続化                                                |
 | **コンテナ**                     | Docker                         | 24.0.2     | コンテナ化                                                      |
@@ -120,7 +119,7 @@ graph TB
 | ライブラリ     | バージョン | 用途                        |
 | -------------- | ---------- | --------------------------- |
 | discord.py     | latest     | Discord API クライアント    |
-| litellm        | latest     | マルチ LLM プロバイダー統合 |
+| anthropic      | latest     | Anthropic Claude API SDK   |
 | python-dotenv  | latest     | 環境変数管理                |
 | pytest         | latest     | テストフレームワーク        |
 | pytest-asyncio | latest     | 非同期テスト                |
@@ -154,7 +153,7 @@ graph TB
 | 変数名          | 説明                 | 例                                         | 必須 |
 | --------------- | -------------------- | ------------------------------------------ | ---- |
 | `DISCORD_TOKEN` | Discord Bot トークン | `MTIzNDU2Nzg5MDEyMzQ1Njc4OQ.XXXXXX.XXXXXX` | 必須 |
-| `LLM_MODEL`     | LLM モデル名         | `anthropic/claude-sonnet-4-5`              | 必須 |
+| `LLM_MODEL`     | LLM モデル名         | `claude-haiku-4-5`                          | 必須 |
 
 **プロバイダー別 API キー**（使用するプロバイダーに応じて設定）:
 
@@ -168,7 +167,7 @@ graph TB
 
 | 変数名                 | 説明                             | デフォルト値                  | 必須       |
 | ---------------------- | -------------------------------- | ----------------------------- | ---------- |
-| `LLM_MODEL`            | 使用する LLM モデル              | `anthropic/claude-sonnet-4-5` | 必須       |
+| `LLM_MODEL`            | 使用する LLM モデル              | `claude-haiku-4-5`            | 必須       |
 | `LLM_TEMPERATURE`      | 温度パラメータ                   | `0.7`                         | オプション |
 | `LLM_MAX_TOKENS`       | 最大トークン数                   | `2048`                        | オプション |
 | `LLM_FALLBACK_MODEL`   | フォールバックモデル             | -                             | オプション |
@@ -184,11 +183,10 @@ graph TB
 
 **フェーズ別推奨モデル**:
 
-| フェーズ   | `LLM_MODEL` の値                    | 説明                                                       |
-| ---------- | ----------------------------------- | ---------------------------------------------------------- |
-| デフォルト | `anthropic/claude-sonnet-4-5`       | バランス型（デフォルト）、\$3/input MTok, \$15/output MTok |
-| 開発       | `anthropic/claude-3-haiku-20240307` | 超低コストでの開発・テスト（制限なし）                     |
-| 本番       | `anthropic/claude-opus-4-5`         | 最高品質の本番運用（\$5/input MTok, \$25/output MTok）     |
+| フェーズ   | `LLM_MODEL` の値      | 説明                                                       |
+| ---------- | --------------------- | ---------------------------------------------------------- |
+| 開発       | `claude-haiku-4-5`    | 超低コストでの開発・テスト                                 |
+| 本番       | `claude-opus-4-5`     | 最高品質の本番運用（\$5/input MTok, \$25/output MTok）     |
 
 **開発用モデル（Claude 3 Haiku（レガシー））のコスト**（[公式価格表](https://platform.claude.com/docs/en/about-claude/models/overview)）:
 
@@ -224,7 +222,7 @@ graph TB
 | 変数名                                        | 説明                                              | デフォルト値                 | 必須       |
 | --------------------------------------------- | ------------------------------------------------- | ---------------------------- | ---------- |
 | `EAVESDROP_ENABLED_CHANNELS`                  | 聞き耳型を有効にするチャンネル ID（カンマ区切り） | -                            | オプション |
-| `EAVESDROP_JUDGE_MODEL`                       | 判定用モデル                                      | `anthropic/claude-haiku-4-5` | オプション |
+| `EAVESDROP_JUDGE_MODEL`                       | 判定用モデル                                      | `claude-haiku-4-5`           | オプション |
 | `EAVESDROP_BUFFER_SIZE`                       | 会話ログバッファサイズ                            | `20`                         | オプション |
 | `EAVESDROP_MIN_MESSAGES`                      | 判定・応答生成に必要な最低メッセージ数            | `3`                          | オプション |
 | `EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES` | 介入の最小間隔（分）                              | `10`                         | オプション |
@@ -314,10 +312,10 @@ Watchtower は Docker コンテナの自動更新ツールです。GitHub Contai
 # Discord
 DISCORD_TOKEN=your_discord_bot_token_here
 
-# LLM 設定（LiteLLM）
-# デフォルト: anthropic/claude-sonnet-4-5（バランス型）
-# 開発用（超低コスト）: anthropic/claude-3-haiku-20240307
-LLM_MODEL=anthropic/claude-sonnet-4-5
+# LLM 設定（Anthropic SDK）
+# 開発用（超低コスト）: claude-haiku-4-5
+# 本番用（最高品質）: claude-opus-4-5
+LLM_MODEL=claude-haiku-4-5
 LLM_TEMPERATURE=0.7
 LLM_MAX_TOKENS=2048
 
@@ -333,7 +331,7 @@ MAX_SESSIONS=100
 
 # Eavesdrop
 EAVESDROP_ENABLED_CHANNELS=123456789012345678,987654321098765432
-EAVESDROP_JUDGE_MODEL=anthropic/claude-haiku-4-5
+EAVESDROP_JUDGE_MODEL=claude-haiku-4-5
 EAVESDROP_BUFFER_SIZE=20
 EAVESDROP_MIN_MESSAGES=3
 EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES=10
@@ -363,11 +361,10 @@ HEALTH_CHECK_ENABLED=true
 # Discord
 DISCORD_TOKEN=your_discord_bot_token_here
 
-# LLM 設定（LiteLLM）- 本番は Claude Opus 4.5
-LLM_MODEL=anthropic/claude-opus-4-5
+# LLM 設定（Anthropic SDK）- 本番は Claude Opus 4.5
+LLM_MODEL=claude-opus-4-5
 LLM_TEMPERATURE=0.7
 LLM_MAX_TOKENS=2048
-LLM_FALLBACK_MODEL=anthropic/claude-3-haiku-20240307  # フォールバック用（本番でOpusがダウンした場合）
 
 # API キー
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
@@ -381,7 +378,7 @@ MAX_SESSIONS=100
 
 # Eavesdrop
 EAVESDROP_ENABLED_CHANNELS=123456789012345678,987654321098765432
-EAVESDROP_JUDGE_MODEL=anthropic/claude-haiku-4-5
+EAVESDROP_JUDGE_MODEL=claude-haiku-4-5
 EAVESDROP_BUFFER_SIZE=20
 EAVESDROP_MIN_MESSAGES=3
 EAVESDROP_MIN_INTERVENTION_INTERVAL_MINUTES=10
@@ -578,9 +575,9 @@ kotonoha-bot/
 │       │   └── handlers.py       # メッセージハンドラー
 │       ├── ai/
 │       │   ├── __init__.py
-│       │   ├── provider.py       # AI プロバイダー抽象クラス
-│       │   ├── litellm_provider.py  # LiteLLM統合実装
-│       │   └── prompts.py        # プロンプト読み込みユーティリティ
+│       │   ├── provider.py          # AI プロバイダー抽象クラス
+│       │   ├── anthropic_provider.py  # Anthropic SDK統合実装
+│       │   └── prompts.py           # プロンプト読み込みユーティリティ
 │       ├── db/
 │       │   ├── __init__.py
 │       │   └── sqlite.py         # SQLite管理
