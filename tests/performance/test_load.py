@@ -200,7 +200,7 @@ async def test_hnsw_index_rebuild_time(postgres_db):
             """
             SELECT idx_scan, idx_tup_read
             FROM pg_stat_user_indexes
-            WHERE indexname LIKE '%embedding%'
+            WHERE indexrelname::text LIKE '%embedding%'
             LIMIT 1
         """
         )

@@ -102,8 +102,19 @@ async def postgres_db():
     )
 
     # PostgreSQLDatabaseの初期化
+    # テストで個別パラメータが必要な場合に備えて、接続文字列からパースする
     if test_db_url.startswith("postgresql://"):
-        db = PostgreSQLDatabase(connection_string=test_db_url)
+        # 接続文字列をパースして個別パラメータを抽出
+        from urllib.parse import urlparse
+
+        parsed = urlparse(test_db_url)
+        db = PostgreSQLDatabase(
+            host=parsed.hostname or "localhost",
+            port=parsed.port or 5432,
+            database=parsed.path.lstrip("/") if parsed.path else "test_kotonoha",
+            user=parsed.username or "test",
+            password=parsed.password or "test",
+        )
     else:
         # 個別パラメータから構築（環境変数から読み込み）
         db = PostgreSQLDatabase(
@@ -151,8 +162,19 @@ async def postgres_db_with_rollback():
     )
 
     # PostgreSQLDatabaseの初期化
+    # テストで個別パラメータが必要な場合に備えて、接続文字列からパースする
     if test_db_url.startswith("postgresql://"):
-        db = PostgreSQLDatabase(connection_string=test_db_url)
+        # 接続文字列をパースして個別パラメータを抽出
+        from urllib.parse import urlparse
+
+        parsed = urlparse(test_db_url)
+        db = PostgreSQLDatabase(
+            host=parsed.hostname or "localhost",
+            port=parsed.port or 5432,
+            database=parsed.path.lstrip("/") if parsed.path else "test_kotonoha",
+            user=parsed.username or "test",
+            password=parsed.password or "test",
+        )
     else:
         # 個別パラメータから構築（環境変数から読み込み）
         db = PostgreSQLDatabase(

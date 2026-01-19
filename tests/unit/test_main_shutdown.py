@@ -104,12 +104,20 @@ async def test_async_main_sets_up_components(
     mock_bot, mock_handler, mock_health_server
 ):
     """async_mainがコンポーネントを適切にセットアップすることを確認"""
+    mock_db = AsyncMock()
+    mock_db.initialize = AsyncMock()
+    mock_db.close = AsyncMock()
+
     with (
         patch("kotonoha_bot.main.KotonohaBot", return_value=mock_bot),
         patch("kotonoha_bot.main.setup_handlers", return_value=mock_handler),
         patch("kotonoha_bot.main.HealthCheckServer", return_value=mock_health_server),
         patch("kotonoha_bot.main.Config") as mock_config,
+        patch("kotonoha_bot.main.PostgreSQLDatabase", return_value=mock_db),
+        patch("kotonoha_bot.main.settings") as mock_settings,
     ):
+        mock_settings.database_url = "postgresql://test:test@localhost:5432/test"
+        mock_settings.postgres_host = None
         mock_config.validate = Mock()
         mock_config.LOG_LEVEL = "INFO"
         mock_config.LLM_MODEL = "test-model"
@@ -165,6 +173,9 @@ async def test_signal_handler_triggers_shutdown(
 ):
     """シグナルハンドラーがシャットダウンをトリガーすることを確認"""
     shutdown_event = asyncio.Event()
+    mock_db = AsyncMock()
+    mock_db.initialize = AsyncMock()
+    mock_db.close = AsyncMock()
 
     with (
         patch("kotonoha_bot.main.KotonohaBot", return_value=mock_bot),
@@ -173,7 +184,11 @@ async def test_signal_handler_triggers_shutdown(
         patch("kotonoha_bot.main.Config") as mock_config,
         patch("kotonoha_bot.main.asyncio.Event", return_value=shutdown_event),
         patch("kotonoha_bot.main.signal.signal"),
+        patch("kotonoha_bot.main.PostgreSQLDatabase", return_value=mock_db),
+        patch("kotonoha_bot.main.settings") as mock_settings,
     ):
+        mock_settings.database_url = "postgresql://test:test@localhost:5432/test"
+        mock_settings.postgres_host = None
         mock_config.validate = Mock()
         mock_config.LOG_LEVEL = "INFO"
         mock_config.LLM_MODEL = "test-model"
