@@ -429,7 +429,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -506,7 +508,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -541,7 +545,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -575,7 +581,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -603,7 +611,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -630,7 +640,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -653,7 +665,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -682,7 +696,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -710,7 +726,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -738,7 +756,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -765,7 +785,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -804,7 +826,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -833,7 +857,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -892,7 +918,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -978,7 +1006,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -1006,7 +1036,9 @@
 **詳細**:
 
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 
 ---
 
@@ -1137,7 +1169,9 @@
 - [Phase 8 実装完了報告](./phases/phase08.md)
 - [Phase 9 実装完了報告](./phases/phase09.md): LiteLLM 削除、Anthropic SDK 直接使用への移行
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
-- [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
+- [Phase 10 実装ガイド（メイン）](./phases/phase10-implementation.md): コーディング規約、リファクタリング方針、新フォルダ構造
+- [Phase 10 詳細実装計画](./phases/phase10-implementation-steps.md): 各ステップ（Step 0-7）の詳細な実装手順とコード例
+- [Phase 10 テスト・完了基準・リスク管理](./phases/phase10-implementation-testing.md): テストコードリファクタリング、完了基準、リスク管理、改善提案
 - [Phase 11 実装計画](./phases/phase11.md)
 
 ---

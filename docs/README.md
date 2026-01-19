@@ -216,7 +216,9 @@ docs_new/
 │       ├── phase08.md                # Phase 8: PostgreSQL移行
 │       ├── phase09.md                # Phase 9: LiteLLM削除、Anthropic SDK直接使用への移行
 │       ├── phase10.md                # Phase 10: 完全リファクタリング
-│       ├── phase10-implementation.md  # Phase 10: 完全リファクタリング実装ガイド
+│       ├── phase10-implementation.md  # Phase 10: 完全リファクタリング実装ガイド（メイン）
+│       ├── phase10-implementation-steps.md  # Phase 10: 詳細実装計画（Step 0-7）
+│       ├── phase10-implementation-testing.md  # Phase 10: テスト・完了基準・リスク管理
 │       └── phase11.md                 # Phase 11: ハイブリッド検索（pg_bigm）
 │
 ├── 10_requirements/                   # 要件定義
