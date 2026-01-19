@@ -27,12 +27,12 @@ class DatabaseProtocol(ABC):
         pass
 
     @abstractmethod
-    async def save_session(self, session: "ChatSession") -> None:
+    async def save_session(self, session: ChatSession) -> None:
         """セッションを保存"""
         pass
 
     @abstractmethod
-    async def load_session(self, session_key: str) -> "ChatSession" | None:
+    async def load_session(self, session_key: str) -> ChatSession | None:
         """セッションを読み込み"""
         pass
 
@@ -42,7 +42,7 @@ class DatabaseProtocol(ABC):
         pass
 
     @abstractmethod
-    async def load_all_sessions(self) -> list["ChatSession"]:
+    async def load_all_sessions(self) -> list[ChatSession]:
         """すべてのセッションを読み込み"""
         pass
 
@@ -79,7 +79,7 @@ class KnowledgeBaseProtocol(ABC):
         apply_threshold: bool = True,
     ) -> list[SearchResult]:
         """類似度検索を実行
-        
+
         Args:
             query_embedding: クエリのベクトル
             top_k: 取得する結果の数

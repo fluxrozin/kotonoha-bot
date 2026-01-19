@@ -20,6 +20,7 @@ if config.config_file_name is not None:
     if not root_logger.handlers:
         # コマンドラインから直接実行された場合のみfileConfigを適用
         from logging.config import fileConfig
+
         fileConfig(config.config_file_name)
 
 # 接続文字列の設定

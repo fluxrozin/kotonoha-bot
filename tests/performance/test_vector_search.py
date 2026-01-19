@@ -56,7 +56,9 @@ async def test_vector_search_performance(postgres_db):
     elapsed = time.time() - start
 
     # パフォーマンスアサーション
-    assert elapsed < 1.0, f"検索が1秒以内に完了する必要があります（実際: {elapsed:.3f}秒）"
+    assert elapsed < 1.0, (
+        f"検索が1秒以内に完了する必要があります（実際: {elapsed:.3f}秒）"
+    )
     assert len(results) <= 10
     assert len(results) > 0, "検索結果が返ってくる必要があります"
 
@@ -109,7 +111,9 @@ async def test_vector_search_with_index(postgres_db):
     elapsed = time.time() - start
 
     # パフォーマンスアサーション（インデックスが使用されていれば高速）
-    assert elapsed < 0.5, f"インデックス使用時は0.5秒以内に完了する必要があります（実際: {elapsed:.3f}秒）"
+    assert elapsed < 0.5, (
+        f"インデックス使用時は0.5秒以内に完了する必要があります（実際: {elapsed:.3f}秒）"
+    )
     assert len(results) <= 10
 
     # インデックスの使用状況を確認
@@ -125,4 +129,6 @@ async def test_vector_search_with_index(postgres_db):
 
         if index_usage:
             # インデックスが使用されていることを確認
-            assert index_usage["idx_scan"] > 0, "HNSWインデックスが使用されている必要があります"
+            assert index_usage["idx_scan"] > 0, (
+                "HNSWインデックスが使用されている必要があります"
+            )

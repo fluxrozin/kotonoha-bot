@@ -83,7 +83,9 @@ async def test_concurrent_session_archiving(postgres_db, mock_embedding_provider
             """,
                 session.session_key,
             )
-            assert source_count > 0, f"セッション {session.session_key} がアーカイブされていません"
+            assert source_count > 0, (
+                f"セッション {session.session_key} がアーカイブされていません"
+            )
 
 
 @pytest.mark.asyncio
@@ -163,7 +165,10 @@ async def test_large_batch_processing(postgres_db, mock_embedding_provider):
         chunk_id = await postgres_db.save_chunk(
             source_id=source_id,
             content=f"大量データバッチ処理テスト用チャンク{i}",
-            location={"url": "https://example.com/large_batch", "label": f"チャンク{i}"},
+            location={
+                "url": "https://example.com/large_batch",
+                "label": f"チャンク{i}",
+            },
             token_count=10,
         )
         chunk_ids.append(chunk_id)
@@ -209,7 +214,9 @@ async def test_error_propagation_in_embedding_processing(postgres_db):
     # 部分的にエラーを発生させるモック
     error_count = [0]
 
-    async def generate_embeddings_batch_with_error(texts: list[str]) -> list[list[float]]:
+    async def generate_embeddings_batch_with_error(
+        texts: list[str],
+    ) -> list[list[float]]:
         """最初の呼び出しでエラー、2回目以降は成功"""
         error_count[0] += 1
         if error_count[0] == 1:
@@ -479,7 +486,9 @@ async def test_full_flow_with_errors(postgres_db):
     # 部分的にエラーを発生させるモック
     call_count = [0]
 
-    async def generate_embeddings_batch_with_partial_error(texts: list[str]) -> list[list[float]]:
+    async def generate_embeddings_batch_with_partial_error(
+        texts: list[str],
+    ) -> list[list[float]]:
         """最初の呼び出しでエラー、2回目以降は成功"""
         call_count[0] += 1
         if call_count[0] == 1:
@@ -487,7 +496,9 @@ async def test_full_flow_with_errors(postgres_db):
         return [[0.1] * 1536 for _ in texts]
 
     error_provider = AsyncMock(spec=OpenAIEmbeddingProvider)
-    error_provider.generate_embeddings_batch = generate_embeddings_batch_with_partial_error
+    error_provider.generate_embeddings_batch = (
+        generate_embeddings_batch_with_partial_error
+    )
     error_provider.get_dimension = lambda: 1536
 
     # セッションを作成
@@ -715,7 +726,9 @@ async def test_multiple_batch_error_recovery(postgres_db):
     # 2回目のバッチでエラーを発生させるモック
     batch_count = [0]
 
-    async def generate_embeddings_with_batch_error(texts: list[str]) -> list[list[float]]:
+    async def generate_embeddings_with_batch_error(
+        texts: list[str],
+    ) -> list[list[float]]:
         """2回目のバッチでエラー、3回目以降は成功"""
         batch_count[0] += 1
         if batch_count[0] == 2:
@@ -741,7 +754,10 @@ async def test_multiple_batch_error_recovery(postgres_db):
         chunk_id = await postgres_db.save_chunk(
             source_id=source_id,
             content=f"複数バッチエラーリカバリテスト用チャンク{i}",
-            location={"url": "https://example.com/batch_error_recovery", "label": f"チャンク{i}"},
+            location={
+                "url": "https://example.com/batch_error_recovery",
+                "label": f"チャンク{i}",
+            },
             token_count=10,
         )
         chunk_ids.append(chunk_id)
@@ -872,7 +888,6 @@ async def test_session_archive_with_vector_search_filtering(
 @pytest.mark.asyncio
 async def test_dlq_recovery_flow(postgres_db):
     """DLQリカバリフローのテスト"""
-    from kotonoha_bot.config import settings
 
     # DLQにエントリを手動で作成
     source_id = await postgres_db.save_source(

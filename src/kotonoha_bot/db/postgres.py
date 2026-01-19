@@ -189,6 +189,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
 
         # pgvector 拡張を有効化とバージョン確認
         logger.info("Enabling database extensions (pgvector, pg_bigm)...")
+        assert self.pool is not None, "Database pool must be initialized"
         async with self.pool.acquire() as conn:
             await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
@@ -231,7 +232,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
 
     async def close(self) -> None:
         """データベース接続のクローズ
-        
+
         asyncpgのpool.close()は、すべての接続が確実にクローズされるまで待機します。
         """
         if self.pool:
@@ -240,10 +241,13 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
 
     async def save_session(self, session: ChatSession) -> None:
         """セッションを保存（トランザクション付き）"""
-        async with self.pool.acquire() as conn:
-            async with conn.transaction():
-                await conn.execute(
-                    """
+        assert self.pool is not None, "Database pool must be initialized"
+        async with (
+            self.pool.acquire() as conn,
+            conn.transaction(),
+        ):
+            await conn.execute(
+                """
                     INSERT INTO sessions
                     (session_key, session_type, messages, status, guild_id,
                      channel_id, thread_id, user_id, version, created_at, last_active_at)
@@ -257,21 +261,22 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
                         version = sessions.version + 1
                         -- ⚠️ 注意: last_archived_message_index は更新しない
                 """,
-                    session.session_key,
-                    session.session_type,
-                    [msg.to_dict() for msg in session.messages],
-                    getattr(session, "status", "active"),
-                    getattr(session, "guild_id", None),
-                    session.channel_id,
-                    getattr(session, "thread_id", None),
-                    session.user_id,
-                    getattr(session, "version", 1),
-                    session.created_at,
-                    session.last_active_at,
-                )
+                session.session_key,
+                session.session_type,
+                [msg.to_dict() for msg in session.messages],
+                getattr(session, "status", "active"),
+                getattr(session, "guild_id", None),
+                session.channel_id,
+                getattr(session, "thread_id", None),
+                session.user_id,
+                getattr(session, "version", 1),
+                session.created_at,
+                session.last_active_at,
+            )
 
     async def load_session(self, session_key: str) -> ChatSession | None:
         """セッションを読み込み"""
+        assert self.pool is not None, "Database pool must be initialized"
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
@@ -313,6 +318,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
 
     async def delete_session(self, session_key: str) -> None:
         """セッションを削除"""
+        assert self.pool is not None, "Database pool must be initialized"
         async with self.pool.acquire() as conn:
             await conn.execute(
                 "DELETE FROM sessions WHERE session_key = $1", session_key
@@ -320,6 +326,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
 
     async def load_all_sessions(self) -> list[ChatSession]:
         """すべてのセッションを読み込み"""
+        assert self.pool is not None, "Database pool must be initialized"
         async with self.pool.acquire() as conn:
             rows = await conn.fetch("""
                 SELECT * FROM sessions
@@ -399,6 +406,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
             from asyncio import timeout
 
             async with timeout(DatabaseConstants.POOL_ACQUIRE_TIMEOUT):
+                assert self.pool is not None, "Database pool must be initialized"
                 async with self.pool.acquire() as conn:
                     # ベースクエリ
                     # ⚠️ 重要: WHERE c.embedding IS NOT NULL 条件は必須です
@@ -462,10 +470,10 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
                         if "channel_id" in filters:
                             try:
                                 channel_id = int(filters["channel_id"])
-                            except (ValueError, TypeError):
+                            except (ValueError, TypeError) as err:
                                 raise ValueError(
                                     "Invalid channel_id: must be an integer."
-                                )
+                                ) from err
                             query += f" AND (s.metadata->>'channel_id')::bigint = ${param_index}"
                             params.append(channel_id)
                             param_index += 1
@@ -473,8 +481,10 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
                         if "user_id" in filters:
                             try:
                                 user_id = int(filters["user_id"])
-                            except (ValueError, TypeError):
-                                raise ValueError("Invalid user_id: must be an integer.")
+                            except (ValueError, TypeError) as err:
+                                raise ValueError(
+                                    "Invalid user_id: must be an integer."
+                                ) from err
                             query += f" AND (s.metadata->>'author_id')::bigint = ${param_index}"
                             params.append(user_id)
                             param_index += 1
@@ -546,6 +556,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         if source_type not in VALID_SOURCE_TYPES:
             raise ValueError(f"Invalid source_type: {source_type}")
 
+        assert self.pool is not None, "Database pool must be initialized"
         async with self.pool.acquire() as conn:
             source_id = await conn.fetchval(
                 """
@@ -579,6 +590,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
 
         location_dict = location or {}
 
+        assert self.pool is not None, "Database pool must be initialized"
         async with self.pool.acquire() as conn:
             chunk_id = await conn.fetchval(
                 """

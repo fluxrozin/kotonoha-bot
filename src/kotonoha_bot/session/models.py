@@ -56,7 +56,9 @@ class ChatSession:
     thread_id: int | None = None
     user_id: int | None = None
     version: int = 1  # 楽観的ロック用（更新ごとにインクリメント）
-    last_archived_message_index: int = 0  # アーカイブ済みメッセージのインデックス（0=未アーカイブ）
+    last_archived_message_index: int = (
+        0  # アーカイブ済みメッセージのインデックス（0=未アーカイブ）
+    )
     created_at: datetime = field(default_factory=datetime.now)
     last_active_at: datetime = field(default_factory=datetime.now)
 

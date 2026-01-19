@@ -112,7 +112,7 @@ class Config:
             raise ValueError("DISCORD_TOKEN is not set")
         if not cls.LLM_MODEL:
             raise ValueError("LLM_MODEL is not set")
-        
+
         # API キーの検証（環境変数から直接確認）
         if not os.getenv("OPENAI_API_KEY"):
             raise ValueError("OPENAI_API_KEY is not set")

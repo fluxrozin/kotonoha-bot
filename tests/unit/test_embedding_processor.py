@@ -595,7 +595,9 @@ async def test_embedding_processor_graceful_shutdown(
 
 
 @pytest.mark.asyncio
-async def test_embedding_processor_lock_skip_behavior(postgres_db, mock_embedding_provider):
+async def test_embedding_processor_lock_skip_behavior(
+    postgres_db, mock_embedding_provider
+):
     """ロック競合時のスキップ動作テスト"""
     processor = EmbeddingProcessor(
         db=postgres_db,
@@ -751,13 +753,31 @@ async def test_embedding_processor_classify_error_variations(
     )
 
     # 様々なエラーパターンをテスト
-    assert processor._classify_error(Exception("connection timed out")) == "EMBEDDING_API_TIMEOUT"
-    assert processor._classify_error(Exception("Error 429: Rate limit exceeded")) == "RATE_LIMIT"
-    assert processor._classify_error(Exception("401 Unauthorized")) == "AUTHENTICATION_ERROR"
-    assert processor._classify_error(Exception("403 Forbidden permission denied")) == "PERMISSION_ERROR"
+    assert (
+        processor._classify_error(Exception("connection timed out"))
+        == "EMBEDDING_API_TIMEOUT"
+    )
+    assert (
+        processor._classify_error(Exception("Error 429: Rate limit exceeded"))
+        == "RATE_LIMIT"
+    )
+    assert (
+        processor._classify_error(Exception("401 Unauthorized"))
+        == "AUTHENTICATION_ERROR"
+    )
+    assert (
+        processor._classify_error(Exception("403 Forbidden permission denied"))
+        == "PERMISSION_ERROR"
+    )
     assert processor._classify_error(Exception("404 Not Found")) == "NOT_FOUND"
-    assert processor._classify_error(Exception("500 Internal Server Error")) == "SERVER_ERROR"
-    assert processor._classify_error(Exception("Something completely unexpected")) == "UNKNOWN_ERROR"
+    assert (
+        processor._classify_error(Exception("500 Internal Server Error"))
+        == "SERVER_ERROR"
+    )
+    assert (
+        processor._classify_error(Exception("Something completely unexpected"))
+        == "UNKNOWN_ERROR"
+    )
 
 
 @pytest.mark.asyncio
@@ -784,7 +804,9 @@ async def test_embedding_processor_generalize_error_message_all_types(
 
     for error, expected_message in test_cases:
         result = processor._generalize_error_message(error)
-        assert result == expected_message, f"Error: {error}, Expected: {expected_message}, Got: {result}"
+        assert result == expected_message, (
+            f"Error: {error}, Expected: {expected_message}, Got: {result}"
+        )
 
 
 @pytest.mark.asyncio
@@ -847,13 +869,10 @@ async def test_embedding_processor_semaphore_initialization(
 @pytest.mark.asyncio
 async def test_embedding_processor_update_source_status_partial(postgres_db):
     """DLQに移動したチャンクがある場合にpartialステータスになるテスト"""
-    from kotonoha_bot.config import settings
 
     # 成功するプロバイダー
     success_provider = AsyncMock(spec=OpenAIEmbeddingProvider)
-    success_provider.generate_embeddings_batch = AsyncMock(
-        return_value=[[0.1] * 1536]
-    )
+    success_provider.generate_embeddings_batch = AsyncMock(return_value=[[0.1] * 1536])
     success_provider.get_dimension = lambda: 1536
 
     # テスト用のソースとチャンクを作成
