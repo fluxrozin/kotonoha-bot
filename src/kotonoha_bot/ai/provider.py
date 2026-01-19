@@ -15,7 +15,7 @@ class AIProvider(ABC):
         system_prompt: str | None = None,
         model: str | None = None,
         max_tokens: int | None = None,
-    ) -> str:
+    ) -> tuple[str, dict]:
         """応答を生成
 
         Args:
@@ -25,6 +25,10 @@ class AIProvider(ABC):
             max_tokens: 最大トークン数（オプション）
 
         Returns:
-            生成された応答テキスト
+            tuple[str, dict]: (応答テキスト, メタデータ)
+            - メタデータには以下のキーが含まれる:
+              - "input_tokens": int
+              - "output_tokens": int
+              - "model": str
         """
         pass

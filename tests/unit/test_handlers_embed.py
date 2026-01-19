@@ -34,7 +34,7 @@ def mock_session_manager():
 def mock_ai_provider():
     """モックAIProvider"""
     provider = MagicMock()
-    provider.generate_response = AsyncMock(return_value="テスト応答")
+    provider.generate_response = AsyncMock(return_value=("テスト応答", {}))
     provider.get_last_used_model = MagicMock(
         return_value="anthropic/claude-3-haiku-20240307"
     )

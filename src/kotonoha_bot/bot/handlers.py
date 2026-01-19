@@ -2,13 +2,13 @@
 
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Literal, cast
 
 import discord
 from discord.ext import tasks
 
-from ..ai.litellm_provider import LiteLLMProvider
+from ..ai.anthropic_provider import AnthropicProvider
 from ..ai.prompts import DEFAULT_SYSTEM_PROMPT
 from ..config import Config
 from ..eavesdrop.conversation_buffer import ConversationBuffer
@@ -45,7 +45,7 @@ class MessageHandler:
         self.bot = bot
         # DBインスタンスが渡された場合は使用（Alembicマイグレーションの重複を防ぐ）
         self.session_manager = SessionManager(db=db)
-        self.ai_provider = LiteLLMProvider()
+        self.ai_provider = AnthropicProvider()
         # メッセージルーター
         self.router = MessageRouter(bot)
         # 聞き耳型の機能
@@ -95,14 +95,14 @@ class MessageHandler:
 
             # アイドル状態のセッションを保存
             # 最後のアクティビティから5分以上経過しているセッションを保存
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             idle_threshold = timedelta(minutes=5)
 
             saved_count = 0
             for session_key, session in self.session_manager.sessions.items():
                 last_active = session.last_active_at
                 if last_active.tzinfo is None:
-                    last_active = last_active.replace(tzinfo=timezone.utc)
+                    last_active = last_active.replace(tzinfo=UTC)
                 time_since_activity = now - last_active
                 if time_since_activity >= idle_threshold:
                     try:
@@ -213,7 +213,7 @@ class MessageHandler:
                 system_prompt = DEFAULT_SYSTEM_PROMPT + current_date_info
 
                 # AI応答を生成
-                response_text = await self.ai_provider.generate_response(
+                response_text, _ = await self.ai_provider.generate_response(
                     messages=session.get_conversation_history(),
                     system_prompt=system_prompt,
                 )
@@ -485,7 +485,7 @@ class MessageHandler:
                 system_prompt = DEFAULT_SYSTEM_PROMPT + current_date_info
 
                 # AI応答を生成
-                response_text = await self.ai_provider.generate_response(
+                response_text, _ = await self.ai_provider.generate_response(
                     messages=session.get_conversation_history(),
                     system_prompt=system_prompt,
                 )
@@ -588,7 +588,7 @@ class MessageHandler:
                 system_prompt = DEFAULT_SYSTEM_PROMPT + current_date_info
 
                 # AI応答を生成
-                response_text = await self.ai_provider.generate_response(
+                response_text, _ = await self.ai_provider.generate_response(
                     messages=session.get_conversation_history(),
                     system_prompt=system_prompt,
                 )
@@ -803,6 +803,13 @@ def setup_handlers(
         # リクエストキューを開始
         await handler.request_queue.start()
         logger.info("Request queue started")
+
+        # スラッシュコマンドを同期（bot.start() 後に application_id が設定されるため）
+        try:
+            synced = await bot.tree.sync()
+            logger.info(f"Synced {len(synced)} slash command(s)")
+        except Exception as e:
+            logger.error(f"Failed to sync slash commands: {e}")
 
         # バックグラウンドタスクを開始（EmbeddingProcessor, SessionArchiver）
         # ⚠️ 重要: bot.start() はブロッキング呼び出しのため、

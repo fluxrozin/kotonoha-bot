@@ -17,8 +17,8 @@ class Config:
     DISCORD_TOKEN: str = os.getenv("DISCORD_TOKEN", "")
     BOT_PREFIX: str = os.getenv("BOT_PREFIX", "!")
 
-    # LLM設定（LiteLLM）
-    LLM_MODEL: str = os.getenv("LLM_MODEL", "anthropic/claude-sonnet-4-5")
+    # LLM設定（Anthropic SDK）
+    LLM_MODEL: str = os.getenv("LLM_MODEL", "claude-sonnet-4-5")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
     LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2048"))
     LLM_FALLBACK_MODEL: str | None = os.getenv("LLM_FALLBACK_MODEL")
@@ -61,7 +61,7 @@ class Config:
         "EAVESDROP_ENABLED_CHANNELS", ""
     )  # カンマ区切りのチャンネルID
     EAVESDROP_JUDGE_MODEL: str = os.getenv(
-        "EAVESDROP_JUDGE_MODEL", "anthropic/claude-haiku-4-5"
+        "EAVESDROP_JUDGE_MODEL", "claude-haiku-4-5"
     )  # 判定用モデル
     EAVESDROP_BUFFER_SIZE: int = int(
         os.getenv("EAVESDROP_BUFFER_SIZE", "20")
@@ -201,21 +201,21 @@ class Settings(BaseSettings):
     # Discord設定
     # ============================================
 
-    discord_token: str  # 必須（バリデーションエラーになる）
+    discord_token: str = ""  # 環境変数から読み込む（空文字列は後でバリデーション）
 
     # ============================================
-    # API キー設定（LiteLLM用、必須）
+    # API キー設定（必須）
     # ============================================
 
-    openai_api_key: str  # 必須（LiteLLM用）
-    anthropic_api_key: str  # 必須（LiteLLM用）
+    openai_api_key: str = ""  # 環境変数から読み込む（空文字列は後でバリデーション）
+    anthropic_api_key: str = ""  # 環境変数から読み込む（空文字列は後でバリデーション）
 
     # ============================================
     # その他の設定（既存の設定）
     # ============================================
 
     # LLM設定
-    llm_model: str = "anthropic/claude-opus-4-5"
+    llm_model: str = "claude-opus-4-5"
     llm_temperature: float = 0.7
     llm_max_tokens: int = 2048
 
@@ -234,7 +234,7 @@ class Settings(BaseSettings):
 
     # 聞き耳型設定
     eavesdrop_enabled_channels: str = ""  # カンマ区切りのチャンネルID
-    eavesdrop_judge_model: str = "anthropic/claude-haiku-4-5"
+    eavesdrop_judge_model: str = "claude-haiku-4-5"
     eavesdrop_buffer_size: int = 20
     eavesdrop_min_messages: int = 3
     eavesdrop_min_intervention_interval_minutes: int = 10

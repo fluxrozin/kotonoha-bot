@@ -33,7 +33,7 @@ def mock_ai_provider():
     """モックAIProvider"""
     provider = MagicMock()
     # generate_responseは非同期メソッドなのでAsyncMockを使用
-    provider.generate_response = AsyncMock(return_value="テスト応答")
+    provider.generate_response = AsyncMock(return_value=("テスト応答", {}))
     provider.get_last_used_model = MagicMock(return_value="test-model")
     provider.get_rate_limit_usage = MagicMock(return_value=0.5)
     return provider

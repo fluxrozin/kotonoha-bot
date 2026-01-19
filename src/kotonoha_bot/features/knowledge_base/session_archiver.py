@@ -239,7 +239,8 @@ class SessionArchiver:
         # ⚠️ 重要（Critical Bug Fix）: messages配列を切り詰めた場合、
         # last_archived_message_index は 0 にリセットされている
         if current_archived_index >= len(messages):
-            logger.warning(
+            # メッセージが削除された場合の正常な回復処理（警告ではなくdebugレベル）
+            logger.debug(
                 f"Session {session_key}: "
                 f"last_archived_message_index ({current_archived_index}) "
                 f"exceeds messages length ({len(messages)}), resetting to 0"

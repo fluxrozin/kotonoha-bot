@@ -33,7 +33,7 @@
 | **Phase 6**  | ✅ 完了   | 実装済み | レート制限、コマンド、エラーハンドリング強化         |
 | **Phase 7**  | ✅ 完了   | 実装済み | aiosqlite への移行（非同期化）                       |
 | **Phase 8**  | ✅ 完了   | 10-15 日 | PostgreSQL への移行（pgvector 対応）                 |
-| **Phase 9**  | ⏳ 未実装 | 3-5 日   | LiteLLM 削除、Anthropic SDK 直接使用への移行         |
+| **Phase 9**  | ✅ 完了   | 3-5 日   | LiteLLM 削除、Anthropic SDK 直接使用への移行         |
 | **Phase 10** | ⏳ 未実装 | 10-15 日 | 完全リファクタリング（非同期コードの整理を含む）     |
 | **Phase 11** | ⏳ 未実装 | 2-3 日   | ハイブリッド検索（pg_bigm）                           |
 | **Phase 12** | ⏳ 未実装 | 2-3 日   | Reranking（オプション）                               |
@@ -308,7 +308,8 @@
 **実装優先度**: **高**（ベクトル検索・RAG機能の前提条件）
 
 **設計思想**
-（[PostgreSQL スキーマ設計書](../40_design_detailed/42_db-schema-physical/postgresql-schema-overview.md) に基づく）:
+（[PostgreSQL スキーマ設計書](../40_design_detailed/42_db-schema-physical/postgresql-schema-overview.md)
+に基づく）:
 
 - **短期記憶（Sessions）**: Discord Botがリアルタイムに読み書きする場所。
   高速動作優先。`sessions` テーブルで管理。
@@ -334,11 +335,11 @@
 
 ---
 
-### Phase 9: LiteLLM 削除、Anthropic SDK 直接使用への移行 ⏳ 未実装
+### Phase 9: LiteLLM 削除、Anthropic SDK 直接使用への移行 ✅ 完了
 
 **目標**: LiteLLM を削除し、Anthropic SDK を直接使用することで、パフォーマンス向上、セキュリティリスクの削減、コードのシンプル化を実現する
 
-**期間**: 約 3-5 日
+**実装期間**: 2026年1月19日（完了）
 
 **前提条件**: ✅ **Phase 8（PostgreSQL への移行）が完了していること**
 
@@ -355,21 +356,23 @@
 
 - **パフォーマンス劣化**: 長時間稼働時のレイテンシ増加
 - **メモリ使用量**: 高メモリ消費（24GB RAM @ 9 req/sec の報告）
-- **セキュリティ脆弱性**: 複数の CVE（CVE-2025-0628, CVE-2024-5710, CVE-2024-4888, CVE-2025-0330, CVE-2024-9606）
+- **セキュリティ脆弱性**: 複数の CVE
+  （CVE-2025-0628, CVE-2024-5710, CVE-2024-4888, CVE-2025-0330, CVE-2024-9606）
 - **オーバーヘッド**: 抽象化レイヤーによる追加のレイテンシ
 - **複雑性**: 設定が多岐にわたる
 - **接続プール問題**: 長時間稼働時の接続枯渇（現在の実装で対処している）
 
-**実装内容**:
+**実装済み機能**:
 
-- [ ] Anthropic SDK の導入（`anthropic` パッケージを追加）
-- [ ] `AnthropicProvider` クラスの実装（`src/kotonoha_bot/ai/anthropic_provider.py`）
-- [ ] `LiteLLMProvider` の置き換え（`AIProvider` インターフェースは維持）
-- [ ] フォールバック機能の削除（プロバイダー固定のため不要）
-- [ ] 依存関係の整理（`litellm` を削除）
-- [ ] 設定の簡素化（LiteLLM 固有の設定を削除）
-- [ ] テストの更新（テストコードを更新）
-- [ ] レート制限機能の移行（既存のレート制限機能を Anthropic SDK に適応）
+- ✅ Anthropic SDK の導入（`anthropic>=0.76.0` パッケージを追加）
+- ✅ `AnthropicProvider` クラスの実装（`src/kotonoha_bot/ai/anthropic_provider.py`）
+- ✅ `LiteLLMProvider` の置き換え（`AIProvider` インターフェースは維持）
+- ✅ フォールバック機能の削除（プロバイダー固定のため不要）
+- ✅ 依存関係の整理（`litellm` を削除）
+- ✅ 設定の簡素化（LiteLLM 固有の設定を削除）
+- ✅ テストの更新（テストコードを更新）
+- ✅ レート制限機能の移行（既存のレート制限機能を Anthropic SDK に適応）
+- ✅ トークン情報の取得と返却（`tuple[str, dict]` 形式でメタデータを返却）
 
 **期待される効果**:
 
@@ -378,7 +381,9 @@
 - **コードのシンプル化**: 依存関係の削減、設定の簡素化、コードの理解しやすさ向上
 - **保守性向上**: デバッグの容易さ、プロバイダー固有の機能を直接利用可能
 
-**詳細**:
+**詳細**: [Phase 9 実装完了報告](./phases/phase09.md)
+
+**参考資料**:
 
 - [ADR-0011: LiteLLM の削除とプロバイダー SDK の直接使用](../20_architecture/22_adrs/0011-remove-litellm-direct-sdk.md)
 
@@ -406,7 +411,8 @@
 - ✅ テストの充実
 - ✅ フォルダ構造の最適化
 - ✅ 重複コードの削除（日付フォーマット、プロンプト読み込み、エラーメッセージ）
-- ✅ **重要**: `anthropic_provider.py` の戻り値を `tuple[str, dict]` に変更（Phase 14 と Phase 15 で必要）
+- ✅ **重要**: `anthropic_provider.py` の戻り値を `tuple[str, dict]` に変更
+  （Phase 14 と Phase 15 で必要）
 
 **実装内容**:
 
@@ -1041,11 +1047,11 @@
 - パフォーマンスの劣化リスク
 - バックアップの権限問題（バインドマウント使用時）
 
-**Phase 9**:
+**Phase 9**: ✅ 完了（リスクは解消済み）
 
-- LiteLLM から Anthropic SDK への移行による既存機能の破壊
-- レート制限機能の移行時の問題
-- トークン情報の取得方法の変更による影響
+- ✅ LiteLLM から Anthropic SDK への移行完了
+- ✅ レート制限機能の移行完了
+- ✅ トークン情報の取得方法の変更完了
 
 **Phase 10**:
 
@@ -1074,8 +1080,9 @@
 - ✅ **Phase 6**: 完了（高度な機能、レート制限・コマンド・エラーハンドリング強化）
 - ✅ **Phase 7**: 完了（aiosqlite への移行、非同期化）
 - ✅ **Phase 8**: 完了（PostgreSQL への移行、pgvector 対応）
+- ✅ **Phase 9**: 完了（LiteLLM 削除、Anthropic SDK 直接使用への移行）
 
-次の実装ステップは **Phase 9（LiteLLM 削除、Anthropic SDK 直接使用への移行）** です。
+次の実装ステップは **Phase 10（完全リファクタリング）** です。
 
 ### 6.1 推奨実装順序
 
@@ -1087,10 +1094,11 @@
    - データベース抽象化レイヤーの確立
    - スケーラビリティの確保
 
-3. **Phase 9（LiteLLM 削除、Anthropic SDK 直接使用への移行）**: Phase 8 完了後に実施
-   - **重要**: パフォーマンス向上とセキュリティリスクの削減
-   - **重要**: `anthropic_provider.py` の戻り値を `tuple[str, dict]` に変更（Phase 14 と Phase 15 で必要）
-   - レート制限機能の移行
+3. ✅ **Phase 9（LiteLLM 削除、Anthropic SDK 直接使用への移行）**: 完了（2026年1月19日）
+   - ✅ パフォーマンス向上とセキュリティリスクの削減
+   - ✅ `anthropic_provider.py` の戻り値を `tuple[str, dict]` に変更
+     （Phase 14 と Phase 15 で必要）
+   - ✅ レート制限機能の移行
 
 4. **Phase 10（完全リファクタリング）**: Phase 9 完了後に実施
    - 非同期コードを基にリファクタリングする方が効率的
@@ -1127,7 +1135,7 @@
 - [ADR-0006: aiosqlite への移行](../20_architecture/22_adrs/0006-migrate-to-aiosqlite.md)
 - [ADR-0007: PostgreSQL への移行](../20_architecture/22_adrs/0007-migrate-to-postgresql.md)
 - [Phase 8 実装完了報告](./phases/phase08.md)
-- [Phase 9 実装計画](./phases/phase09.md): LiteLLM 削除、Anthropic SDK 直接使用への移行
+- [Phase 9 実装完了報告](./phases/phase09.md): LiteLLM 削除、Anthropic SDK 直接使用への移行
 - [Phase 10 基本方針](./phases/phase10.md): リファクタリングの基本方針、目標、概要
 - [Phase 10 実装ガイド](./phases/phase10-implementation.md): 各ステップの詳細な実装手順、コード例、コーディング規約
 - [Phase 11 実装計画](./phases/phase11.md)
@@ -1135,13 +1143,15 @@
 ---
 
 **作成日**: 2026 年 1 月 14 日  
-**最終更新日**: 2026 年 1 月 19 日（Phase 9 を LiteLLM 削除・Anthropic SDK 直接使用への移行に変更、以降のフェーズを1つずつずらす）  
-**バージョン**: 14.0  
+**最終更新日**: 2026 年 1 月 19 日（Phase 9 の完了を反映）  
+**バージョン**: 15.0  
 **作成者**: kotonoha-bot 開発チーム
 
 ### 更新履歴
 
-- **v14.0** (2026-01-19): Phase 9 を LiteLLM 削除・Anthropic SDK 直接使用への移行に変更、Phase 10 以降を1つずつずらす（Phase 30 まで）
+- **v15.0** (2026-01-19): Phase 9 の完了を反映、実装状況サマリーと詳細セクションを更新
+- **v14.0** (2026-01-19): Phase 9 を LiteLLM 削除・Anthropic SDK 直接使用への移行に変更、
+  Phase 10 以降を1つずつずらす（Phase 30 まで）
 - **v13.0** (2026-01-19): Phase 9 を完全リファクタリングに変更、Phase 10 以降を1つずつずらす
 - **v12.0** (2026-01-19): Phase 8 の完了を反映、Phase 9 の実装計画を追加、次のステップを更新
 - **v11.0** (2026-01-18): フェーズ番号を整理（小数点を削除、連番に統一）、文書構造をゼロベースで再構築、重複を削除
