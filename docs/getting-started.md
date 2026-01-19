@@ -114,21 +114,21 @@ kotonoha-bot/
 
 ### 開発を始める前に
 
-1. **[要件定義](requirements/overview.md)** - プロジェクトの全体像を理解
-2. **[実装ロードマップ](implementation/roadmap.md)** - 段階的な実装計画
-3. **[開発者ガイド](development/contributing.md)** - コントリビューション方法
+1. **[要件定義](10_requirements/11_business-reqs/overview.md)** - プロジェクトの全体像を理解
+2. **[実装ロードマップ](00_planning/roadmap.md)** - 段階的な実装計画
+3. **[開発者ガイド](50_implementation/51_guides/contributing.md)** - コントリビューション方法
 
 ### 設計を理解する
 
-1. **[システムアーキテクチャ](architecture/system-architecture.md)** - システム構成と技術スタック
-2. **[基本設計](architecture/basic-design.md)** - システムの基本設計
-3. **[データベース設計](architecture/database-design.md)** - データベーススキーマ
+1. **[システムアーキテクチャ](20_architecture/21_system-arch/system-architecture.md)** - システム構成と技術スタック
+2. **[基本設計](20_architecture/21_system-arch/basic-design.md)** - システムの基本設計
+3. **[データベース設計](40_design_detailed/42_db-schema-physical/database-design.md)** - データベーススキーマ
 
 ### 実装を始める
 
-1. **[実装検討事項](implementation/considerations.md)** - 実装前の技術的検討事項
-2. **[API 仕様](specifications/api-specification.md)** - 外部/内部 API 仕様
-3. **[コマンド仕様](specifications/command-specification.md)** - スラッシュコマンド仕様
+1. **[実装検討事項](50_implementation/51_guides/considerations.md)** - 実装前の技術的検討事項
+2. **[API 仕様](30_design_basic/api-specification.md)** - 外部/内部 API 仕様
+3. **[コマンド仕様](30_design_basic/command-specification.md)** - スラッシュコマンド仕様
 
 ## よくある質問
 
@@ -159,7 +159,7 @@ kotonoha-bot/
 - 書き込み権限があるか
 - `LOG_FILE` が正しく設定されているか（デフォルト: `./logs/run.log`）
 
-詳細は [FAQ](development/faq.md) と [トラブルシューティング](operations/troubleshooting.md) を参照してください。
+詳細は [FAQ](50_implementation/51_guides/faq.md) と [トラブルシューティング](90_operations/troubleshooting.md) を参照してください。
 
 ## 開発フロー
 
@@ -203,7 +203,7 @@ kotonoha-bot/
    # 再起動すると自動で再作成されます
    ```
 
-詳細は [トラブルシューティングガイド](operations/troubleshooting.md) を参照してください。
+詳細は [トラブルシューティングガイド](90_operations/troubleshooting.md) を参照してください。
 
 ## サポート
 

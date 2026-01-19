@@ -1,132 +1,147 @@
 # Kotonoha（コトノハ）Discord ボット ドキュメント
 
-場面緘黙自助グループ運営支援 Discord ボットのドキュメント集です。
+場面緘黙自助グループ運営支援 Discord ボットのドキュメント集である。
 
 ## クイックスタート
 
-- **[Getting Started](./getting-started.md)**: 5 分で始める開発環境セットアップガイド（初めての方はここから）
+- **[Getting Started](./getting-started.md)**: 5分で始める開発環境セットアップガイド（初めての方はここから）
 
-## ドキュメント構成
+## ドキュメント構成（Vモデル準拠）
 
-### 要件定義
+このドキュメントは、Vモデルに基づいて構成されている。
 
-- [**要件概要**](./requirements/overview.md): プロジェクトの目的、背景、スコープ、
-  システム構成、制約事項、成功基準（プロジェクト理解の出発点）
-- [**Bot ペルソナ要件**](./requirements/persona-requirements.md):
-  場面緘黙支援のための Bot ペルソナ定義、コミュニケーション要件、禁止事項
-  （Bot の性格と応答スタイルの設計）
-- [機能要件一覧](./requirements/functional-requirements.md):
-  基本機能、会話の契機、セッション管理、AI 機能、エラーハンドリング、
-  コマンド、運用機能の詳細要件と非機能要件
-- [会話の契機の詳細](./requirements/conversation-triggers.md):
-  メンション応答型、スレッド型、聞き耳型（LLM 判断・ルールベース）の
-  3 つの会話方式の詳細説明
-- [ユーザーストーリー](./requirements/user-stories.md):
-  エンドユーザー視点の機能記述、エピック、受け入れテストシナリオ
-- [ユースケース](./requirements/use-cases.md):
-  各会話の契機、会話継続、エラー処理の詳細なユースケース記述とフロー図
-- [プロジェクト管理](./requirements/project-management.md):
-  WBS（作業分解構造）、プロダクトバックログ、6 スプリント計画、
-  マイルストーン、リスク管理
+### 00_planning/（企画・計画）
 
-### アーキテクチャ
+プロジェクトの方向性と進捗管理。
 
-- [**システム構成図**](./architecture/system-architecture.md):
-  システムアーキテクチャ図、技術スタック、環境変数、ディレクトリ構造
-  （システム理解の出発点）
-- [基本設計書](./architecture/basic-design.md):
-  レイヤー構成、モジュール設計、モジュール間の依存関係、責務分担
-- [詳細設計書](./architecture/detailed-design.md):
-  各モジュールのクラス・メソッド仕様、パラメータ、戻り値、依存関係
-- [データベース設計](./architecture/database-design.md):
-  ER 図、テーブル定義（sessions/messages/settings）、
-  永続化戦略、インデックス設計
-- [**ADR (Architecture Decision Records)**](./architecture/adr/):
-  アーキテクチャ上の重要な意思決定の記録とその理由
-  - [ADR について](./architecture/adr/README.md):
-    ADR の目的、命名規則、ステータス、テンプレート、作成方法
-  - [ADR-0001: Python 3.14 の採用](./architecture/adr/0001-use-python-3-14.md):
-    Python 3.14 採用の理由
-  - [ADR-0002: LiteLLM マルチプロバイダー戦略](./architecture/adr/0002-litellm-multi-provider-strategy.md):
-    Claude API（LiteLLM 経由）採用の理由、代替案の比較と評価
-  - [ADR-0003: SQLite の採用](./architecture/adr/0003-use-sqlite.md):
-    SQLite 採用の理由と代替案比較
-  - [ADR-0004: ハイブリッドセッション管理](./architecture/adr/0004-hybrid-session-management.md):
-    SQLite + ChatSession ハイブリッド管理の採用理由、
-    同期戦略、代替案比較
-  - [ADR-0005: 4 つの会話の契機](./architecture/adr/0005-four-conversation-triggers.md):
-    メンション型・スレッド型・DM 型・聞き耳型の採用理由
-  - [ADR-0006: aiosqlite への移行](./architecture/adr/0006-migrate-to-aiosqlite.md):
-    非同期データベースアクセスのための aiosqlite 移行の理由と計画
+- [**プロジェクト管理**](./00_planning/project-management.md): WBS（作業分解構造）、プロダクトバックログ、スプリント計画、マイルストーン、リスク管理
+- [**実装ロードマップ**](./00_planning/roadmap.md): 11段階の実装計画（環境構築 → NASデプロイ → AI応答 → セッション管理 → 会話の契機 → 高度機能 → aiosqlite移行 → 完全リファクタリング → 高度運用機能 → 自動化・最適化 → 監査機能）と各段階の詳細（実装開始前に必読）
+- [**フェーズ別実装計画**](./00_planning/phases/): 各フェーズの詳細な実装ステップ
+  - [Phase 1](./00_planning/phases/phase01.md): MVP（メンション応答型）の詳細実装ステップ（完了）
+  - [Phase 2](./00_planning/phases/phase02.md): NASデプロイ（Docker化・24時間稼働）の詳細実装ステップ（完了）
+  - [Phase 3](./00_planning/phases/phase03.md): CI/CD、テスト、コード品質の詳細実装ステップ（完了）
+  - [Phase 4](./00_planning/phases/phase04.md): メッセージ長制限、バッチ同期の詳細実装ステップ（完了）
+  - [Phase 5](./00_planning/phases/phase05.md): スレッド型、聞き耳型の詳細実装ステップ（完了）
+  - [Phase 6](./00_planning/phases/phase06.md): レート制限、コマンド、エラーハンドリング強化の詳細実装ステップ（完了）
+  - [Phase 7](./00_planning/phases/phase07.md): aiosqliteへの移行（完了）
+  - [Phase 8](./00_planning/phases/phase08.md): PostgreSQLへの移行（pgvector対応）
+  - [Phase 9](./00_planning/phases/phase09.md): ハイブリッド検索（pg_bigm）
+  - [Phase 11](./00_planning/phases/phase11.md): 完全リファクタリング
+- [**将来機能レビュー**](./00_planning/future-features-review.md): 将来実装予定の機能のレビュー
 
-### 仕様書
+### 10_requirements/（要件定義 - Why & What）
 
-- [API 仕様書](./specifications/api-specification.md):
-  Discord API（WebSocket/HTTP）、Claude API、内部 API の詳細仕様と
-  リクエスト・レスポンス形式
-- [コマンド仕様書](./specifications/command-specification.md):
-  スラッシュコマンド（/chat start, reset, status, /settings）の仕様と使用例
-- [イベント処理仕様書](./specifications/event-specification.md):
-  Discord イベント（message, thread, ready）の処理フローとカスタムイベント
-- [Discord メッセージフォーマット仕様](./specifications/discord-message-formatting.md):
-  Discord のメッセージフォーマット（Markdown、Embed など）の詳細
-- [聞き耳型機能仕様書](./specifications/eavesdrop-specification.md):
-  聞き耳型機能の詳細仕様、判定ロジック、応答生成、会話状態管理
+ユーザーとシステムの要求事項の定義。
 
-### 実装
+#### 11_business-reqs/（ビジネス要件）
 
-- [**実装ロードマップ**](./implementation/roadmap.md):
-  11 段階の実装計画（環境構築 →NAS デプロイ →AI 応答 → セッション管理 →
-  会話の契機 → 高度機能 →aiosqlite 移行 → 完全リファクタリング →
-  高度運用機能 → 自動化・最適化 → 監査機能）と各段階の詳細
-  （実装開始前に必読）
-- [実装検討事項](./implementation/considerations.md):
-  実装前に検討すべき技術的詳細（エラーハンドリング、レート制限、セキュリティなど）
-- [ミドルウェア選定書](./implementation/middleware-selection.md):
-  Python 3.14、discord.py、uv、Claude API など使用技術の選定理由と代替案比較
-- [監査ログ実装計画](./implementation/audit-logging-implementation-plan.md):
-  監査ログ機能の実装計画、データベーススキーマ、実装ステップ
-- [知識ベース設計](./implementation/knowledge-base-design.md):
-  知識ベース機能の設計と実装計画
-- [**Phase 1 実装計画**](./implementation/phases/phase01.md):
-  MVP（メンション応答型）の詳細実装ステップ、コード例、完了基準
-- [Phase 2 実装計画](./implementation/phases/phase02.md):
-  NAS デプロイ（Docker 化・24 時間稼働）の詳細実装ステップ
-- [Phase 3 実装計画](./implementation/phases/phase03.md):
-  CI/CD、テスト、コード品質の詳細実装ステップ
-- [Phase 4 実装計画](./implementation/phases/phase04.md):
-  メッセージ長制限、バッチ同期の詳細実装ステップ
-- [Phase 5 実装計画](./implementation/phases/phase05.md):
-  スレッド型、聞き耳型の詳細実装ステップ
-- [Phase 6 実装計画](./implementation/phases/phase06.md):
-  レート制限、コマンド、エラーハンドリング強化の詳細実装ステップ
+- [**要件概要**](./10_requirements/11_business-reqs/overview.md): プロジェクトの目的、背景、スコープ、システム構成、制約事項、成功基準（プロジェクト理解の出発点）
+- [**Bot ペルソナ要件**](./10_requirements/11_business-reqs/persona-requirements.md): 場面緘黙支援のためのBotペルソナ定義、コミュニケーション要件、禁止事項（Botの性格と応答スタイルの設計）
+- [**ユーザーストーリー**](./10_requirements/11_business-reqs/user-stories.md): エンドユーザー視点の機能記述、エピック、受け入れテストシナリオ
+- [**ユースケース**](./10_requirements/11_business-reqs/use-cases.md): 各会話の契機、会話継続、エラー処理の詳細なユースケース記述とフロー図
 
-### テスト
+#### 12_system-reqs/（システム要件）
 
-- [テスト計画書](./testing/test-plan.md): テスト戦略（単体・統合・システム・受入）、テスト項目、環境、手法
-- [テスト仕様書](./testing/test-specification.md): 具体的なテストケース、期待される結果、テストデータ
+- [**機能要件一覧**](./10_requirements/12_system-reqs/functional-requirements.md): 基本機能、会話の契機、セッション管理、AI機能、エラーハンドリング、コマンド、運用機能の詳細要件と非機能要件
+- [**会話の契機の詳細**](./10_requirements/12_system-reqs/conversation-triggers.md): メンション応答型、スレッド型、聞き耳型（LLM判断・ルールベース）の3つの会話方式の詳細説明
+- [**機能一覧**](./10_requirements/12_system-reqs/features-list.md): 実装済み機能の一覧
+- [**ダッシュボードオプション**](./10_requirements/12_system-reqs/dashboard-options.md): ダッシュボード機能の要件
 
-### 運用
+### 20_architecture/（アーキテクチャ - High-level How）
 
-- [デプロイメント・運用](./operations/deployment-operations.md): CI/CD パイプライン（GitHub Actions→GHCR→Watchtower）、デプロイ手順、運用フロー、監視
-- [ヘルスチェック](./operations/health-check.md): Docker ヘルスチェックと HTTP エンドポイントの設定・使用方法
-- [トラブルシューティング](./operations/troubleshooting.md): よくある問題（Discord 接続、API エラー、DB 問題、パフォーマンス、デプロイメント）と解決方法
+システム全体の構造と、技術的な意思決定。
 
-### 開発者向け
+#### 21_system-arch/（システム構成）
 
-- [コントリビューションガイド](./development/contributing.md):
-  開発フロー、コーディング規約、コミット規約、PR ガイドライン、テストの書き方
-- [FAQ](./development/faq.md):
-  セットアップ、開発環境、Bot 動作、AI 機能、セッション管理、
-  デプロイメント、トラブルシューティングに関するよくある質問と回答
-- [LiteLLM 必要性分析](./development/litellm-necessity-analysis.md):
-  LiteLLM 採用の必要性と検討資料
-- [LLM プロバイダー比較](./development/llm-provider-comparison.md):
-  LLM プロバイダーの比較と選定理由
-- [聞き耳型判定モデル比較](./development/eavesdrop-judge-model-comparison.md):
-  聞き耳型判定に使用する LLM モデルの比較
-- [プロンプト管理](./development/prompt-management.md):
-  プロンプトファイルの管理方法とベストプラクティス
+- [**システム構成図**](./20_architecture/21_system-arch/system-architecture.md): システムアーキテクチャ図、技術スタック、環境変数、ディレクトリ構造（システム理解の出発点）
+- [**基本設計書**](./20_architecture/21_system-arch/basic-design.md): レイヤー構成、モジュール設計、モジュール間の依存関係、責務分担
+
+#### 22_adrs/（ADR - Architecture Decision Records）
+
+アーキテクチャ上の重要な意思決定の記録とその理由。
+
+- [**ADR について**](./20_architecture/22_adrs/README.md): ADRの目的、命名規則、ステータス、テンプレート、作成方法
+- [**ADR-0001: Python 3.14 の採用**](./20_architecture/22_adrs/0001-use-python-3-14.md): Python 3.14採用の理由
+- [**ADR-0002: LiteLLM マルチプロバイダー戦略**](./20_architecture/22_adrs/0002-litellm-multi-provider-strategy.md): Claude API（LiteLLM経由）採用の理由、代替案の比較と評価
+- [**ADR-0003: SQLite の採用**](./20_architecture/22_adrs/0003-use-sqlite.md): SQLite採用の理由と代替案比較
+- [**ADR-0004: ハイブリッドセッション管理**](./20_architecture/22_adrs/0004-hybrid-session-management.md): SQLite + ChatSessionハイブリッド管理の採用理由、同期戦略、代替案比較
+- [**ADR-0005: 4つの会話の契機**](./20_architecture/22_adrs/0005-four-conversation-triggers.md): メンション型・スレッド型・DM型・聞き耳型の採用理由
+- [**ADR-0006: aiosqlite への移行**](./20_architecture/22_adrs/0006-migrate-to-aiosqlite.md): 非同期データベースアクセスのためのaiosqlite移行の理由と計画
+- [**ADR-0007: PostgreSQL への移行**](./20_architecture/22_adrs/0007-migrate-to-postgresql.md): PostgreSQL + pgvectorへの移行の理由と計画
+- [**ミドルウェア選定書**](./20_architecture/22_adrs/middleware-selection.md): Python 3.14、discord.py、uv、Claude APIなど使用技術の選定理由と代替案比較
+- [**LiteLLM 必要性分析**](./20_architecture/22_adrs/litellm-necessity-analysis.md): LiteLLM採用の必要性と検討資料
+- [**LLM プロバイダー比較**](./20_architecture/22_adrs/llm-provider-comparison.md): LLMプロバイダーの比較と選定理由
+- [**聞き耳型判定モデル比較**](./20_architecture/22_adrs/eavesdrop-judge-model-comparison.md): 聞き耳型判定に使用するLLMモデルの比較
+- [**監査ログ検討資料**](./20_architecture/22_adrs/audit-logging-considerations.md): 監査ログ機能の検討資料
+
+### 30_design_basic/（基本設計/外部設計 - Interfaces）
+
+システムの「外側」から見た振る舞いの定義（ブラックボックス視点）。
+
+- [**API 仕様書**](./30_design_basic/api-specification.md): Discord API（WebSocket/HTTP）、Claude API、内部APIの詳細仕様とリクエスト・レスポンス形式
+- [**コマンド仕様書**](./30_design_basic/command-specification.md): スラッシュコマンド（/chat start, reset, status, /settings）の仕様と使用例
+- [**イベント処理仕様書**](./30_design_basic/event-specification.md): Discordイベント（message, thread, ready）の処理フローとカスタムイベント
+- [**Discord メッセージフォーマット仕様**](./30_design_basic/discord-message-formatting.md): Discordのメッセージフォーマット（Markdown、Embedなど）の詳細
+- [**聞き耳型機能仕様書**](./30_design_basic/eavesdrop-specification.md): 聞き耳型機能の詳細仕様、判定ロジック、応答生成、会話状態管理
+
+### 40_design_detailed/（詳細設計/内部設計 - Internals）
+
+システムの「内側」の構造定義（ホワイトボックス視点）。
+
+#### 41_logic/（ロジック設計）
+
+- [**詳細設計書**](./40_design_detailed/41_logic/detailed-design.md): 各モジュールのクラス・メソッド仕様、パラメータ、戻り値、依存関係
+- [**知識ベース設計**](./40_design_detailed/41_logic/knowledge-base-design.md): 知識ベース機能の設計と実装計画
+
+#### 42_db-schema-physical/（データベーススキーマ）
+
+- [**データベース設計**](./40_design_detailed/42_db-schema-physical/database-design.md): ER図、テーブル定義（sessions/messages/settings）、永続化戦略、インデックス設計
+- [**PostgreSQL スキーマ概要**](./40_design_detailed/42_db-schema-physical/postgresql-schema-overview.md): PostgreSQLスキーマの概要、ER図、拡張機能と型定義
+- [**PostgreSQL テーブル定義**](./40_design_detailed/42_db-schema-physical/postgresql-schema-tables.md): PostgreSQLテーブルの詳細定義
+- [**PostgreSQL インデックス設計**](./40_design_detailed/42_db-schema-physical/postgresql-schema-indexes.md): PostgreSQLインデックス、制約、データ型の説明
+- [**PostgreSQL 完全なDDLスクリプト**](./40_design_detailed/42_db-schema-physical/postgresql-schema-ddl.md): 完全なDDLスクリプト、環境変数一覧、ヘルスチェック実装
+
+### 50_implementation/（実装ガイド - Procedures）
+
+開発者のための手順書・マニュアル。
+
+#### 51_guides/（ガイド）
+
+- [**実装検討事項**](./50_implementation/51_guides/considerations.md): 実装前に検討すべき技術的詳細（エラーハンドリング、レート制限、セキュリティなど）
+- [**プロンプト管理**](./50_implementation/51_guides/prompt-management.md): プロンプトファイルの管理方法とベストプラクティス
+- [**FAQ**](./50_implementation/51_guides/faq.md): セットアップ、開発環境、Bot動作、AI機能、セッション管理、デプロイメント、トラブルシューティングに関するよくある質問と回答
+- [**PostgreSQL クエリガイド**](./50_implementation/51_guides/postgresql-query-guide.md): PostgreSQLの使用例とクエリ
+- [**PostgreSQL 実装ガイド**](./50_implementation/51_guides/postgresql-implementation-guide.md): PostgreSQLのパフォーマンス考慮事項、将来の拡張性、実装上の注意事項とベストプラクティス、バックアップ戦略
+- [**会話定義**](./50_implementation/51_guides/conversation-definition.md): 会話定義の検討資料
+- [**会話状態LLM判定**](./50_implementation/51_guides/conversation-state-llm-judgment.md): 会話状態LLM判定の検討資料
+- [**介入改善**](./50_implementation/51_guides/intervention-improvements.md): 介入改善の検討資料
+- [**トークン最適化**](./50_implementation/51_guides/token-optimization.md): トークン最適化の検討資料
+- [**コード例**](./50_implementation/51_guides/examples/): 実装例
+  - [AI プロバイダーの使用例](./50_implementation/51_guides/examples/ai_provider_usage_example.md)
+  - [AI プロバイダーなしの実装例](./50_implementation/51_guides/examples/without_ai_provider.md)
+
+#### 52_procedures/（手順）
+
+- [**PostgreSQL 実装手順**](./50_implementation/52_procedures/postgresql-implementation.md): PostgreSQL実装の詳細手順
+- [**PostgreSQL セッションアーカイブ手順**](./50_implementation/52_procedures/postgresql-session-archiving.md): PostgreSQLセッションアーカイブの手順
+- [**PostgreSQL Embedding処理手順**](./50_implementation/52_procedures/postgresql-embedding-processing.md): PostgreSQL Embedding処理の手順
+- [**監査ログ実装計画**](./50_implementation/52_procedures/audit-logging-implementation-plan.md): 監査ログ機能の実装計画、データベーススキーマ、実装ステップ
+
+### 60_testing/（テスト - Verification）
+
+品質保証の計画と仕様。
+
+- [**テスト計画書**](./60_testing/test-plan.md): テスト戦略（単体・統合・システム・受入）、テスト項目、環境、手法
+- [**テスト仕様書**](./60_testing/test-specification.md): 具体的なテストケース、期待される結果、テストデータ
+- [**PostgreSQL テスト戦略**](./60_testing/postgresql-testing-strategy.md): PostgreSQLテストの戦略と計画
+
+### 90_operations/（運用保守 - Operations）
+
+リリース後の運用情報。
+
+- [**デプロイメント・運用**](./90_operations/deployment-operations.md): CI/CDパイプライン（GitHub Actions→GHCR→Watchtower）、デプロイ手順、運用フロー、監視
+- [**ヘルスチェック**](./90_operations/health-check.md): DockerヘルスチェックとHTTPエンドポイントの設定・使用方法
+- [**トラブルシューティング**](./90_operations/troubleshooting.md): よくある問題（Discord接続、APIエラー、DB問題、パフォーマンス、デプロイメント）と解決方法
 
 ---
 
@@ -135,181 +150,208 @@
 ### 初めての方
 
 1. **[Getting Started](./getting-started.md)**: 開発環境のセットアップ
-2. **[要件概要](./requirements/overview.md)**: プロジェクトの目的と全体像を把握
-3. **[システム構成図](./architecture/system-architecture.md)**: システムアーキテクチャを理解
+2. **[要件概要](./10_requirements/11_business-reqs/overview.md)**: プロジェクトの目的と全体像を把握
+3. **[システム構成図](./20_architecture/21_system-arch/system-architecture.md)**: システムアーキテクチャを理解
 
 ### 開発を始める方
 
-1. **[実装ロードマップ](./implementation/roadmap.md)**: 段階的な実装計画を確認
-2. **[ADR](./architecture/adr/)**: 重要な技術的決定の背景を理解
-3. **[実装検討事項](./implementation/considerations.md)**: 実装上の注意点を確認
-4. **[プロジェクト管理](./requirements/project-management.md)**: 現在のスプリントとタスクを確認
+1. **[実装ロードマップ](./00_planning/roadmap.md)**: 段階的な実装計画を確認
+2. **[ADR](./20_architecture/22_adrs/)**: 重要な技術的決定の背景を理解
+3. **[実装検討事項](./50_implementation/51_guides/considerations.md)**: 実装上の注意点を確認
+4. **[プロジェクト管理](./00_planning/project-management.md)**: 現在のスプリントとタスクを確認
 
 ### 設計を確認する方
 
-1. **[基本設計書](./architecture/basic-design.md)**: システムの基本設計
-2. **[詳細設計書](./architecture/detailed-design.md)**: モジュール・関数の詳細
-3. **[データベース設計](./architecture/database-design.md)**: データモデルとスキーマ
-4. **[API 仕様書](./specifications/api-specification.md)**: API インターフェース
+1. **[基本設計書](./20_architecture/21_system-arch/basic-design.md)**: システムの基本設計
+2. **[詳細設計書](./40_design_detailed/41_logic/detailed-design.md)**: モジュール・関数の詳細
+3. **[データベース設計](./40_design_detailed/42_db-schema-physical/database-design.md)**: データモデルとスキーマ
+4. **[API 仕様書](./30_design_basic/api-specification.md)**: APIインターフェース
 
 ### 実装する方
 
-1. **[コマンド仕様書](./specifications/command-specification.md)**: 実装する機能の仕様
-2. **[イベント処理仕様書](./specifications/event-specification.md)**: イベント処理の仕様
-3. **[コントリビューションガイド](./development/contributing.md)**: コーディング規約とワークフロー
+1. **[コマンド仕様書](./30_design_basic/command-specification.md)**: 実装する機能の仕様
+2. **[イベント処理仕様書](./30_design_basic/event-specification.md)**: イベント処理の仕様
+3. **[実装ガイド](./50_implementation/51_guides/)**: 実装上のガイドライン
 
 ### テストする方
 
-1. **[テスト計画書](./testing/test-plan.md)**: テスト戦略
-2. **[テスト仕様書](./testing/test-specification.md)**: テストケース
-3. **[コントリビューションガイド - テスト](./development/contributing.md#テストの書き方)**: テストの書き方
+1. **[テスト計画書](./60_testing/test-plan.md)**: テスト戦略
+2. **[テスト仕様書](./60_testing/test-specification.md)**: テストケース
 
 ### デプロイ・運用する方
 
-1. **[デプロイメント・運用](./operations/deployment-operations.md)**: デプロイ手順
-2. **[システム構成図](./architecture/system-architecture.md)**: インフラ構成
-3. **[トラブルシューティング](./operations/troubleshooting.md)**: 問題解決ガイド
+1. **[デプロイメント・運用](./90_operations/deployment-operations.md)**: デプロイ手順
+2. **[システム構成図](./20_architecture/21_system-arch/system-architecture.md)**: インフラ構成
+3. **[トラブルシューティング](./90_operations/troubleshooting.md)**: 問題解決ガイド
 
 ### 困ったときは
 
-1. **[FAQ](./development/faq.md)**: よくある質問
-2. **[トラブルシューティング](./operations/troubleshooting.md)**: 具体的な問題と解決方法
-3. **GitHub Issues**: 質問や報告（注: GitHub リポジトリ URL は実際の組織名/ユーザー名に置き換えてください）
+1. **[FAQ](./50_implementation/51_guides/faq.md)**: よくある質問
+2. **[トラブルシューティング](./90_operations/troubleshooting.md)**: 具体的な問題と解決方法
+3. **GitHub Issues**: 質問や報告（注: GitHubリポジトリURLは実際の組織名/ユーザー名に置き換えること）
 
 ---
 
-## ドキュメント構造
+## ドキュメント構造（Vモデル準拠）
 
 ```text
-docs/
+docs_new/
 ├── README.md                          # このファイル（ドキュメント全体のナビゲーション）
 ├── getting-started.md                 # 5分で始める開発環境セットアップ
 │
-├── requirements/                      # 要件定義
-│   ├── overview.md                    # 目的、背景、スコープ、制約（必読）
-│   ├── persona-requirements.md        # Botペルソナ定義、コミュニケーション要件（必読）
-│   ├── functional-requirements.md     # 機能要件・非機能要件の詳細
-│   ├── conversation-triggers.md       # 4つの会話方式の詳細説明
-│   ├── user-stories.md                # ユーザー視点の機能記述
-│   ├── use-cases.md                   # 詳細なユースケース
-│   └── project-management.md          # WBS、バックログ、スプリント計画
+├── 00_planning/                       # 企画・計画
+│   ├── project-management.md          # WBS、バックログ、スプリント計画
+│   ├── roadmap.md                     # 11段階実装計画（実装開始前必読）
+│   ├── future-features-review.md      # 将来機能レビュー
+│   └── phases/                        # フェーズ別実装計画
+│       ├── phase01.md                # Phase 1: MVP実装ステップ（完了）
+│       ├── phase02.md                # Phase 2: NASデプロイ（完了）
+│       ├── phase03.md                # Phase 3: CI/CD、テスト（完了）
+│       ├── phase04.md                # Phase 4: メッセージ長制限（完了）
+│       ├── phase05.md                # Phase 5: スレッド型、聞き耳型（完了）
+│       ├── phase06.md                # Phase 6: レート制限、コマンド（完了）
+│       ├── phase07.md                # Phase 7: aiosqlite移行（完了）
+│       ├── phase08.md                # Phase 8: PostgreSQL移行
+│       └── phase11.md                # Phase 11: 完全リファクタリング
 │
-├── architecture/                      # アーキテクチャ
-│   ├── system-architecture.md         # システム構成、技術スタック、環境変数（必読）
-│   ├── basic-design.md                # レイヤー構成、モジュール設計
-│   ├── detailed-design.md             # クラス・メソッド詳細仕様
-│   ├── database-design.md             # ER図、テーブル定義、インデックス設計
-│   └── adr/                           # Architecture Decision Records
+├── 10_requirements/                   # 要件定義
+│   ├── 11_business-reqs/              # ビジネス要件
+│   │   ├── overview.md                # 目的、背景、スコープ、制約（必読）
+│   │   ├── persona-requirements.md    # Botペルソナ定義、コミュニケーション要件（必読）
+│   │   ├── user-stories.md            # ユーザー視点の機能記述
+│   │   └── use-cases.md               # 詳細なユースケース
+│   └── 12_system-reqs/                # システム要件
+│       ├── functional-requirements.md # 機能要件・非機能要件の詳細
+│       ├── conversation-triggers.md   # 4つの会話方式の詳細説明
+│       ├── features-list.md           # 機能一覧
+│       └── dashboard-options.md       # ダッシュボードオプション
+│
+├── 20_architecture/                   # アーキテクチャ
+│   ├── 21_system-arch/                # システム構成
+│   │   ├── system-architecture.md     # システム構成、技術スタック、環境変数（必読）
+│   │   └── basic-design.md            # レイヤー構成、モジュール設計
+│   └── 22_adrs/                       # Architecture Decision Records
 │       ├── README.md                  # ADRの目的と作成方法
 │       ├── 0001-use-python-3-14.md    # Python 3.14採用理由
 │       ├── 0002-litellm-multi-provider-strategy.md  # LiteLLMマルチプロバイダー戦略
 │       ├── 0003-use-sqlite.md         # SQLite採用理由
-│       ├── 0004-hybrid-session-management.md  # ハイブリッドセッション管理の採用理由
+│       ├── 0004-hybrid-session-management.md  # ハイブリッドセッション管理
 │       ├── 0005-four-conversation-triggers.md  # 4つの会話の契機
-│       └── 0006-migrate-to-aiosqlite.md  # aiosqliteへの移行
+│       ├── 0006-migrate-to-aiosqlite.md  # aiosqliteへの移行
+│       ├── 0007-migrate-to-postgresql.md  # PostgreSQLへの移行
+│       ├── middleware-selection.md     # ミドルウェア選定書
+│       ├── litellm-necessity-analysis.md  # LiteLLM必要性分析
+│       ├── llm-provider-comparison.md # LLMプロバイダー比較
+│       ├── eavesdrop-judge-model-comparison.md  # 聞き耳型判定モデル比較
+│       └── audit-logging-considerations.md  # 監査ログ検討資料
 │
-├── specifications/                    # 仕様書
+├── 30_design_basic/                    # 基本設計/外部設計
 │   ├── api-specification.md           # Discord/Claude API仕様
 │   ├── command-specification.md       # スラッシュコマンド仕様
 │   ├── event-specification.md         # イベント処理フロー
 │   ├── discord-message-formatting.md  # Discord メッセージフォーマット仕様
 │   └── eavesdrop-specification.md     # 聞き耳型機能仕様
 │
-├── implementation/                    # 実装
-│   ├── roadmap.md                     # 11段階実装計画（実装開始前必読）
-│   ├── considerations.md              # 実装上の検討事項
-│   ├── middleware-selection.md        # 使用技術の選定理由
-│   ├── audit-logging-considerations.md  # 監査ログ検討資料
-│   ├── audit-logging-implementation-plan.md  # 監査ログ実装計画
-│   ├── knowledge-base-design.md       # 知識ベース設計
-│   ├── conversation_definition.md     # 会話定義の検討資料
-│   ├── conversation_state_llm_judgment.md  # 会話状態LLM判定の検討資料
-│   ├── intervention_improvements.md   # 介入改善の検討資料
-│   ├── token_optimization.md          # トークン最適化の検討資料
-│   └── phases/                        # フェーズ別実装計画
-│       ├── phase01.md                 # Phase 1: MVP実装ステップ（完了）
-│       ├── phase02.md                  # Phase 2: NASデプロイ（Docker化・24時間稼働）（完了）
-│       ├── phase03.md                  # Phase 3: CI/CD、テスト、コード品質（完了）
-│       ├── phase04.md                  # Phase 4: メッセージ長制限、バッチ同期（完了）
-│       ├── phase05.md                  # Phase 5: スレッド型、聞き耳型（完了）
-│       └── phase06.md                  # Phase 6: レート制限、コマンド、エラーハンドリング強化（完了）
+├── 40_design_detailed/                 # 詳細設計/内部設計
+│   ├── 41_logic/                      # ロジック設計
+│   │   ├── detailed-design.md         # クラス・メソッド詳細仕様
+│   │   └── knowledge-base-design.md   # 知識ベース設計
+│   └── 42_db-schema-physical/          # データベーススキーマ
+│       ├── database-design.md         # ER図、テーブル定義、インデックス設計
+│       ├── postgresql-schema-overview.md  # PostgreSQLスキーマ概要
+│       ├── postgresql-schema-tables.md    # PostgreSQLテーブル定義
+│       ├── postgresql-schema-indexes.md   # PostgreSQLインデックス設計
+│       └── postgresql-schema-ddl.md       # PostgreSQL完全なDDLスクリプト
 │
-├── testing/                           # テスト
+├── 50_implementation/                  # 実装ガイド
+│   ├── 51_guides/                     # ガイド
+│   │   ├── considerations.md          # 実装上の検討事項
+│   │   ├── prompt-management.md       # プロンプト管理
+│   │   ├── faq.md                     # よくある質問と回答
+│   │   ├── postgresql-query-guide.md  # PostgreSQLクエリガイド
+│   │   ├── postgresql-implementation-guide.md  # PostgreSQL実装ガイド
+│   │   ├── conversation-definition.md # 会話定義の検討資料
+│   │   ├── conversation-state-llm-judgment.md  # 会話状態LLM判定の検討資料
+│   │   ├── intervention-improvements.md  # 介入改善の検討資料
+│   │   ├── token-optimization.md      # トークン最適化の検討資料
+│   │   └── examples/                  # コード例
+│   │       ├── ai_provider_usage_example.md
+│   │       └── without_ai_provider.md
+│   └── 52_procedures/                  # 手順
+│       ├── postgresql-implementation.md  # PostgreSQL実装手順
+│       ├── postgresql-session-archiving.md  # PostgreSQLセッションアーカイブ手順
+│       ├── postgresql-embedding-processing.md  # PostgreSQL Embedding処理手順
+│       └── audit-logging-implementation-plan.md  # 監査ログ実装計画
+│
+├── 60_testing/                         # テスト
 │   ├── test-plan.md                   # テスト戦略と計画
-│   └── test-specification.md          # テストケースと期待結果
+│   ├── test-specification.md          # テストケースと期待結果
+│   └── postgresql-testing-strategy.md # PostgreSQLテスト戦略
 │
-├── operations/                        # 運用
-│   ├── deployment-operations.md       # CI/CDパイプラインと監視
-│   ├── health-check.md                # ヘルスチェックの設定・使用方法
-│   └── troubleshooting.md             # 問題解決ガイド
+└── 90_operations/                      # 運用保守
+    ├── deployment-operations.md       # CI/CDパイプラインと監視
+    ├── health-check.md                 # ヘルスチェックの設定・使用方法
+    └── troubleshooting.md              # 問題解決ガイド
 │
-├── examples/                          # コード例
-│   ├── ai_provider_usage_example.md   # AI プロバイダーの使用例
-│   └── without_ai_provider.md          # AI プロバイダーなしの実装例
-└── development/                       # 開発者向け
-    ├── contributing.md                # 開発フロー、規約、PRガイドライン
-    ├── faq.md                         # よくある質問と回答
-    ├── litellm-necessity-analysis.md  # LiteLLM必要性の検討資料
-    ├── llm-provider-comparison.md     # LLMプロバイダー比較資料
-    ├── eavesdrop-judge-model-comparison.md  # 聞き耳型判定モデル比較
-    └── prompt-management.md          # プロンプト管理
+└── XX_temporary/                       # 一時ドキュメント置き場（⚠️ 整理が必要）
+    └── README.md                       # 一時ドキュメントの使い方と整理方法
 ```
 
 ### ディレクトリ説明
 
-**requirements/** - プロジェクトの「何を作るか」を定義
+**00_planning/** - プロジェクトの「方向性」を定義
 
-- プロジェクトの目的、機能要件、非機能要件、制約条件
-- Bot のペルソナ定義とコミュニケーション要件（場面緘黙支援のための設計）
-- ユーザーストーリーとユースケース
 - プロジェクト管理（WBS、バックログ、スプリント計画）
+- 実装ロードマップ（段階的な実装計画）
+- フェーズ別実装計画（各フェーズの詳細ステップ）
 
-**architecture/** - システムの「どう作るか」を定義
+**10_requirements/** - プロジェクトの「何を作るか」を定義
 
-- システム全体の構成と技術スタック
-- モジュール設計とクラス設計
-- データベース設計
-- 重要な技術的決定（ADR）
+- ビジネス要件: プロジェクトの目的、機能要件、Botのペルソナ定義、ユーザーストーリー、ユースケース
+- システム要件: 機能要件・非機能要件の詳細、会話の契機の詳細
 
-**specifications/** - インターフェースの「詳細仕様」を定義
+**20_architecture/** - システムの「どう作るか」を定義
 
-- 外部 API（Discord、Claude）の使用方法
-- 内部 API の仕様
+- システム構成: システム全体の構成と技術スタック、モジュール設計
+- ADR: 重要な技術的決定（技術選定の理由、比較検討、却下された案）
+
+**30_design_basic/** - インターフェースの「詳細仕様」を定義
+
+- 外部API（Discord、Claude）の使用方法
+- 内部APIの仕様
 - イベント処理とコマンド処理の詳細
 
-**implementation/** - 実装の「手順と計画」を定義
+**40_design_detailed/** - システムの「内側」の構造を定義
 
-- 段階的な実装ロードマップ
-- 各フェーズの詳細な実装計画（ステップバイステップ）
-- 実装上の注意点と技術選定理由
+- ロジック設計: 各モジュールのクラス・メソッド仕様、パラメータ、戻り値、依存関係
+- データベーススキーマ: ER図、テーブル定義、インデックス設計
 
-**testing/** - テストの「計画と仕様」を定義
+**50_implementation/** - 実装の「手順と計画」を定義
+
+- ガイド: 実装上の注意点と技術選定理由、コーディング規約、プロンプト管理手法
+- 手順: 環境構築手順、マイグレーション実行手順、デプロイ手順
+
+**60_testing/** - テストの「計画と仕様」を定義
 
 - テスト戦略（単体・統合・E2E）
 - 具体的なテストケース
 
-**operations/** - 運用の「手順と対処法」を定義
+**90_operations/** - 運用の「手順と対処法」を定義
 
 - デプロイ方法（CI/CD）
 - トラブルシューティング
 
-**development/** - 開発者の「参加方法」を定義
+**XX_temporary/** - 一時的なドキュメントのステージングエリア
 
-- コーディング規約とワークフロー
-- FAQ（開発・運用に関する質問）
+- 一時的なメモ、レビュー、検討資料を置く場所
+- 定期的に評価し、適切なVモデル構造のフォルダに分類・分割・統合する
+- 詳細は [XX_temporary/README.md](./XX_temporary/README.md) を参照
 
 ---
 
 ## ドキュメントの更新
 
-ドキュメントは随時更新されます。最新の情報については、各ドキュメントの「最終更新日」を確認してください。
-
-### ドキュメント貢献
-
-ドキュメントの改善も大歓迎です！誤字脱字、わかりにくい説明、
-不足している情報などがあれば、
-[コントリビューションガイド](./development/contributing.md)を参照して
-Pull Request を作成してください。
+ドキュメントは随時更新される。最新の情報については、各ドキュメントの「最終更新日」を確認すること。
 
 ---
 
@@ -317,26 +359,21 @@ Pull Request を作成してください。
 
 - **プロジェクト名**: Kotonoha（コトノハ）Discord Bot
 - **目的**: 場面緘黙自助グループの運営支援
-- **技術スタック**: Python 3.14, discord.py, Claude API (LiteLLM), SQLite, Docker
+- **技術スタック**: Python 3.14, discord.py, Claude API (LiteLLM), PostgreSQL 18 + pgvector, Docker
 - **ホスティング**: Synology NAS + Docker + Watchtower
 - **CI/CD**: GitHub Actions → GHCR → Watchtower
 
 ---
 
-**作成日**: 2026 年 1 月 14 日  
-**最終更新日**: 2026 年 1 月 15 日  
-**バージョン**: 2.2  
+**作成日**: 2026年1月19日  
+**最終更新日**: 2026年1月19日  
+**バージョン**: 3.0（Vモデル準拠版）  
 **作成者**: kotonoha-bot 開発チーム
 
 ## 更新履歴
 
-- **v2.2** (2026-01-15): 実際のフォルダ・ファイル構成に基づいて更新
-  - ADR-0006（aiosqlite への移行）を追加
-  - 聞き耳型機能仕様書を追加
-  - 実装ロードマップを 11 段階に更新
-  - Phase 3-6 の実装計画を追加
-  - 監査ログ実装計画、知識ベース設計を追加
-  - 開発者向けドキュメント（聞き耳型判定モデル比較、プロンプト管理）を追加
-  - コード例ディレクトリを追加
-  - 実装検討資料（会話定義、会話状態判定、介入改善、トークン最適化）を追加
-- **v2.1** (2026-01-14): 初版リリース
+- **v3.0** (2026-01-19): Vモデル準拠の新構造に完全移行
+  - ドキュメントをVモデル構造（00_planning 〜 90_operations）に再配置
+  - 巨大ファイル（postgresql-schema-design.md）を機能単位で分割
+  - リンクを新構造に更新
+  - 相互参照リンクを追加
