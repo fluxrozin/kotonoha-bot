@@ -167,18 +167,19 @@ async def test_session_archiving_with_embedding_processing(
     セッションのアーカイブ→Embedding処理→ソースステータス更新の一連の流れを確認
     """
     # 1. セッションの作成とアーカイブ
+    # ⚠️ 重要: kb_min_session_length（デフォルト30文字）を超える長さのメッセージが必要
     session = ChatSession(
         session_key="test:session:full_flow:001",
         session_type="mention",
         messages=[
             Message(
                 role=MessageRole.USER,
-                content="フルフローテスト",
+                content="フルフローテストです。セッションアーカイブとEmbedding処理の統合テストを実行します。",
                 timestamp=datetime.now(UTC) - timedelta(hours=2),
             ),
             Message(
                 role=MessageRole.ASSISTANT,
-                content="了解しました",
+                content="了解しました。統合テストのフローを確認します。",
                 timestamp=datetime.now(UTC) - timedelta(hours=2),
             ),
         ],

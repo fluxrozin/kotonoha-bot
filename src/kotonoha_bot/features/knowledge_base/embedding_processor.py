@@ -186,9 +186,12 @@ class EmbeddingProcessor:
 
                         # ⚠️ 改善（データ整合性）: DLQへの移動ロジックを追加
                         if new_retry_count >= MAX_RETRY_COUNT:
+                            # retry_countを更新したchunkを渡す
+                            chunk_with_updated_retry = dict(chunk)
+                            chunk_with_updated_retry["retry_count"] = new_retry_count
                             await self._move_to_dlq(
                                 cast(asyncpg.Connection, conn),
-                                dict(chunk),
+                                chunk_with_updated_retry,
                                 e,
                             )
 

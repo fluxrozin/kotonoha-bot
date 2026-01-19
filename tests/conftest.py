@@ -70,12 +70,18 @@ async def _cleanup_test_data(db: PostgreSQLDatabase):
     最後にロールバックする方式（pytest-asyncio のフィクスチャでロールバックパターン）を採用すると、
     より高速で安全です。
     """
-    assert db.pool is not None, "Database pool must be initialized"
-    async with db.pool.acquire() as conn, conn.transaction():
-        # 外部キー制約があるため、順序に注意
-        await conn.execute("TRUNCATE knowledge_chunks CASCADE")
-        await conn.execute("TRUNCATE knowledge_sources CASCADE")
-        await conn.execute("TRUNCATE sessions CASCADE")
+    # プールが閉じられている場合はクリーンアップをスキップ
+    if db.pool is None:
+        return
+    try:
+        async with db.pool.acquire() as conn, conn.transaction():
+            # 外部キー制約があるため、順序に注意
+            await conn.execute("TRUNCATE knowledge_chunks CASCADE")
+            await conn.execute("TRUNCATE knowledge_sources CASCADE")
+            await conn.execute("TRUNCATE sessions CASCADE")
+    except Exception:
+        # プールが閉じられている場合など、エラーを無視
+        pass
 
 
 @pytest_asyncio.fixture
@@ -189,18 +195,19 @@ async def postgres_db_with_rollback():
 
     # 各テストケースごとに新しいトランザクションを開始
     assert db.pool is not None, "Database pool must be initialized"
-    conn = await db.pool.acquire()
-    tx = conn.transaction()
-    await tx.start()
+    # ⚠️ 重要: async withを使用して確実に接続をクローズする
+    async with db.pool.acquire() as conn:
+        tx = conn.transaction()
+        await tx.start()
 
-    try:
-        yield (db, conn)
-    finally:
-        # テスト終了時にロールバック（データを元に戻す）
-        await tx.rollback()
-        if db.pool is not None:
-            await db.pool.release(conn)
-        await db.close()
+        try:
+            yield (db, conn)
+        finally:
+            # テスト終了時にロールバック（データを元に戻す）
+            await tx.rollback()
+
+    # プールをクローズ
+    await db.close()
 
 
 @pytest.fixture

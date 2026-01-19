@@ -230,9 +230,13 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         )
 
     async def close(self) -> None:
-        """データベース接続のクローズ"""
+        """データベース接続のクローズ
+        
+        asyncpgのpool.close()は、すべての接続が確実にクローズされるまで待機します。
+        """
         if self.pool:
             await self.pool.close()
+            self.pool = None
 
     async def save_session(self, session: ChatSession) -> None:
         """セッションを保存（トランザクション付き）"""
