@@ -3,9 +3,11 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    # すべてのブランチでCIを実行
+    branches: ["**"]
   pull_request:
-    branches: [main]
+    # すべてのブランチからのPRでCIを実行
+    branches: ["**"]
 
 env:
   PYTHON_VERSION: "3.14"

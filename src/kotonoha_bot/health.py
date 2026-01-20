@@ -8,7 +8,7 @@ from threading import Thread
 
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from .config import Config
+from .config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,8 @@ class HealthCheckServer:
         if port is not None:
             self.port: int = port
         else:
-            self.port: int = Config.HEALTH_CHECK_PORT
+            config = get_config()
+            self.port: int = config.HEALTH_CHECK_PORT
         self.server: HTTPServer | None = None
         self.thread: Thread | None = None
         self._get_status: Callable[[], dict] | None = None
@@ -110,7 +111,8 @@ class HealthCheckServer:
 
     def start(self) -> None:
         """サーバーを開始."""
-        if not Config.HEALTH_CHECK_ENABLED:
+        config = get_config()
+        if not config.HEALTH_CHECK_ENABLED:
             logger.info("Health check server is disabled")
             return
 

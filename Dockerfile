@@ -25,9 +25,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # プロジェクトファイルをコピー
 COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
-COPY prompts/ ./prompts/
 # Phase 10: 新しいフォルダ構造（src/kotonoha_bot/）に対応
-# prompts/ は utils/prompts.py で読み込まれるため必要
+# prompts/ は src/kotonoha_bot/prompts/ に含まれているため、src/ のコピーで十分
 
 # 依存関係をインストール（本番用のみ）
 RUN uv sync --frozen --no-dev
@@ -56,7 +55,7 @@ RUN groupadd -r -g 1000 botuser && \
 # ビルドステージからアプリケーションと依存関係をコピー
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/src /app/src
-COPY --from=builder /app/prompts /app/prompts
+# prompts/ は src/kotonoha_bot/prompts/ に含まれているため、src/ のコピーで十分
 COPY scripts/ /app/scripts/
 COPY alembic.ini /app/alembic.ini
 COPY alembic/ /app/alembic/

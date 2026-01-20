@@ -416,10 +416,9 @@
 
 **実装内容**:
 
-- [ ] コア機能の整理（`core/` ディレクトリ）
 - [ ] handlers.py の分割（`bot/handlers/` ディレクトリ）
 - [ ] サービス層の整理（`services/` ディレクトリ）
-- [ ] データアクセス層の整理（`data/` ディレクトリ）
+- [ ] データアクセス層の整理（`db/` ディレクトリ）
 - [ ] 外部サービス層の整理（`external/` ディレクトリ）
 - [ ] 機能別モジュールの整理（`features/` ディレクトリ）
 - [ ] ユーティリティの整理（`utils/` ディレクトリ）
@@ -533,7 +532,7 @@
   - [ ] `reporter.py`: コストレポート生成
   - [ ] `budget.py`: 予算管理機能（オプション）
 - [ ] `src/kotonoha_bot/services/cost_tracking.py`: コスト追跡サービスのビジネスロジック
-- [ ] `src/kotonoha_bot/data/models.py`: コストデータモデルを追加
+- [ ] `src/kotonoha_bot/db/models.py`: コストデータモデルを追加
 
 **機能**:
 
@@ -568,8 +567,8 @@
 - [ ] `src/kotonoha_bot/features/audit/` ディレクトリを新規作成
   - [ ] `logger.py`: `AuditLogger` クラス（監査ログの記録）
   - [ ] `reporter.py`: 監査レポート生成
-- [ ] `src/kotonoha_bot/data/models.py`: 監査ログデータモデルを追加
-- [ ] `src/kotonoha_bot/data/database.py`: 監査ログテーブルの作成と操作メソッドを追加
+- [ ] `src/kotonoha_bot/db/models.py`: 監査ログデータモデルを追加
+- [ ] `src/kotonoha_bot/db/postgres.py`: 監査ログテーブルの作成と操作メソッドを追加
 - [ ] `src/kotonoha_bot/bot/handlers/` の各ハンドラーで監査ログを記録（非同期で実行）
 
 **機能**:
@@ -599,8 +598,8 @@
 
 - [ ] `src/kotonoha_bot/commands/settings.py`: `/settings` コマンドの実装
 - [ ] `src/kotonoha_bot/services/settings.py`: 設定管理サービスのビジネスロジック
-- [ ] `src/kotonoha_bot/data/models.py`: 設定データモデルを追加
-- [ ] `src/kotonoha_bot/data/database.py`: 設定の永続化メソッドを追加
+- [ ] `src/kotonoha_bot/db/models.py`: 設定データモデルを追加
+- [ ] `src/kotonoha_bot/db/postgres.py`: 設定の永続化メソッドを追加
 
 **設定項目**:
 
@@ -629,7 +628,7 @@
 
 - [ ] `src/kotonoha_bot/features/monitoring/performance.py`: パフォーマンス分析機能
 - [ ] `src/kotonoha_bot/services/performance.py`: パフォーマンス分析サービスのビジネスロジック
-- [ ] `src/kotonoha_bot/data/models.py`: パフォーマンスメトリクスデータモデルを追加
+- [ ] `src/kotonoha_bot/db/models.py`: パフォーマンスメトリクスデータモデルを追加
 
 **機能**:
 
@@ -656,7 +655,7 @@
 
 **実装内容**:
 
-- [ ] `src/kotonoha_bot/core/logging.py` を拡張
+- [ ] `src/kotonoha_bot/config.py` のログ設定を拡張
   - [ ] 構造化ログ（JSON 形式）のサポート
   - [ ] ログ検索・フィルタリング機能
   - [ ] ログエクスポート機能
@@ -714,7 +713,7 @@
 
 - [ ] `src/kotonoha_bot/features/automation/backup.py`: バックアップ自動化機能
 - [ ] `src/kotonoha_bot/services/automation.py`: 自動化サービスのビジネスロジック
-- [ ] `src/kotonoha_bot/data/database.py`: バックアップ検証機能を追加
+- [ ] `src/kotonoha_bot/db/postgres.py`: バックアップ検証機能を追加
 
 **機能**:
 
@@ -744,7 +743,7 @@
 **実装内容**:
 
 - [ ] `src/kotonoha_bot/features/automation/optimization.py`: データベース最適化機能
-- [ ] `src/kotonoha_bot/data/database.py`: 最適化メソッドを追加（`VACUUM`, インデックス再構築など）
+- [ ] `src/kotonoha_bot/db/postgres.py`: 最適化メソッドを追加（`VACUUM`, インデックス再構築など）
 - [ ] `src/kotonoha_bot/services/automation.py`: 自動最適化のスケジューリング
 
 **機能**:
@@ -773,7 +772,7 @@
 **実装内容**:
 
 - [ ] `src/kotonoha_bot/features/audit/cost_calculator.py`: コスト計算機能
-- [ ] `src/kotonoha_bot/data/models.py`: コストデータモデルを追加
+- [ ] `src/kotonoha_bot/db/models.py`: コストデータモデルを追加
 - [ ] トークン数からコストを計算する実装
 
 **機能**:
@@ -813,7 +812,7 @@
   - [ ] `web_scraper.py`: ウェブコンテンツ取得機能
   - [ ] `content_integrator.py`: 統合コンテンツ管理機能
 - [ ] `src/kotonoha_bot/services/knowledge_base.py`: 知識ベースサービスのビジネスロジック
-- [ ] `src/kotonoha_bot/data/models.py`: 知識ベースデータモデルを追加
+- [ ] `src/kotonoha_bot/db/models.py`: 知識ベースデータモデルを追加
 
 **機能**:
 
@@ -852,7 +851,7 @@
   - [ ] `highlight_formatter.py`: ハイライトフォーマット機能
 - [ ] `src/kotonoha_bot/commands/summary.py`: 要約・ハイライトコマンド
 - [ ] `src/kotonoha_bot/services/summary.py`: 要約・ハイライトサービスのビジネスロジック
-- [ ] `src/kotonoha_bot/data/models.py`: 要約・ハイライトデータモデルの追加
+- [ ] `src/kotonoha_bot/db/models.py`: 要約・ハイライトデータモデルの追加
 
 **詳細**:
 
@@ -883,7 +882,7 @@
   - [ ] `priority_ranker.py`: 優先順位付け機能
 - [ ] `src/kotonoha_bot/services/agenda.py`: 議題サービスのビジネスロジック
 - [ ] `src/kotonoha_bot/commands/agenda.py`: 議題提案コマンド
-- [ ] `src/kotonoha_bot/data/models.py`: 議題データモデルの追加
+- [ ] `src/kotonoha_bot/db/models.py`: 議題データモデルの追加
 
 **機能**:
 
@@ -892,7 +891,7 @@
 - [ ] 議題の優先順位付け
 - [ ] 議題の提案・管理
 
-**詳細**: [将来実装予定機能の詳細レビュー](./phases/future_features_review.md)
+**詳細**: [将来実装予定機能の詳細レビュー](./phases/future-features-review.md)
 
 ---
 
@@ -913,7 +912,7 @@
   - [ ] `reaction_manager.py`: リアクション管理機能
 - [ ] `src/kotonoha_bot/bot/handlers/eavesdrop.py`: 聞き耳型ハンドラーの拡張
 - [ ] `src/kotonoha_bot/services/reaction.py`: リアクションサービスのビジネスロジック
-- [ ] `src/kotonoha_bot/data/models.py`: リアクション履歴データモデルの追加
+- [ ] `src/kotonoha_bot/db/models.py`: リアクション履歴データモデルの追加
 
 **詳細**:
 
@@ -941,7 +940,7 @@
   - [ ] `positive_feedback_generator.py`: ポジティブフィードバック生成機能
   - [ ] `weekly_summary.py`: 週次サマリー生成機能
 - [ ] `src/kotonoha_bot/services/feedback.py`: フィードバックサービスのビジネスロジック
-- [ ] `src/kotonoha_bot/data/models.py`: フィードバックデータモデルの追加
+- [ ] `src/kotonoha_bot/db/models.py`: フィードバックデータモデルの追加
 
 **機能**:
 
@@ -950,7 +949,7 @@
 - [ ] 週次サマリーの自動生成（場面緘黙支援を考慮した表現）
 - [ ] フィードバック履歴の管理
 
-**詳細**: [将来実装予定機能の詳細レビュー](./phases/future_features_review.md)
+**詳細**: [将来実装予定機能の詳細レビュー](./phases/future-features-review.md)
 
 ---
 
@@ -979,7 +978,7 @@
 - [ ] 自動言語検出
 - [ ] 翻訳品質の管理
 
-**詳細**: [将来実装予定機能の詳細レビュー](./phases/future_features_review.md)
+**詳細**: [将来実装予定機能の詳細レビュー](./phases/future-features-review.md)
 
 ---
 

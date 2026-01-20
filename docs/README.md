@@ -28,7 +28,7 @@
   - [Phase 9](./00_planning/phases/phase09.md): LiteLLM 削除、Anthropic SDK 直接使用への移行
   - [Phase 10](./00_planning/phases/phase10.md): 完全リファクタリング
   - [Phase 11](./00_planning/phases/phase11.md): ハイブリッド検索（pg_bigm）
-- [**将来機能レビュー**](./00_planning/future-features-review.md): 将来実装予定の機能のレビュー
+- [**将来機能レビュー**](./00_planning/phases/future-features-review.md): 将来実装予定の機能のレビュー
 
 ### 10_requirements/（要件定義 - Why & What）
 
@@ -206,7 +206,8 @@ docs_new/
 ├── 00_planning/                       # 企画・計画
 │   ├── project-management.md          # WBS、バックログ、スプリント計画
 │   ├── roadmap.md                     # 11段階実装計画（実装開始前必読）
-│   ├── future-features-review.md      # 将来機能レビュー
+│   ├── phases/
+│   │   ├── future-features-review.md  # 将来機能レビュー
 │   └── phases/                        # フェーズ別実装計画
 │       ├── phase01.md                # Phase 1: MVP実装ステップ（完了）
 │       ├── phase02.md                # Phase 2: NASデプロイ（完了）

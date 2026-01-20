@@ -42,7 +42,7 @@ def wait_for_server(port: int, max_retries: int = 20) -> None:
 @pytest.fixture
 def health_server(mock_config):
     """ヘルスチェックサーバーのフィクスチャ."""
-    with patch("kotonoha_bot.health.Config", mock_config):
+    with patch("kotonoha_bot.health.get_config", return_value=mock_config):
         # 利用可能なポートを見つける
         import socket
 
@@ -227,7 +227,7 @@ class TestHealthCheckServer:
 
     def test_init_without_port(self, mock_config):
         """ポートを指定しない場合、Config から取得する."""
-        with patch("kotonoha_bot.health.Config", mock_config):
+        with patch("kotonoha_bot.health.get_config", return_value=mock_config):
             server = HealthCheckServer()
             assert server.port == mock_config.HEALTH_CHECK_PORT
 
@@ -244,7 +244,7 @@ class TestHealthCheckServer:
         """ヘルスチェックが無効な場合、サーバーが起動しない."""
         mock_config.HEALTH_CHECK_ENABLED = False
 
-        with patch("kotonoha_bot.health.Config", mock_config):
+        with patch("kotonoha_bot.health.get_config", return_value=mock_config):
             server = HealthCheckServer(port=0)
             with patch("kotonoha_bot.health.logger") as mock_logger:
                 server.start()
