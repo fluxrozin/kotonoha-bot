@@ -165,9 +165,7 @@ async def _ensure_test_user_and_database() -> None:
 
             if not db_exists:
                 # テストデータベースを作成（所有者をテストユーザーに設定）
-                await conn.execute(
-                    f"CREATE DATABASE {test_database} OWNER {test_user}"
-                )
+                await conn.execute(f"CREATE DATABASE {test_database} OWNER {test_user}")
             else:
                 # 既存のデータベースの所有者を確認・更新
                 current_owner = await conn.fetchval(
