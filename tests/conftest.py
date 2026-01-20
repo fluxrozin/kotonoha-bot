@@ -225,12 +225,15 @@ def mock_embedding_provider():
     provider.generate_embedding = AsyncMock(return_value=[0.1] * 1536)
     provider.get_dimension = lambda: 1536
 
-    # ⚠️ 改善: バッチ処理のモック
+    # ⚠️ 改善: バッチ処理のモック（AsyncMockを使用して非同期メソッドとして正しく扱う）
     async def generate_embeddings_batch(texts: list[str]) -> list[list[float]]:
         """バッチ処理のモック"""
         return [[0.1] * 1536 for _ in texts]
 
-    provider.generate_embeddings_batch = generate_embeddings_batch
+    # AsyncMockとして設定することで、await可能なコルーチンとして正しく扱われる
+    provider.generate_embeddings_batch = AsyncMock(
+        side_effect=generate_embeddings_batch
+    )
 
     # ⚠️ 改善: エラーケースのモック（必要に応じて使用）
     provider.generate_embedding_error = AsyncMock(side_effect=Exception("API Error"))
@@ -260,3 +263,23 @@ def mock_postgres_pool():
     conn.transaction = MagicMock()
 
     return pool
+
+
+@pytest_asyncio.fixture(scope="function")
+async def session_manager(postgres_db):
+    """SessionManager のフィクスチャ（PostgreSQL使用）
+
+    Note:
+        scope="function" を明示的に指定することで、テストごと（関数ごと）に
+        作成・破棄されることを保証します。scope="session" にしないよう注意してください
+        （非同期テストでハマる原因No.1です）。
+    """
+    from kotonoha_bot.config import get_config
+    from kotonoha_bot.services.session import SessionManager
+
+    config = get_config()
+    manager = SessionManager(db=postgres_db, config=config)
+    manager.sessions = {}  # セッション辞書をクリア
+    await manager.initialize()
+    yield manager
+    # クリーンアップ処理（必要に応じて）

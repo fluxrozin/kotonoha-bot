@@ -1,4 +1,4 @@
-"""OpenAI Embedding API プロバイダー"""
+"""OpenAI Embedding API プロバイダー."""
 
 import os
 
@@ -17,9 +17,17 @@ logger = structlog.get_logger(__name__)
 
 
 class OpenAIEmbeddingProvider(EmbeddingProvider):
-    """OpenAI text-embedding-3-small を使用（リトライロジック付き）"""
+    """OpenAI text-embedding-3-small を使用（リトライロジック付き）."""
 
     def __init__(self, api_key: str | None = None):
+        """OpenAIEmbeddingProvider を初期化.
+
+        Args:
+            api_key: OpenAI API キー（省略時は環境変数 OPENAI_API_KEY を使用）
+
+        Raises:
+            ValueError: API キーが設定されていない場合
+        """
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY is not set")
@@ -34,7 +42,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         reraise=True,
     )
     async def generate_embedding(self, text: str) -> list[float]:
-        """テキストからベクトルを生成（リトライロジック付き）
+        """テキストからベクトルを生成（リトライロジック付き）.
 
         Args:
             text: ベクトル化するテキスト
@@ -68,7 +76,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             raise
 
     async def generate_embeddings_batch(self, texts: list[str]) -> list[list[float]]:
-        """複数のテキストをバッチでベクトル化（API効率化）
+        """複数のテキストをバッチでベクトル化（API効率化）.
 
         ⚠️ 改善: OpenAI Embedding APIはバッチリクエストをサポートしているため、
         個別にAPIを呼ぶのではなく、バッチで一度に送信することで効率化します。
@@ -109,5 +117,5 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             raise
 
     def get_dimension(self) -> int:
-        """ベクトルの次元数（1536）"""
+        """ベクトルの次元数（1536）."""
         return self.dimension

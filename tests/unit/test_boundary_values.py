@@ -358,7 +358,7 @@ async def test_session_archiver_min_session_length_boundary(
     """SessionArchiverの最小セッション長さ境界値テスト"""
 
     from kotonoha_bot.config import settings
-    from kotonoha_bot.session.models import ChatSession, Message, MessageRole
+    from kotonoha_bot.db.models import ChatSession, Message, MessageRole
 
     min_length = settings.kb_min_session_length
 
@@ -445,7 +445,7 @@ async def test_chunk_overlap_boundary(postgres_db, mock_embedding_provider):
     """チャンク化のオーバーラップ境界値テスト"""
     from datetime import timedelta
 
-    from kotonoha_bot.session.models import ChatSession, Message, MessageRole
+    from kotonoha_bot.db.models import ChatSession, Message, MessageRole
 
     # オーバーラップがチャンクサイズ以上の場合のテスト
     # （実際には設定で制限されているが、境界値として確認）

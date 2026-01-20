@@ -1,1 +1,1 @@
-"""Discord Bot関連モジュール"""
+"""Discord Bot関連モジュール."""

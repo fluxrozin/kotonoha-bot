@@ -1,4 +1,4 @@
-"""Embedding処理のバックグラウンドタスク"""
+"""Embedding処理のバックグラウンドタスク."""
 
 import asyncio
 import time
@@ -9,6 +9,7 @@ import asyncpg
 import structlog
 from discord.ext import tasks
 
+from ...config import settings
 from .metrics import (
     embedding_errors_counter,
     embedding_processed_counter,
@@ -24,7 +25,7 @@ logger = structlog.get_logger(__name__)
 
 
 class EmbeddingProcessor:
-    """Embedding処理を管理するクラス"""
+    """Embedding処理を管理するクラス."""
 
     def __init__(
         self,
@@ -34,11 +35,19 @@ class EmbeddingProcessor:
         batch_size: int | None = None,
         max_concurrent: int | None = None,
     ):
+        """EmbeddingProcessor を初期化.
+
+        Args:
+            db: PostgreSQLDatabase インスタンス
+            embedding_provider: EmbeddingProvider インスタンス
+            bot: Bot インスタンス（tasks.loop に必要）
+            batch_size: バッチサイズ（省略時は設定値を使用）
+            max_concurrent: 最大並行数（省略時は設定値を使用）
+        """
         self.db = db
         self.embedding_provider = embedding_provider
         self.bot = bot  # Botインスタンスを保存
         # 環境変数から設定を読み込み（デフォルト値あり）
-        from ...config import settings
 
         self.batch_size = batch_size or settings.kb_embedding_batch_size
         max_concurrent = max_concurrent or settings.kb_embedding_max_concurrent
@@ -66,7 +75,7 @@ class EmbeddingProcessor:
 
     @tasks.loop(minutes=1)  # デフォルト値（start()で動的に変更される）
     async def process_pending_embeddings(self):
-        """pending状態のチャンクをバッチでベクトル化
+        """pending状態のチャンクをバッチでベクトル化.
 
         ⚠️ 重要: エラーハンドリングを実装し、例外が発生してもタスクが継続するようにする
         """
@@ -78,13 +87,13 @@ class EmbeddingProcessor:
 
     @process_pending_embeddings.error
     async def process_pending_embeddings_error(self, error: BaseException):
-        """タスクエラー時のハンドラ"""
+        """タスクエラー時のハンドラ."""
         logger.error(f"Embedding task error: {error}", exc_info=True)
         # 必要に応じてアラート送信など
 
     @process_pending_embeddings.before_loop
     async def before_process_embeddings(self):
-        """タスク開始前の待機"""
+        """タスク開始前の待機."""
         if self.bot:
             await self.bot.wait_until_ready()
         logger.info(
@@ -93,7 +102,7 @@ class EmbeddingProcessor:
         )
 
     async def _process_pending_embeddings_impl(self):
-        """Embedding処理の実装（エラーハンドリング分離）"""
+        """Embedding処理の実装（エラーハンドリング分離）."""
         # 競合状態対策: asyncio.Lockを使用
         if self._lock.locked():
             logger.debug("Embedding processing already in progress, skipping...")
@@ -106,7 +115,6 @@ class EmbeddingProcessor:
             logger.info("Starting embedding processing...")
 
             # ⚠️ 重要: Dead Letter Queue対応 - retry_countを考慮
-            from ...config import settings
             from ...constants import SearchConstants
 
             MAX_RETRY_COUNT = settings.kb_embedding_max_retry
@@ -252,7 +260,6 @@ class EmbeddingProcessor:
                     conn.transaction(),
                 ):
                     # ⚠️ 改善（パフォーマンス）: executemany のバッチサイズ制御
-                    from ...config import settings
 
                     update_data = [
                         (emb, chunk["id"])
@@ -290,7 +297,7 @@ class EmbeddingProcessor:
             logger.info(f"Successfully processed {len(successful_chunks)} chunks")
 
     async def _generate_embedding_with_limit(self, text: str) -> list[float]:
-        """セマフォで制限されたEmbedding生成（レート制限対策）
+        """セマフォで制限されたEmbedding生成（レート制限対策）.
 
         ⚠️ 重要: セマフォによる同時実行数制限の実装
         - EmbeddingProcessorの初期化時にセマフォを作成（max_concurrentで制限）
@@ -303,7 +310,7 @@ class EmbeddingProcessor:
             return result
 
     async def _generate_embeddings_batch(self, texts: list[str]) -> list[list[float]]:
-        """複数のテキストをバッチでベクトル化
+        """複数のテキストをバッチでベクトル化.
 
         ⚠️ 改善: OpenAI Embedding APIはバッチリクエストをサポートしているため、
         個別にAPIを呼ぶのではなく、バッチで一度に送信することで効率化します。
@@ -335,7 +342,7 @@ class EmbeddingProcessor:
     async def _move_to_dlq(
         self, conn: asyncpg.Connection, chunk: dict, error: Exception
     ) -> None:
-        """チャンクをDead Letter Queueに移動
+        """チャンクをDead Letter Queueに移動.
 
         ⚠️ 改善（データ整合性）: knowledge_chunks_dlqテーブルは定義されていますが、
         実際にDLQへ移動するコードが実装計画にありませんでした。
@@ -413,7 +420,7 @@ class EmbeddingProcessor:
             )
 
     def _classify_error(self, error: Exception) -> str:
-        """エラーを分類してエラーコードを返す
+        """エラーを分類してエラーコードを返す.
 
         ⚠️ 改善（セキュリティ）: エラーメッセージの情報漏洩リスクを改善
         エラーオブジェクトからエラーコードを抽出し、一般化されたコードを返します。
@@ -440,7 +447,7 @@ class EmbeddingProcessor:
             return "UNKNOWN_ERROR"
 
     def _generalize_error_message(self, error: Exception) -> str:
-        """エラーメッセージを一般化する
+        """エラーメッセージを一般化する.
 
         ⚠️ 改善（セキュリティ）: エラーメッセージの情報漏洩リスクを改善
         詳細なスタックトレースやAPIキーなどの機密情報を含まない、一般化されたメッセージを返します。
@@ -464,14 +471,12 @@ class EmbeddingProcessor:
         return error_messages.get(error_code, "An error occurred during processing")
 
     async def _update_source_status(self, processed_chunks: list[dict]):
-        """Sourceのステータスを更新
+        """Sourceのステータスを更新.
 
         ⚠️ 改善（データ整合性）: knowledge_sources と knowledge_chunks の整合性リスクを改善
         - retry_count >= MAX_RETRY のチャンクが存在する場合の扱いを明確化
         - DLQに移動したチャンクがある場合は 'partial' ステータスを設定
         """
-        from ...config import settings
-
         source_ids = {chunk["source_id"] for chunk in processed_chunks}
 
         assert self.db.pool is not None, "Database pool must be initialized"
@@ -518,7 +523,7 @@ class EmbeddingProcessor:
                     )
 
     def start(self):
-        """バックグラウンドタスクを開始（動的に間隔を設定）"""
+        """バックグラウンドタスクを開始（動的に間隔を設定）."""
         logger.info(
             f"Starting embedding processor: interval={self._interval} minutes, "
             f"batch_size={self.batch_size}, max_concurrent={self._semaphore._value}"
@@ -532,7 +537,7 @@ class EmbeddingProcessor:
         logger.debug(f"Task running: {self.process_pending_embeddings.is_running()}")
 
     async def graceful_shutdown(self):
-        """Graceful Shutdown: 処理中のタスクが完了するまで待機"""
+        """Graceful Shutdown: 処理中のタスクが完了するまで待機."""
         logger.info("Stopping embedding processor gracefully...")
 
         # タスクをキャンセル

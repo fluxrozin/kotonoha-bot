@@ -12,18 +12,14 @@ dependencies = [
     "anthropic>=0.76.0",
     "asyncpg>=0.31.0",
     "discord-py>=2.6.4",
-    "google-generativeai>=0.8.6",
     "langchain-text-splitters>=1.1.0",
-    "numpy>=2.4.1",
     "openai>=2.15.0",
     "orjson>=3.11.5",
     "pgvector>=0.4.2",
     "prometheus-client>=0.24.1",
-    "psycopg2-binary>=2.9.11",
-    "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
-    "pynacl>=1.6.2",
     "python-dotenv>=1.2.1",
+    "sqlalchemy>=2.0.45",
     "structlog>=25.5.0",
     "tenacity>=9.1.2",
     "tiktoken>=0.12.0",
@@ -127,3 +123,13 @@ known-first-party = ["kotonoha_bot"]
 [tool.ty]
 # ty は pyproject.toml が存在する場合、自動的にソースディレクトリを検出します
 # 追加の設定はコマンドライン引数で指定可能です
+
+[tool.deptry]
+# deptry の設定
+# kotonoha_bot は自分自身のパッケージ（first-party）として認識させる
+# これにより、自分自身へのインポートが推移的依存関係として誤検出されない
+known_first_party = ["kotonoha_bot"]
+# sqlalchemy は alembic で使用されているが、alembic の推移的依存関係として含まれる
+# しかし、マイグレーションファイルで直接使用しているため、明示的に依存関係に追加済み
+# DEP003 の警告は無視（既に依存関係に追加しているため）
+per_rule_ignores = { DEP003 = ["sqlalchemy"] }

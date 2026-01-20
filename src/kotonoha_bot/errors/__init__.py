@@ -1,11 +1,11 @@
-"""エラーハンドリングモジュール"""
+"""エラーハンドリングモジュール."""
 
-from .database_errors import (
+from .database import (
     DatabaseErrorType,
     classify_database_error,
     get_database_error_message,
 )
-from .discord_errors import (
+from .discord import (
     DiscordErrorType,
     classify_discord_error,
     get_user_friendly_message,

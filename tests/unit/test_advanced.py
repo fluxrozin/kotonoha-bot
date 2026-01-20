@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from kotonoha_bot.db.models import ChatSession, Message, MessageRole
 from kotonoha_bot.db.postgres import PostgreSQLDatabase
 from kotonoha_bot.external.embedding.openai_embedding import (
     OpenAIEmbeddingProvider,
@@ -16,7 +17,6 @@ from kotonoha_bot.features.knowledge_base.embedding_processor import (
 from kotonoha_bot.features.knowledge_base.session_archiver import (
     SessionArchiver,
 )
-from kotonoha_bot.session.models import ChatSession, Message, MessageRole
 
 
 @pytest.mark.asyncio

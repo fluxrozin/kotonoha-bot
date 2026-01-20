@@ -1,14 +1,14 @@
-"""データベース抽象化レイヤー"""
+"""データベース抽象化レイヤー."""
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..session.models import ChatSession
+    from ..db.models import ChatSession
 
 
 class DatabaseProtocol(ABC):
-    """セッション管理のみを抽象化するプロトコル（インターフェース）
+    """セッション管理のみを抽象化するプロトコル（インターフェース）.
 
     ⚠️ 改善（抽象化の粒度）: セッション管理と知識ベース管理を分離することで、
     抽象化の粒度を均一にし、単一責任の原則に従います。
@@ -18,37 +18,37 @@ class DatabaseProtocol(ABC):
 
     @abstractmethod
     async def initialize(self) -> None:
-        """データベースの初期化"""
+        """データベースの初期化."""
         pass
 
     @abstractmethod
     async def close(self) -> None:
-        """データベース接続のクローズ"""
+        """データベース接続のクローズ."""
         pass
 
     @abstractmethod
     async def save_session(self, session: ChatSession) -> None:
-        """セッションを保存"""
+        """セッションを保存."""
         pass
 
     @abstractmethod
     async def load_session(self, session_key: str) -> ChatSession | None:
-        """セッションを読み込み"""
+        """セッションを読み込み."""
         pass
 
     @abstractmethod
     async def delete_session(self, session_key: str) -> None:
-        """セッションを削除"""
+        """セッションを削除."""
         pass
 
     @abstractmethod
     async def load_all_sessions(self) -> list[ChatSession]:
-        """すべてのセッションを読み込み"""
+        """すべてのセッションを読み込み."""
         pass
 
 
 class SearchResult(dict):
-    """検索結果の型定義（TypedDictの代替としてdictを継承）"""
+    """検索結果の型定義（TypedDictの代替としてdictを継承）."""
 
     chunk_id: int
     source_id: int
@@ -61,7 +61,7 @@ class SearchResult(dict):
 
 
 class KnowledgeBaseProtocol(ABC):
-    """知識ベースを別プロトコルとして分離
+    """知識ベースを別プロトコルとして分離.
 
     ⚠️ 改善（抽象化の粒度）: 知識ベース関連のメソッドを `DatabaseProtocol` から分離することで、
     抽象化の粒度を均一にし、単一責任の原則に従います。
@@ -78,7 +78,7 @@ class KnowledgeBaseProtocol(ABC):
         similarity_threshold: float | None = None,
         apply_threshold: bool = True,
     ) -> list[SearchResult]:
-        """類似度検索を実行
+        """類似度検索を実行.
 
         Args:
             query_embedding: クエリのベクトル
@@ -98,7 +98,7 @@ class KnowledgeBaseProtocol(ABC):
         metadata: dict,
         status: str = "pending",
     ) -> int:
-        """知識ソースを保存し、IDを返す"""
+        """知識ソースを保存し、IDを返す."""
         pass
 
     @abstractmethod
@@ -109,5 +109,5 @@ class KnowledgeBaseProtocol(ABC):
         location: dict | None = None,
         token_count: int | None = None,
     ) -> int:
-        """知識チャンクを保存し、IDを返す"""
+        """知識チャンクを保存し、IDを返す."""
         pass

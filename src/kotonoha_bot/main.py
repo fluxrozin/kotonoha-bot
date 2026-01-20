@@ -1,21 +1,22 @@
-"""メインエントリーポイント"""
+"""メインエントリーポイント."""
 
 import asyncio
 import functools
 import logging
 import signal
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, MutableMapping
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import Any
 
 import structlog
 
 from .bot.client import KotonohaBot
-from .bot.handlers import setup_handlers
-from .commands.chat import setup as setup_chat_commands
-from .config import Config, settings
+from .bot.commands import setup as setup_chat_commands
+from .bot.handlers import MessageHandler, setup_handlers
+from .config import get_config, settings
 from .db.postgres import PostgreSQLDatabase
 from .external.embedding.openai_embedding import OpenAIEmbeddingProvider
 from .features.knowledge_base.embedding_processor import EmbeddingProcessor
@@ -23,10 +24,20 @@ from .features.knowledge_base.session_archiver import SessionArchiver
 from .health import HealthCheckServer
 
 
-def local_timestamper(_, __, event_dict):
-    """ローカルタイムゾーンでタイムスタンプを追加するプロセッサー
+def local_timestamper(
+    _logger: Any, _method_name: str, event_dict: MutableMapping[str, Any]
+) -> MutableMapping[str, Any]:
+    """ローカルタイムゾーンでタイムスタンプを追加するプロセッサー.
 
     フォーマット: YYYY-MM-DD HH:MM:SS.mmm (例: 2026-01-18 23:31:34.525)
+
+    Args:
+        _logger: ロガーインスタンス（structlogのプロセッサーシグネチャに合わせる、未使用）
+        _method_name: メソッド名（structlogのプロセッサーシグネチャに合わせる、未使用）
+        event_dict: イベント辞書
+
+    Returns:
+        タイムスタンプが追加されたイベント辞書
     """
     # 現在時刻をローカルタイムゾーンで取得
     now = datetime.now().astimezone()
@@ -37,34 +48,11 @@ def local_timestamper(_, __, event_dict):
     return event_dict
 
 
-def log_function_call(func: Callable) -> Callable:
-    """関数の呼び出しをDEBUGログに記録するデコレータ（同期関数用）"""
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        logger = logging.getLogger(getattr(func, "__module__", "unknown"))
-        func_name = getattr(
-            func,
-            "__qualname__",
-            func.__name__ if hasattr(func, "__name__") else "unknown",
-        )
-        logger.debug(f"Calling {func_name}")
-        try:
-            result = func(*args, **kwargs)
-            logger.debug(f"{func_name} completed successfully")
-            return result
-        except Exception as e:
-            logger.debug(f"{func_name} failed: {e}", exc_info=True)
-            raise
-
-    return wrapper
-
-
 def log_async_function_call(func: Callable) -> Callable:
-    """非同期関数の呼び出しをDEBUGログに記録するデコレータ"""
+    """非同期関数の呼び出しをDEBUGログに記録するデコレータ."""
 
     @functools.wraps(func)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs) -> object:
         logger = logging.getLogger(getattr(func, "__module__", "unknown"))
         func_name = (
             getattr(func, "__qualname__", None)
@@ -88,21 +76,24 @@ def log_async_function_call(func: Callable) -> Callable:
 
 
 def setup_logging() -> None:
-    """ログ設定のセットアップ"""
+    """ログ設定のセットアップ."""
+    # 設定を取得（main.py でのみ get_config() を使用）
+    config = get_config()
+
     handlers: list[logging.Handler] = [
         logging.StreamHandler(sys.stdout),
     ]
 
     # ファイルログが設定されている場合
-    if Config.LOG_FILE:
+    if config.LOG_FILE:
         try:
-            log_path = Path(Config.LOG_FILE)
+            log_path = Path(config.LOG_FILE)
             log_path.parent.mkdir(parents=True, exist_ok=True)
 
             file_handler = RotatingFileHandler(
                 log_path,
-                maxBytes=Config.LOG_MAX_SIZE * 1024 * 1024,  # MB to bytes
-                backupCount=Config.LOG_BACKUP_COUNT,
+                maxBytes=config.LOG_MAX_SIZE * 1024 * 1024,  # MB to bytes
+                backupCount=config.LOG_BACKUP_COUNT,
                 encoding="utf-8",
             )
             file_handler.setFormatter(
@@ -114,7 +105,7 @@ def setup_logging() -> None:
         except (OSError, PermissionError) as e:
             # ログファイルの作成に失敗した場合は警告を出して続行
             logging.warning(
-                f"Could not set up file logging to {Config.LOG_FILE}: {e}. "
+                f"Could not set up file logging to {config.LOG_FILE}: {e}. "
                 "Continuing with console logging only."
             )
 
@@ -134,7 +125,7 @@ def setup_logging() -> None:
     console_handler.setFormatter(structlog_formatter)
 
     logging.basicConfig(
-        level=getattr(logging, Config.LOG_LEVEL),
+        level=getattr(logging, config.LOG_LEVEL),
         format=standard_format,
         handlers=handlers,
     )
@@ -165,17 +156,18 @@ logger = logging.getLogger(__name__)
 
 
 @log_async_function_call
-async def async_main():
-    """非同期メイン関数"""
+async def async_main() -> None:
+    """非同期メイン関数."""
     logger.debug("Starting async_main")
     # 設定の検証
     logger.debug("Validating configuration...")
-    Config.validate()
+    config = get_config()
+    config.validate_config()
     logger.debug("Configuration validated")
 
     logger.info("Starting Kotonoha Bot...")
-    logger.info(f"Log level: {Config.LOG_LEVEL}")
-    logger.info(f"LLM Model: {Config.LLM_MODEL}")
+    logger.info(f"Log level: {config.LOG_LEVEL}")
+    logger.info(f"LLM Model: {config.LLM_MODEL}")
 
     # データベース初期化
     # ⚠️ 改善（セキュリティ）: DATABASE_URL にパスワードを含める形式への依存を改善
@@ -227,7 +219,7 @@ async def async_main():
     try:
         # Botインスタンスを先に作成（バックグラウンドタスクに渡すため）
         logger.debug("Creating bot instance for background tasks...")
-        bot = KotonohaBot()
+        bot = KotonohaBot(config=config)
         logger.debug("Bot instance created for background tasks")
 
         logger.debug("Creating EmbeddingProcessor instance...")
@@ -270,11 +262,20 @@ async def async_main():
     # イベントハンドラーのセットアップ（依存性を注入）
     logger.debug("Starting event handlers setup")
     logger.info("Setting up event handlers...")
+    # セッションマネージャーの初期化（main.py で明示的に初期化）
+    from .services.session import SessionManager
+
+    session_manager = SessionManager(db=db, config=config)
+    await session_manager.initialize()
+    logger.debug("SessionManager initialized")
+    logger.info("Session manager initialized")
+
     handler = setup_handlers(
         bot,
         embedding_processor=embedding_processor,
         session_archiver=session_archiver,
         db=db,  # DBインスタンスを共有（Alembicマイグレーションの重複を防ぐ）
+        config=config,
     )
     logger.debug("Event handlers setup completed")
     logger.info("Event handlers set up")
@@ -290,7 +291,7 @@ async def async_main():
     health_server = HealthCheckServer()
 
     def get_health_status() -> dict:
-        """ヘルスステータスを取得"""
+        """ヘルスステータスを取得."""
         discord_connected = bot.is_ready() if bot else False
         return {
             "status": "healthy" if discord_connected else "starting",
@@ -304,7 +305,13 @@ async def async_main():
     # ⚠️ 重要: bot.start() はブロッキング呼び出しなので、
     # シグナルハンドラーで bot.close() を呼び出すことで接続を切断し、
     # bot.start() を終了させる必要があります。
-    def signal_handler(_sig, _frame):
+    def signal_handler(_sig: int, _frame: object | None) -> None:
+        """シグナルハンドラー（Ctrl+C対応）.
+
+        Args:
+            _sig: シグナル番号
+            _frame: 現在のスタックフレーム
+        """
         logger.info("Shutting down...")
         # イベントループにタスクをスケジュール
         try:
@@ -350,7 +357,7 @@ async def async_main():
             logger.info("Bot context entered, starting Discord connection...")
             logger.debug("Calling bot.start()")
             # bot.start() はブロッキング - 接続が切断されるまで戻らない
-            await bot.start(Config.DISCORD_TOKEN)
+            await bot.start(config.DISCORD_TOKEN)
             # ここには到達しない（正常終了時）
             logger.debug("bot.start() completed - this should not happen normally")
     except Exception as e:
@@ -372,13 +379,13 @@ async def async_main():
 
 async def shutdown_gracefully(
     bot: KotonohaBot,
-    handler,
+    handler: MessageHandler,
     health_server: HealthCheckServer,
     embedding_processor: EmbeddingProcessor | None = None,
     session_archiver: SessionArchiver | None = None,
     db: PostgreSQLDatabase | None = None,
-):
-    """適切なシャットダウン処理"""
+) -> None:
+    """適切なシャットダウン処理."""
     logger.info("Starting graceful shutdown...")
 
     try:
@@ -400,22 +407,23 @@ async def shutdown_gracefully(
         if not bot.is_closed():
             await bot.close()
 
-        # データベース接続をクローズ（確実に呼ぶことを忘れないでください）
-        if db:
-            await db.close()
-
         logger.info("Graceful shutdown completed")
     except Exception as e:
         logger.exception(f"Error during shutdown: {e}")
     finally:
-        # ログハンドラーを閉じる
-        for handler_instance in logging.root.handlers[:]:
-            handler_instance.close()
-            logging.root.removeHandler(handler_instance)
+        try:
+            # データベース接続をクローズ（失敗時は例外を伝播する）
+            if db:
+                await db.close()
+        finally:
+            # db.close の有無にかかわらずログハンドラーは必ず閉じる
+            for handler_instance in logging.root.handlers[:]:
+                handler_instance.close()
+                logging.root.removeHandler(handler_instance)
 
 
-def main():
-    """メイン関数"""
+def main() -> None:
+    """メイン関数."""
     try:
         asyncio.run(async_main())
     except KeyboardInterrupt:

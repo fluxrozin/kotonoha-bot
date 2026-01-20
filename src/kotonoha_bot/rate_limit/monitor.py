@@ -1,4 +1,4 @@
-"""レート制限モニター"""
+"""レート制限モニター."""
 
 import logging
 from collections import defaultdict
@@ -8,13 +8,13 @@ logger = logging.getLogger(__name__)
 
 
 class RateLimitMonitor:
-    """レート制限モニター
+    """レート制限モニター.
 
     API リクエスト数を追跡し、レート制限の接近を検知する。
     """
 
     def __init__(self, window_seconds: int = 60, warning_threshold: float = 0.8):
-        """初期化
+        """初期化.
 
         Args:
             window_seconds: 監視ウィンドウ（秒）
@@ -28,7 +28,7 @@ class RateLimitMonitor:
         self.rate_limits: dict[str, tuple[int, int]] = {}
 
     def record_request(self, endpoint: str) -> None:
-        """リクエストを記録
+        """リクエストを記録.
 
         Args:
             endpoint: API エンドポイント（例: "claude-api"）
@@ -43,7 +43,7 @@ class RateLimitMonitor:
         ]
 
     def check_rate_limit(self, endpoint: str) -> tuple[bool, float]:
-        """レート制限の接近をチェック
+        """レート制限の接近をチェック.
 
         Args:
             endpoint: API エンドポイント
@@ -69,7 +69,7 @@ class RateLimitMonitor:
         return False, usage_rate
 
     def set_rate_limit(self, endpoint: str, limit: int, window_seconds: int) -> None:
-        """レート制限を設定
+        """レート制限を設定.
 
         Args:
             endpoint: API エンドポイント

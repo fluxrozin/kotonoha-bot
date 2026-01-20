@@ -1,4 +1,4 @@
-"""Initial schema
+"""Initial schema.
 
 Revision ID: ca650c17adda
 Revises:
@@ -287,4 +287,17 @@ def downgrade() -> None:
     op.execute("DROP TYPE IF EXISTS source_type_enum")
 
     # 拡張機能の削除
-    op.execute("DROP EXTENSION IF EXISTS vector")
+    # 注意: テスト環境では拡張機能の所有者でない場合があるため、
+    # 権限エラーが発生する可能性がある。その場合は無視する。
+    op.execute("""
+        DO $$ BEGIN
+            DROP EXTENSION IF EXISTS vector;
+        EXCEPTION
+            WHEN insufficient_privilege THEN
+                -- テスト環境などで権限がない場合は無視
+                NULL;
+            WHEN OTHERS THEN
+                -- その他のエラーも無視（拡張機能が既に削除されている場合など）
+                NULL;
+        END $$;
+    """)  # noqa: W291

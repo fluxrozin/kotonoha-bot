@@ -110,6 +110,7 @@
 #### 51_guides/（ガイド）
 
 - [**実装検討事項**](./50_implementation/51_guides/considerations.md): 実装前に検討すべき技術的詳細（エラーハンドリング、レート制限、セキュリティなど）
+- [**コード品質チェック・テスト実施マニュアル**](./50_implementation/51_guides/code-quality-and-testing.md): 型ヒント、docstring、フォーマット、型チェック、テストカバレッジのベストプラクティス（**開発者必読**）
 - [**プロンプト管理**](./50_implementation/51_guides/prompt-management.md): プロンプトファイルの管理方法とベストプラクティス
 - [**FAQ**](./50_implementation/51_guides/faq.md): セットアップ、開発環境、Bot動作、AI機能、セッション管理、デプロイメント、トラブルシューティングに関するよくある質問と回答
 - [**PostgreSQL クエリガイド**](./50_implementation/51_guides/postgresql-query-guide.md): PostgreSQLの使用例とクエリ
@@ -160,7 +161,8 @@
 1. **[実装ロードマップ](./00_planning/roadmap.md)**: 段階的な実装計画を確認
 2. **[ADR](./20_architecture/22_adrs/)**: 重要な技術的決定の背景を理解
 3. **[実装検討事項](./50_implementation/51_guides/considerations.md)**: 実装上の注意点を確認
-4. **[プロジェクト管理](./00_planning/project-management.md)**: 現在のスプリントとタスクを確認
+4. **[コード品質チェック・テスト実施マニュアル](./50_implementation/51_guides/code-quality-and-testing.md)**: コード品質ツールの使い方とベストプラクティス
+5. **[プロジェクト管理](./00_planning/project-management.md)**: 現在のスプリントとタスクを確認
 
 ### 設計を確認する方
 
@@ -273,6 +275,7 @@ docs_new/
 ├── 50_implementation/                  # 実装ガイド
 │   ├── 51_guides/                     # ガイド
 │   │   ├── considerations.md          # 実装上の検討事項
+│   │   ├── code-quality-and-testing.md # コード品質チェック・テスト実施マニュアル（開発者必読）
 │   │   ├── prompt-management.md       # プロンプト管理
 │   │   ├── faq.md                     # よくある質問と回答
 │   │   ├── postgresql-query-guide.md  # PostgreSQLクエリガイド

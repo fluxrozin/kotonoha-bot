@@ -1,5 +1,10 @@
 # Kotonoha Discord Bot - Dockerfile
 # Multi-stage build for minimal image size
+#
+# Phase 10 リファクタリング完了版
+# - 新しいフォルダ構造に対応
+# - Pydantic V2 ベースの設定管理
+# - 依存性注入パターンに対応
 
 # ============================================
 # ビルドステージ: 依存関係のインストール
@@ -20,6 +25,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # プロジェクトファイルをコピー
 COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
+COPY prompts/ ./prompts/
+# Phase 10: 新しいフォルダ構造（src/kotonoha_bot/）に対応
+# prompts/ は utils/prompts.py で読み込まれるため必要
 
 # 依存関係をインストール（本番用のみ）
 RUN uv sync --frozen --no-dev
@@ -48,6 +56,7 @@ RUN groupadd -r -g 1000 botuser && \
 # ビルドステージからアプリケーションと依存関係をコピー
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/src /app/src
+COPY --from=builder /app/prompts /app/prompts
 COPY scripts/ /app/scripts/
 COPY alembic.ini /app/alembic.ini
 COPY alembic/ /app/alembic/
@@ -56,6 +65,7 @@ COPY alembic/ /app/alembic/
 RUN chmod +x /app/scripts/*.sh
 
 # 環境変数を設定
+# Phase 10: PYTHONPATH は src/ を指す（kotonoha_bot パッケージのルート）
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH=/app/src \
     PYTHONUNBUFFERED=1 \

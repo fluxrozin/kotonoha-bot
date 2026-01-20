@@ -10,8 +10,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import anthropic
 import pytest
 
-from kotonoha_bot.ai.anthropic_provider import AnthropicProvider
-from kotonoha_bot.session.models import Message, MessageRole
+from kotonoha_bot.db.models import Message, MessageRole
+from kotonoha_bot.services.ai import AnthropicProvider
 
 
 @pytest.fixture
@@ -27,8 +27,11 @@ def mock_anthropic_response():
 @pytest.fixture
 def anthropic_provider_with_mock():
     """モック付きAnthropicProviderのフィクスチャ"""
+    from kotonoha_bot.config import get_config
+
     with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-api-key"}):
-        provider = AnthropicProvider()
+        config = get_config()
+        provider = AnthropicProvider(config=config)
         # クライアントをモック化
         provider.client = AsyncMock()
         return provider
@@ -59,9 +62,9 @@ async def test_anthropic_provider_integration_with_handlers(
 
     # 結果を検証
     assert response_text == "テスト応答"
-    assert metadata["input_tokens"] == 10
-    assert metadata["output_tokens"] == 5
-    assert metadata["model"] == "claude-haiku-4-5"
+    assert metadata.input_tokens == 10
+    assert metadata.output_tokens == 5
+    assert metadata.model_used == "claude-haiku-4-5"
 
     # APIが呼ばれたことを確認
     provider.client.messages.create.assert_called_once()
@@ -89,8 +92,8 @@ async def test_anthropic_provider_api_call_with_mock(
 
     # 応答が正しく返されることを確認
     assert response_text == "テスト応答"
-    assert metadata["input_tokens"] == 10
-    assert metadata["output_tokens"] == 5
+    assert metadata.input_tokens == 10
+    assert metadata.output_tokens == 5
 
     # API呼び出しの引数を確認
     call_args = provider.client.messages.create.call_args
@@ -165,7 +168,9 @@ async def test_anthropic_provider_error_handling_auth_error(
     messages = [Message(role=MessageRole.USER, content="テスト")]
 
     # 認証エラーが発生することを確認（リトライしない）
-    with pytest.raises(anthropic.AuthenticationError):
+    from kotonoha_bot.errors.ai import AIAuthenticationError
+
+    with pytest.raises(AIAuthenticationError):
         await provider.generate_response(messages=messages)
 
     # 1回だけ呼ばれたことを確認（リトライしない）
@@ -232,7 +237,9 @@ async def test_anthropic_provider_error_handling_empty_content(
     messages = [Message(role=MessageRole.USER, content="テスト")]
 
     # エラーが発生することを確認
-    with pytest.raises(ValueError, match="No content in response"):
+    from kotonoha_bot.errors.ai import AIServiceError
+
+    with pytest.raises(AIServiceError, match="No content in response"):
         await provider.generate_response(messages=messages)
 
 
@@ -251,13 +258,12 @@ async def test_anthropic_provider_metadata_return(
 
     response_text, metadata = await provider.generate_response(messages=messages)
 
-    # メタデータの内容を確認
-    assert "input_tokens" in metadata
-    assert "output_tokens" in metadata
-    assert "model" in metadata
-    assert metadata["input_tokens"] == 10
-    assert metadata["output_tokens"] == 5
-    assert metadata["model"] == "claude-haiku-4-5"
+    # メタデータの内容を確認（TokenInfo オブジェクトとして）
+    assert metadata.input_tokens == 10
+    assert metadata.output_tokens == 5
+    assert metadata.model_used == "claude-haiku-4-5"
+    assert metadata.total_tokens == 15
+    assert metadata.latency_ms >= 0
 
 
 @pytest.mark.asyncio

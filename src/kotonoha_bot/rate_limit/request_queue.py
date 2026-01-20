@@ -1,4 +1,4 @@
-"""リクエストキュー"""
+"""リクエストキュー."""
 
 import asyncio
 import logging
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class RequestPriority(IntEnum):
-    """リクエストの優先度"""
+    """リクエストの優先度."""
 
     THREAD = 1  # スレッド型（最低優先度）
     MENTION = 2  # メンション応答型（中優先度）
@@ -20,7 +20,7 @@ class RequestPriority(IntEnum):
 
 @dataclass
 class QueuedRequest:
-    """キューに追加されたリクエスト"""
+    """キューに追加されたリクエスト."""
 
     priority: RequestPriority
     func: Callable
@@ -31,13 +31,13 @@ class QueuedRequest:
 
 
 class RequestQueue:
-    """リクエストキュー
+    """リクエストキュー.
 
     リクエストを優先度順に処理するキュー。
     """
 
     def __init__(self, max_size: int = 100):
-        """初期化
+        """初期化.
 
         Args:
             max_size: キューの最大サイズ
@@ -48,7 +48,7 @@ class RequestQueue:
         self._running = False
 
     async def start(self) -> None:
-        """ワーカーを開始"""
+        """ワーカーを開始."""
         if self._running:
             return
 
@@ -57,7 +57,7 @@ class RequestQueue:
         logger.info("Request queue worker started")
 
     async def stop(self) -> None:
-        """ワーカーを停止"""
+        """ワーカーを停止."""
         if not self._running:
             return
 
@@ -73,7 +73,7 @@ class RequestQueue:
         *args,
         **kwargs,
     ) -> asyncio.Future:
-        """リクエストをキューに追加
+        """リクエストをキューに追加.
 
         Args:
             priority: リクエストの優先度
@@ -108,7 +108,7 @@ class RequestQueue:
         return future
 
     async def _worker(self) -> None:
-        """ワーカーループ"""
+        """ワーカーループ."""
         while self._running:
             try:
                 # キューからリクエストを取得（タイムアウト: 1秒）

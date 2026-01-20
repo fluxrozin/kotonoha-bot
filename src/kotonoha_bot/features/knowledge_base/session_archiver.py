@@ -1,4 +1,4 @@
-"""セッションの知識化処理"""
+"""セッションの知識化処理."""
 
 import asyncio
 import random
@@ -10,6 +10,7 @@ import structlog
 import tiktoken
 from discord.ext import tasks
 
+from ...config import settings
 from .metrics import (
     session_archive_duration,
     sessions_archived_counter,
@@ -24,7 +25,7 @@ logger = structlog.get_logger(__name__)
 
 
 class SessionArchiver:
-    """セッションを知識ベースに変換するクラス"""
+    """セッションを知識ベースに変換するクラス."""
 
     def __init__(
         self,
@@ -33,11 +34,18 @@ class SessionArchiver:
         bot=None,  # Botインスタンス（tasks.loopに必要）
         archive_threshold_hours: int | None = None,
     ):
+        """SessionArchiver を初期化.
+
+        Args:
+            db: PostgreSQLDatabase インスタンス
+            embedding_provider: EmbeddingProvider インスタンス
+            bot: Bot インスタンス（tasks.loop に必要）
+            archive_threshold_hours: アーカイブ閾値（時間、省略時は設定値を使用）
+        """
         self.db = db
         self.embedding_provider = embedding_provider
         self.bot = bot  # Botインスタンスを保存
         # 環境変数から設定を読み込み（デフォルト値あり）
-        from ...config import settings
 
         self.archive_threshold_hours = (
             archive_threshold_hours or settings.kb_archive_threshold_hours
@@ -55,7 +63,7 @@ class SessionArchiver:
 
     @tasks.loop(hours=1)  # デフォルト値（start()で動的に変更される）
     async def archive_inactive_sessions(self):
-        """非アクティブなセッションを知識ベースに変換"""
+        """非アクティブなセッションを知識ベースに変換."""
         if self._processing:
             logger.debug("Session archiving already in progress, skipping...")
             return
@@ -63,9 +71,6 @@ class SessionArchiver:
         try:
             self._processing = True
             logger.debug("Starting session archiving...")
-
-            # ⚠️ 改善（コード品質）: pydantic-settings を使用
-            from ...config import settings
 
             # 設定値から閾値とバッチサイズを読み込み
             archive_threshold_hours = self.archive_threshold_hours
@@ -126,7 +131,7 @@ class SessionArchiver:
             )
 
             async def _archive_with_limit(session_row):
-                """セマフォで制限されたアーカイブ処理"""
+                """セマフォで制限されたアーカイブ処理."""
                 async with archive_semaphore:
                     try:
                         await self._archive_session(session_row)
@@ -162,7 +167,7 @@ class SessionArchiver:
 
     @archive_inactive_sessions.before_loop
     async def before_archive_sessions(self):
-        """タスク開始前の待機
+        """タスク開始前の待機.
 
         ⚠️ 重要: Bot再起動時のバーストを防ぐため、ランダムな遅延を追加
         現状の「最終アクティブから1時間」のみだと、Bot再起動時に大量のアーカイブ処理が走る可能性があります。
@@ -180,7 +185,7 @@ class SessionArchiver:
         await asyncio.sleep(delay)
 
     async def _archive_session(self, session_row: dict):
-        """セッションを知識ベースに変換
+        """セッションを知識ベースに変換.
 
         ⚠️ 重要: 楽観的ロックの競合時は自動リトライ（tenacity使用）
         Botが高頻度で使われている場合、アーカイブが何度も失敗し続ける可能性があるため、
@@ -213,7 +218,7 @@ class SessionArchiver:
         return await _archive_session_with_retry()
 
     async def _archive_session_impl(self, session_row: dict):
-        """セッションを知識ベースに変換（実装本体）
+        """セッションを知識ベースに変換（実装本体）.
 
         ⚠️ 改善（会話の分断対策）: スライディングウィンドウ（のりしろ）方式
         アーカイブ処理が走り、データが長期記憶へ移動した直後にユーザーが発言すると、
@@ -222,8 +227,6 @@ class SessionArchiver:
         改善策: アーカイブ時に短期記憶を「全消去」するのではなく、
         「直近の数メッセージ（のりしろ）」を残して更新（Prune）する設計にします。
         """
-        from ...config import settings
-
         session_key = session_row["session_key"]
         # ⚠️ 注意: JSONBコーデックが設定されていれば、自動的にlist[dict]に変換される
         messages = session_row["messages"]
@@ -481,9 +484,7 @@ class SessionArchiver:
         )
 
     def _should_archive_session(self, messages: list[dict]) -> bool:
-        """セッションをアーカイブすべきか判定（フィルタリング）"""
-        from ...config import settings
-
+        """セッションをアーカイブすべきか判定（フィルタリング）."""
         # 文字数チェック
         total_length = sum(len(msg.get("content", "")) for msg in messages)
         if total_length < settings.kb_min_session_length:
@@ -494,7 +495,7 @@ class SessionArchiver:
         return has_user_message
 
     def _format_messages_for_knowledge(self, messages: list[dict]) -> str:
-        """メッセージを知識ベース用のテキストに整形"""
+        """メッセージを知識ベース用のテキストに整形."""
         formatted = []
         for msg in messages:
             role = msg.get("role", "unknown")
@@ -508,7 +509,7 @@ class SessionArchiver:
         max_tokens: int,
         encoding: tiktoken.Encoding,
     ) -> list[str]:
-        """メッセージを会話のターン単位でチャンク化
+        """メッセージを会話のターン単位でチャンク化.
 
         ⚠️ 重要（Semantic Issues）: チャットログは「会話の流れ」が重要です。
         単純に文字数で切ると、「ユーザーの質問」と「Botの回答」が別々のチャンクに
@@ -526,8 +527,6 @@ class SessionArchiver:
         Returns:
             チャンク化されたテキストのリスト
         """
-        from ...config import settings
-
         # 環境変数からチャンクサイズ（メッセージ数）を取得
         chunk_size_messages = settings.kb_chat_chunk_size_messages
         overlap_messages = settings.kb_chat_chunk_overlap_messages
@@ -577,15 +576,13 @@ class SessionArchiver:
     def _split_content_by_tokens(
         self, content: str, encoding: tiktoken.Encoding, max_tokens: int
     ) -> list[str]:
-        """コンテンツをトークン数上限に基づいて分割
+        """コンテンツをトークン数上限に基づいて分割.
 
         ⚠️ 重要: 自前実装は複雑でバグが発生しやすいため、
         langchain-text-splitters の使用を強く推奨します。
 
         このメソッドは、langchain-text-splitters が利用できない場合のフォールバック実装です。
         """
-        from ...config import settings
-
         # ⚠️ 推奨: langchain-text-splitters を使用する実装
         try:
             from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -609,9 +606,7 @@ class SessionArchiver:
     def _split_content_by_tokens_fallback(
         self, content: str, encoding: tiktoken.Encoding, max_tokens: int
     ) -> list[str]:
-        """フォールバック実装（簡易版）"""
-        from ...config import settings
-
+        """フォールバック実装（簡易版）."""
         tokens = encoding.encode(content)
         if len(tokens) <= max_tokens:
             return [content]
@@ -657,7 +652,7 @@ class SessionArchiver:
         return chunks
 
     def _generate_title(self, messages: list[dict]) -> str:
-        """セッションのタイトルを生成"""
+        """セッションのタイトルを生成."""
         # 最初のユーザーメッセージから生成
         for msg in messages:
             if msg.get("role") == "user":
@@ -670,8 +665,16 @@ class SessionArchiver:
         return "Discord Session"
 
     def _generate_discord_uri(self, session_row: dict) -> str | None:
-        """Discord URLを生成
-        （正しい形式: /channels/{guild_id}/{channel_id}/{message_id}）"""
+        """Discord URLを生成.
+
+        正しい形式: /channels/{guild_id}/{channel_id}/{message_id}
+
+        Args:
+            session_row: セッション行データ
+
+        Returns:
+            Discord URL（生成できない場合は None）
+        """
         channel_id = session_row.get("channel_id")
         thread_id = session_row.get("thread_id")
         guild_id = session_row.get("guild_id")
@@ -696,9 +699,7 @@ class SessionArchiver:
                 return f"https://discord.com/channels/{channel_id}"
 
     def start(self):
-        """バックグラウンドタスクを開始（動的に間隔を設定）"""
-        from ...config import settings
-
+        """バックグラウンドタスクを開始（動的に間隔を設定）."""
         # 環境変数から読み込んだ間隔を設定
         interval_hours = settings.kb_archive_interval_hours
         logger.info(
@@ -713,7 +714,7 @@ class SessionArchiver:
         logger.debug(f"Task running: {self.archive_inactive_sessions.is_running()}")
 
     async def graceful_shutdown(self):
-        """Graceful Shutdown: 処理中のタスクが完了するまで待機
+        """Graceful Shutdown: 処理中のタスクが完了するまで待機.
 
         ⚠️ 改善（コード品質）: session_archiverのGraceful Shutdownが
         embedding_processorほど詳細に定義されていませんでした。

@@ -1,4 +1,4 @@
-"""PostgreSQL データベース実装"""
+"""PostgreSQL データベース実装."""
 
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -7,10 +7,11 @@ import asyncpg
 import orjson
 import structlog
 
+from ..config import settings
 from .base import DatabaseProtocol, KnowledgeBaseProtocol, SearchResult
 
 if TYPE_CHECKING:
-    from ..session.models import ChatSession
+    from ..db.models import ChatSession
 
 logger = structlog.get_logger(__name__)
 
@@ -33,7 +34,7 @@ ALLOWED_FILTER_KEYS = {
 
 
 class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
-    """PostgreSQL データベース（非同期）
+    """PostgreSQL データベース（非同期）.
 
     ⚠️ 改善（抽象化の粒度）: `DatabaseProtocol` と `KnowledgeBaseProtocol` の両方を実装することで、
     セッション管理と知識ベース管理を分離し、抽象化の粒度を均一にします。
@@ -48,7 +49,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         user: str | None = None,
         password: str | None = None,
     ):
-        """PostgreSQL データベースの初期化
+        """PostgreSQL データベースの初期化.
 
         ⚠️ 改善（セキュリティ）: DATABASE_URL にパスワードを含める形式への依存を改善
         asyncpg はパスワードを別パラメータで渡せるため、接続文字列にパスワードを埋め込む必要はありません。
@@ -82,8 +83,23 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
             )
         self.pool: asyncpg.Pool | None = None
 
+    def _ensure_pool(self) -> asyncpg.Pool:
+        """接続プールが初期化されていることを確認し、返す.
+
+        ⚠️ 改善（コードの統一性）: assert文の重複を削減するためのヘルパーメソッド
+
+        Returns:
+            初期化済みの接続プール
+
+        Raises:
+            RuntimeError: 接続プールが初期化されていない場合
+        """
+        if self.pool is None:
+            raise RuntimeError("Database pool must be initialized")
+        return self.pool
+
     async def _init_connection(self, conn: asyncpg.Connection) -> None:
-        """プールの各コネクション初期化時に呼ばれる
+        """プールの各コネクション初期化時に呼ばれる.
 
         ⚠️ 重要: asyncpg.create_pool() の init パラメータには単一の関数しか渡せません。
         pgvectorの型登録とJSONBコーデックの登録を両方行う場合は、このラッパー関数内で
@@ -95,8 +111,18 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         await register_vector(conn)
 
         # 2. JSONBコーデックの登録（orjsonを使用）
-        def default(obj):
-            """orjson の default オプション用の関数"""
+        def default(obj: object) -> str:
+            """Orjson の default オプション用の関数.
+
+            Args:
+                obj: シリアライズ対象のオブジェクト
+
+            Returns:
+                ISO形式の文字列（datetimeの場合）
+
+            Raises:
+                TypeError: シリアライズできない型の場合
+            """
             if isinstance(obj, datetime):
                 return obj.isoformat()
             raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
@@ -112,19 +138,19 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         )
 
     async def initialize(self) -> None:
-        """データベースの初期化"""
+        """データベースの初期化."""
         import os
         from pathlib import Path
-
-        from ..config import settings
 
         min_size = settings.db_pool_min_size
         max_size = settings.db_pool_max_size
         command_timeout = settings.db_command_timeout
 
         # Alembicマイグレーションの自動適用（接続プール作成前に実行）
+        # 非同期コンテキストから実行するため、接続を共有してマイグレーションを実行
         from alembic import command
         from alembic.config import Config
+        from sqlalchemy.ext.asyncio import create_async_engine
 
         # alembic.ini のパスを決定
         # Docker環境では /app/alembic.ini、ローカル環境ではプロジェクトルートの alembic.ini
@@ -141,7 +167,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         logger.debug(f"Using alembic.ini at: {alembic_ini_path.absolute()}")
         alembic_cfg = Config(str(alembic_ini_path))
 
-        # SQLAlchemy URLを設定（env.pyでpsycopg2に変換される）
+        # SQLAlchemy URLを設定
         if self.connection_string:
             sqlalchemy_url = self.connection_string.replace(
                 "postgresql://", "postgresql+asyncpg://"
@@ -153,9 +179,25 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
             )
         alembic_cfg.set_main_option("sqlalchemy.url", sqlalchemy_url)
 
+        # 非同期マイグレーションを実行
+        # 接続を共有して command.upgrade() を実行する方法を使用
+        def _do_upgrade(connection, cfg: Config) -> None:
+            """マイグレーションを実行する（同期関数）."""
+            cfg.attributes["connection"] = connection
+            command.upgrade(cfg, "head")
+
+        async def run_async_migrations() -> None:
+            """非同期マイグレーションを実行."""
+            async_engine = create_async_engine(sqlalchemy_url, echo=False)
+            try:
+                async with async_engine.begin() as connection:
+                    await connection.run_sync(_do_upgrade, alembic_cfg)
+            finally:
+                await async_engine.dispose()
+
         try:
             logger.info("Applying Alembic migrations...")
-            command.upgrade(alembic_cfg, "head")
+            await run_async_migrations()
             logger.info("Alembic migrations applied successfully")
         except Exception as e:
             logger.error(f"Failed to apply Alembic migrations: {e}", exc_info=True)
@@ -189,8 +231,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
 
         # pgvector 拡張を有効化とバージョン確認
         logger.info("Enabling database extensions (pgvector, pg_bigm)...")
-        assert self.pool is not None, "Database pool must be initialized"
-        async with self.pool.acquire() as conn:
+        async with self._ensure_pool().acquire() as conn:
             await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
             try:
@@ -231,7 +272,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         )
 
     async def close(self) -> None:
-        """データベース接続のクローズ
+        """データベース接続のクローズ.
 
         asyncpgのpool.close()は、すべての接続が確実にクローズされるまで待機します。
         """
@@ -240,10 +281,9 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
             self.pool = None
 
     async def save_session(self, session: ChatSession) -> None:
-        """セッションを保存（トランザクション付き）"""
-        assert self.pool is not None, "Database pool must be initialized"
+        """セッションを保存（トランザクション付き）."""
         async with (
-            self.pool.acquire() as conn,
+            self._ensure_pool().acquire() as conn,
             conn.transaction(),
         ):
             await conn.execute(
@@ -275,9 +315,8 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
             )
 
     async def load_session(self, session_key: str) -> ChatSession | None:
-        """セッションを読み込み"""
-        assert self.pool is not None, "Database pool must be initialized"
-        async with self.pool.acquire() as conn:
+        """セッションを読み込み."""
+        async with self._ensure_pool().acquire() as conn:
             row = await conn.fetchrow(
                 """
                 SELECT * FROM sessions WHERE session_key = $1
@@ -288,7 +327,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
             if not row:
                 return None
 
-            from ..session.models import ChatSession, Message, MessageRole
+            from ..db.models import ChatSession, Message, MessageRole
 
             messages = [
                 Message(
@@ -317,23 +356,21 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
             )
 
     async def delete_session(self, session_key: str) -> None:
-        """セッションを削除"""
-        assert self.pool is not None, "Database pool must be initialized"
-        async with self.pool.acquire() as conn:
+        """セッションを削除."""
+        async with self._ensure_pool().acquire() as conn:
             await conn.execute(
                 "DELETE FROM sessions WHERE session_key = $1", session_key
             )
 
     async def load_all_sessions(self) -> list[ChatSession]:
-        """すべてのセッションを読み込み"""
-        assert self.pool is not None, "Database pool must be initialized"
-        async with self.pool.acquire() as conn:
+        """すべてのセッションを読み込み."""
+        async with self._ensure_pool().acquire() as conn:
             rows = await conn.fetch("""
                 SELECT * FROM sessions
                 ORDER BY last_active_at DESC
             """)
 
-            from ..session.models import ChatSession, Message, MessageRole
+            from ..db.models import ChatSession, Message, MessageRole
 
             sessions = []
             for row in rows:
@@ -377,7 +414,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         similarity_threshold: float | None = None,
         apply_threshold: bool = True,
     ) -> list[SearchResult]:
-        """類似度検索を実行
+        """類似度検索を実行.
 
         Args:
             query_embedding: クエリのベクトル（1536次元）
@@ -393,7 +430,6 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         Raises:
             ValueError: 無効なsource_typeが指定された場合
         """
-        from ..config import settings
         from ..constants import DatabaseConstants, SearchConstants
 
         vector_cast = SearchConstants.VECTOR_CAST
@@ -406,8 +442,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
             from asyncio import timeout
 
             async with timeout(DatabaseConstants.POOL_ACQUIRE_TIMEOUT):
-                assert self.pool is not None, "Database pool must be initialized"
-                async with self.pool.acquire() as conn:
+                async with self._ensure_pool().acquire() as conn:
                     # ベースクエリ
                     # ⚠️ 重要: WHERE c.embedding IS NOT NULL 条件は必須です
                     query = f"""
@@ -552,12 +587,11 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         metadata: dict,
         status: str = "pending",
     ) -> int:
-        """知識ソースを保存し、IDを返す"""
+        """知識ソースを保存し、IDを返す."""
         if source_type not in VALID_SOURCE_TYPES:
             raise ValueError(f"Invalid source_type: {source_type}")
 
-        assert self.pool is not None, "Database pool must be initialized"
-        async with self.pool.acquire() as conn:
+        async with self._ensure_pool().acquire() as conn:
             source_id = await conn.fetchval(
                 """
                 INSERT INTO knowledge_sources (type, title, uri, metadata, status)
@@ -580,7 +614,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         location: dict | None = None,
         token_count: int | None = None,
     ) -> int:
-        """知識チャンクを保存し、IDを返す"""
+        """知識チャンクを保存し、IDを返す."""
         import tiktoken
 
         # token_countが指定されていない場合は計算
@@ -590,8 +624,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
 
         location_dict = location or {}
 
-        assert self.pool is not None, "Database pool must be initialized"
-        async with self.pool.acquire() as conn:
+        async with self._ensure_pool().acquire() as conn:
             chunk_id = await conn.fetchval(
                 """
                 INSERT INTO knowledge_chunks
