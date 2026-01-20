@@ -138,6 +138,60 @@ async def test_postgres_db_similarity_search(postgres_db):
 
 
 @pytest.mark.asyncio
+async def test_similarity_search_compatibility(postgres_db):
+    """similarity_searchメソッドの互換性確認テスト
+
+    ユーザーが提示したコード形式での互換性を確認する
+    """
+    # テスト用のソースとチャンクを作成
+    source_id = await postgres_db.save_source(
+        source_type="discord_session",
+        title="互換性テストソース",
+        uri="https://example.com/compatibility",
+        metadata={"test": True},
+        status="pending",
+    )
+
+    chunk_id = await postgres_db.save_chunk(
+        source_id=source_id,
+        content="これは互換性テスト用のチャンクです",
+        location={"url": "https://example.com/compatibility", "label": "テスト"},
+        token_count=15,
+    )
+
+    # テスト用のベクトルを挿入（1536次元のダミーベクトル）
+    async with postgres_db.pool.acquire() as conn:
+        await conn.execute(
+            """
+            UPDATE knowledge_chunks
+            SET embedding = (SELECT array_agg(0.1::real) FROM generate_series(1, 1536))::halfvec(1536)
+            WHERE id = $1
+        """,
+            chunk_id,
+        )
+
+    # ユーザーが提示したコード形式でテスト
+    query_embedding = [0.1] * 1536
+    results = await postgres_db.similarity_search(
+        query_embedding=query_embedding, top_k=10
+    )
+
+    # ユーザーが提示したアサーション
+    assert len(results) > 0, "similarity_search should return results"
+
+    # 追加の検証
+    assert isinstance(results, list), "results should be a list"
+    if results:
+        first_result = results[0]
+        assert "chunk_id" in first_result, "result should contain chunk_id"
+        assert "similarity" in first_result, "result should contain similarity"
+        assert "content" in first_result, "result should contain content"
+        assert isinstance(first_result["similarity"], (int, float)), (
+            "similarity should be numeric"
+        )
+
+
+@pytest.mark.asyncio
 async def test_postgres_db_similarity_search_with_filters(postgres_db):
     """フィルタリング付きベクトル検索のテスト"""
     # テスト用のソースとチャンクを作成

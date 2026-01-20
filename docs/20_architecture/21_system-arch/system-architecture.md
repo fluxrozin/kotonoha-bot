@@ -443,7 +443,7 @@ services:
   kotonoha-bot:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.kotonoha
     image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest
     container_name: kotonoha-bot
     restart: unless-stopped
@@ -608,7 +608,7 @@ kotonoha-bot/
 │           └── message_splitter.py
 ├── data/
 │   └── kotonoha.db               # SQLiteデータベース（.gitignore）
-├── Dockerfile
+├── Dockerfile.kotonoha
 ├── docker-compose.yml            # 開発用（オプション）
 ├── .env.example                  # 環境変数テンプレート
 ├── pyproject.toml

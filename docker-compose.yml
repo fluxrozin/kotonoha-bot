@@ -1,25 +1,11 @@
 # Kotonoha Discord Bot - Docker Compose (with Watchtower)
-#
-# Phase 10 リファクタリング完了版
-# - 新しいフォルダ構造に対応
-# - Pydantic V2 ベースの設定管理
-# - 依存性注入パターンに対応
-#
-# 通常の使用方法:
-#   起動: docker compose up -d
-#   停止: docker compose down
-#
-# 開発環境で自動更新を無効化する場合:
-#   .env ファイルに WATCHTOWER_ENABLED=false を設定
-#   これにより、watchtowerがコンテナを更新しなくなります
-#   本番環境では WATCHTOWER_ENABLED=true（デフォルト）のまま
-#
-# もしネットワークが削除できない場合は、以下を試してください:
-#   docker compose down --remove-orphans
-#
+
 services:
   postgres:
-    image: pgvector/pgvector:0.8.1-pg18
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    image: kotonoha-postgres:pg18-pgvector0.8.1-pgbigm1.2
     container_name: kotonoha-postgres
     restart: unless-stopped
     environment:
@@ -33,15 +19,15 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kotonoha}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kotonoha}" ]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  kotonoha-bot:
+  kotonoha:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.kotonoha
     image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest
     container_name: kotonoha-bot
     restart: unless-stopped
@@ -50,61 +36,39 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-
     env_file:
       - .env
-
     volumes:
-      - ./data:/app/data
       - ./logs:/app/logs
       - ./backups:/app/backups
-      # Phase 10: 新しいフォルダ構造に対応（src/ と prompts/ はコンテナ内にコピーされる）
-
     networks:
       - kotonoha-network
-
     ports:
       - "127.0.0.1:8081:8080"
-
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5).read()",
-        ]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5).read()" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
-
     deploy:
       resources:
         limits:
           memory: 512M
-
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "5"
     labels:
-      # 開発環境では watchtower を無効化（WATCHTOWER_ENABLED=false を設定）
       - "com.centurylinklabs.watchtower.enable=${WATCHTOWER_ENABLED:-true}"
 
   watchtower:
     image: containrrr/watchtower:latest
     container_name: watchtower
     restart: unless-stopped
-    # 開発環境で自動更新を無効化する場合は .env に WATCHTOWER_ENABLED=false を設定
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      # GHCR認証用の設定ファイル（GHCRからプライベートイメージをプルする場合に必要）
-      # ファイルが存在しない場合はこの行をコメントアウトしてください
-      # ファイルを作成する方法: docker login ghcr.io -u YOUR_GITHUB_USERNAME -p YOUR_GITHUB_TOKEN
-      # 詳細は docs/implementation/phases/phase3.md を参照
-      # - ~/.docker/config.json:/config.json:ro
     env_file:
       - .env
     environment:
@@ -113,11 +77,61 @@ services:
       - WATCHTOWER_POLL_INTERVAL=${WATCHTOWER_POLL_INTERVAL:-300}
       - WATCHTOWER_LABEL_ENABLE=${WATCHTOWER_LABEL_ENABLE:-true}
       - WATCHTOWER_NOTIFICATIONS=${WATCHTOWER_NOTIFICATIONS:-shoutrrr}
-      # 通知URL: .env ファイルでコメントアウトすると未定義となり、通知は送信されません
-      # 本番環境では、.env で WATCHTOWER_NOTIFICATION_URL を設定してください
       - WATCHTOWER_NOTIFICATION_URL=${WATCHTOWER_NOTIFICATION_URL:-}
     networks:
       - kotonoha-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: kotonoha-pgadmin
+    restart: unless-stopped
+    profiles:
+      - pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:?pgAdmin email is required}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:?pgAdmin password is required}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+      PGADMIN_CONFIG_CHECK_EMAIL_DELIVERABILITY: 'False'
+    user: root
+    volumes:
+      - ./pgadmin:/var/lib/pgadmin
+    entrypoint: >
+      sh -c " mkdir -p /var/lib/pgadmin/sessions /var/lib/pgadmin/storage /var/lib/pgadmin/azurecredentialcache || true && chmod -R 777 /var/lib/pgadmin || true && /entrypoint.sh "
+    networks:
+      - kotonoha-network
+    ports:
+      - "${PGADMIN_BIND_ADDRESS:-127.0.0.1}:5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # テスト用PostgreSQLサービス
+  # 使用方法: docker-compose --profile test up postgres-test
+  postgres-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    image: kotonoha-postgres:pg18-pgvector0.8.1-pgbigm1.2
+    container_name: kotonoha-postgres-test
+    restart: unless-stopped
+    profiles:
+      - test
+    environment:
+      POSTGRES_USER: ${TEST_POSTGRES_USER:-test}
+      POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD:-test}
+      POSTGRES_DB: ${TEST_POSTGRES_DB:-test_kotonoha}
+    volumes:
+      - postgres_test_data:/var/lib/postgresql
+    networks:
+      - kotonoha-network
+    ports:
+      - "127.0.0.1:${TEST_POSTGRES_PORT:-5433}:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${TEST_POSTGRES_USER:-test} -d ${TEST_POSTGRES_DB:-test_kotonoha}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   kotonoha-network:
@@ -125,3 +139,4 @@ networks:
 
 volumes:
   postgres_data:
+  postgres_test_data:

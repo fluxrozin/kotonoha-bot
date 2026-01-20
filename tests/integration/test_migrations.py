@@ -19,7 +19,7 @@ def test_db_url():
     """テスト用データベースURL."""
     return os.getenv(
         "TEST_DATABASE_URL",
-        "postgresql://test:test@localhost:5432/test_kotonoha",
+        "postgresql://test:test@localhost:5433/test_kotonoha",
     )
 
 
@@ -108,7 +108,7 @@ async def clean_test_db(test_db_url):
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -200,7 +200,7 @@ async def get_table_names(test_db_url: str) -> list[str]:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -239,7 +239,7 @@ async def check_extension_exists(test_db_url: str, extension_name: str) -> bool:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -274,7 +274,7 @@ async def get_alembic_version(test_db_url: str) -> str | None:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -328,7 +328,7 @@ async def test_migration_upgrade(
     # Alembicバージョンが記録されているか確認
     version = await get_alembic_version(test_db_url)
     assert version is not None, "Alembic version should be recorded"
-    assert version == "ca650c17adda", f"Expected version ca650c17adda, got {version}"
+    assert version == "202601201940", f"Expected version 202601201940, got {version}"
 
 
 @pytest.mark.asyncio
@@ -405,7 +405,7 @@ async def test_migration_schema_validation(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -487,10 +487,10 @@ async def test_migration_stamp(
 
     # 現在のバージョンを確認
     version_before = await get_alembic_version(test_db_url)
-    assert version_before == "ca650c17adda"
+    assert version_before == "202601201940"
 
     # stampでバージョンを設定（同じバージョン）
-    await run_migration_stamp(alembic_cfg, "ca650c17adda")
+    await run_migration_stamp(alembic_cfg, "202601201940")
 
     # バージョンが変わっていないことを確認
     version_after = await get_alembic_version(test_db_url)
@@ -512,7 +512,7 @@ async def test_migration_current(
 
     # マイグレーション適用後はバージョンが存在する
     version_after = await get_alembic_version(test_db_url)
-    assert version_after == "ca650c17adda"
+    assert version_after == "202601201940"
 
 
 async def get_enum_types(test_db_url: str) -> list[str]:
@@ -521,7 +521,7 @@ async def get_enum_types(test_db_url: str) -> list[str]:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -555,7 +555,7 @@ async def get_enum_values(test_db_url: str, enum_name: str) -> list[str]:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -589,7 +589,7 @@ async def get_indexes(test_db_url: str, table_name: str) -> list[str]:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -624,7 +624,7 @@ async def get_foreign_keys(test_db_url: str, table_name: str) -> list[dict]:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -783,7 +783,7 @@ async def test_migration_constraints(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -839,7 +839,7 @@ async def test_migration_default_values(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -892,7 +892,7 @@ async def test_migration_data_integrity(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -1003,7 +1003,7 @@ async def test_migration_revision_chain():
     assert head is not None, "Should have a head revision"
 
     # 現在のheadが期待されるrevision IDであることを確認
-    assert head == "ca650c17adda", f"Expected head revision ca650c17adda, got {head}"
+    assert head == "202601201940", f"Expected head revision 202601201940, got {head}"
 
     # すべてのrevisionが到達可能であることを確認
     revisions = list(script_dir.walk_revisions())
@@ -1050,7 +1050,7 @@ async def test_migration_hnsw_index(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -1097,7 +1097,7 @@ async def test_migration_gin_index(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -1141,7 +1141,7 @@ async def test_migration_partial_indexes(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -1214,7 +1214,7 @@ async def test_migration_table_columns_complete(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
+    port = parsed.port or 5433
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"

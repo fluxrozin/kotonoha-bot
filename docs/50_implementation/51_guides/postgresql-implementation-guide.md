@@ -1185,3 +1185,112 @@ psql -U kotonoha -d kotonoha < kotonoha_backup.sql
 **注意**: 上記の時間は環境（CPU、メモリ、ストレージ性能）によって大きく変動します。
 
 ---
+
+## 13. Alembicマイグレーション管理
+
+### 13.1 Revision IDの命名規則
+
+**推奨**: 日時ベースの12桁数値（`YYYYMMDDHHMM`形式）を使用する。
+
+**理由**:
+
+- **可読性**: 日時が分かるため、いつ作成されたマイグレーションかが一目で分かる
+- **時系列順**: 作成順に並ぶため、マイグレーション履歴が分かりやすい
+- **一意性**: 同じ時刻に2つのマイグレーションを作成することは稀
+
+**使用例**:
+
+```bash
+# 現在の日時を12桁で取得（YYYYMMDDHHMM形式）
+DATE_ID=$(date +%Y%m%d%H%M)
+
+# マイグレーションを作成（例: 202601201940）
+uv run alembic revision -m "add_pg_bigm_extension" --rev-id "$DATE_ID"
+```
+
+**生成されるファイル**:
+
+- `alembic/versions/202601201940_add_pg_bigm_extension.py`
+- `revision: str = "202601201940"`
+
+### 13.2 Revision IDの変更
+
+既存のマイグレーションファイルのrevision IDを変更する場合:
+
+1. **ファイル内の`revision`変数を変更**
+2. **ファイル名を変更**（一致させる）
+3. **`down_revision`を更新**（前のマイグレーションの新しいrevision IDに）
+4. **データベースを再作成**（既存のデータベースには古いrevision IDが記録されているため）
+
+詳細は、[Phase 11 - データベース再作成手順](../../00_planning/phases/phase11.md#9-データベース再作成手順)を参照してください。
+
+### 13.3 マイグレーションファイルの構造
+
+各マイグレーションファイルには以下の要素が含まれます:
+
+```python
+"""マイグレーションの説明.
+
+Revision ID: 202601201940
+Revises: 202601182039
+Create Date: 2026-01-20 19:40:10.268271
+
+"""
+from collections.abc import Sequence
+
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision: str = "202601201940"  # ← 実際に使用される値
+down_revision: str | Sequence[str] | None = "202601182039"  # ← 前のマイグレーションのrevision ID
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # マイグレーション内容
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ロールバック内容
+```
+
+**重要**: Alembicはファイル名ではなく、ファイル内の`revision`変数の値を使用します。
+ファイル名は参考情報で、一致させることが推奨されますが、必須ではありません。
+
+### 13.4 データベース初期化手順
+
+新しいrevision IDでデータベースを初期化する場合:
+
+1. **コンテナを停止・削除**
+   ```bash
+   docker compose stop postgres
+   docker compose rm -f postgres
+   ```
+
+2. **データベースボリュームを削除**
+   ```bash
+   docker volume rm kotonoha-bot_postgres_data
+   ```
+
+3. **コンテナを再起動**
+   ```bash
+   docker compose up -d postgres
+   ```
+
+4. **マイグレーションを適用**
+   ```bash
+   uv run alembic upgrade head
+   ```
+
+5. **マイグレーション履歴を確認**
+   ```bash
+   uv run alembic current
+   # 期待される出力: 202601201940 (head)
+   ```
+
+詳細は、[Phase 11 - データベース再作成手順](../../00_planning/phases/phase11.md#9-データベース再作成手順)を参照してください。
+
+---

@@ -61,7 +61,7 @@ Phase 2 の実装は完了しています。以下の機能が実装されてい
 
 ```txt
 kotonoha-bot/
-├── Dockerfile              # ✅ 実装済み
+├── Dockerfile.kotonoha  # ✅ 実装済み
 ├── docker-compose.yml      # ✅ 実装済み
 ├── .dockerignore           # ✅ 実装済み
 ├── scripts/
@@ -410,7 +410,7 @@ services:
     # ローカルビルドとCI/CDの両方を有効化
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.kotonoha
     image: ghcr.io/${GITHUB_REPOSITORY:-your-username/kotonoha-bot}:latest
 
     container_name: kotonoha-bot
@@ -556,7 +556,7 @@ cd kotonoha-bot
 ```txt
 /volume1/docker/kotonoha-bot/
 ├── docker-compose.yml
-├── Dockerfile
+├── Dockerfile.kotonoha
 ├── .dockerignore          # ビルド最適化用（オプション）
 ├── .env                   # 環境変数ファイル（手動作成）
 ├── pyproject.toml         # プロジェクト設定（ビルドに必須）
@@ -633,7 +633,7 @@ cd /volume1/docker/kotonoha-bot
 mkdir -p data logs backups
 
 # ファイルの権限設定
-chmod 644 docker-compose.yml Dockerfile pyproject.toml uv.lock README.md
+chmod 644 docker-compose.yml Dockerfile.kotonoha pyproject.toml uv.lock README.md
 chmod 600 .env  # 機密情報を含むため、所有者のみ読み書き可能
 
 # スクリプトの実行権限設定（Dockerfileで設定されますが、念のため）
@@ -1084,7 +1084,7 @@ Phase 2（NAS デプロイ）のすべての目標を達成しました。
 
 | カテゴリ           | 状態    | 備考                                            |
 | ------------------ | ------- | ----------------------------------------------- |
-| Dockerfile         | ✅ 完了 | マルチステージビルド、python:3.14-slim ベース   |
+| Dockerfile.kotonoha | ✅ 完了 | マルチステージビルド、python:3.14-slim ベース   |
 | docker-compose.yml | ✅ 完了 | ボリュームマウント、ヘルスチェック設定          |
 | entrypoint.sh      | ✅ 完了 | 自動パーミッション修正、gosu による非 root 実行 |
 | バックアップ機能   | ✅ 完了 | SQLite オンラインバックアップ、gzip 圧縮        |

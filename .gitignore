@@ -21,11 +21,10 @@ htmlcov/
 .env.local
 
 # Database
+# Phase 8: PostgreSQL 移行後、SQLite 関連の記述は不要（後方互換性のため残す）
 *.db
 *.sqlite
 *.sqlite3
-data/*
-!data/.gitkeep
 
 # IDE
 .vscode/
@@ -43,6 +42,10 @@ logs/*
 # Backups
 backups/*
 !backups/.gitkeep
+
+# pgAdmin (開発環境のみ)
+pgadmin/*
+!pgadmin/.gitkeep
 
 # OS
 .DS_Store

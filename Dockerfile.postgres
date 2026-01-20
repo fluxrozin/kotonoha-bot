@@ -1,0 +1,45 @@
+# Dockerfile.postgres
+
+# Stage 1: ビルド環境
+FROM pgvector/pgvector:0.8.1-pg18 AS builder
+
+ARG PG_BIGM_VERSION=1.2-20250903
+ARG PG_BIGM_CHECKSUM=""  # オプション: チェックサム検証用
+
+USER root
+
+# ビルド依存関係のインストール
+RUN apt-get update && apt-get install -y \
+  build-essential \
+  postgresql-server-dev-18 \
+  wget \
+  ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# pg_bigm のダウンロード
+RUN wget -O pg_bigm.tar.gz \
+  https://github.com/pgbigm/pg_bigm/archive/refs/tags/v${PG_BIGM_VERSION}.tar.gz \
+  && if [ -n "$PG_BIGM_CHECKSUM" ]; then \
+  echo "$PG_BIGM_CHECKSUM  pg_bigm.tar.gz" | sha256sum -c - || exit 1; \
+  fi \
+  && mkdir -p /usr/src/pg_bigm \
+  && tar -xzf pg_bigm.tar.gz -C /usr/src/pg_bigm --strip-components=1
+
+# pg_bigm のビルド
+WORKDIR /usr/src/pg_bigm
+RUN make USE_PGXS=1 && make USE_PGXS=1 install
+
+# Stage 2: 実行環境（ビルド済みのpg_bigmのみを含む軽量イメージ）
+FROM pgvector/pgvector:0.8.1-pg18
+
+USER root
+
+# ビルド済みのpg_bigmをコピー
+COPY --from=builder \
+  /usr/share/postgresql/18/extension/pg_bigm* \
+  /usr/share/postgresql/18/extension/
+COPY --from=builder \
+  /usr/lib/postgresql/18/lib/pg_bigm.so \
+  /usr/lib/postgresql/18/lib/
+
+USER postgres

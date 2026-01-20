@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from dotenv import load_dotenv
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # .envファイルの読み込み（既存の環境変数は上書きしない）
@@ -71,6 +72,16 @@ class Config(BaseSettings):
     )
     # 有効な値: 60 (1時間), 1440 (1日), 4320 (3日), 10080 (7日), 43200 (30日)
     # None の場合はサーバーのデフォルト値を使用
+
+    @field_validator("thread_auto_archive_duration", mode="before")
+    @classmethod
+    def validate_thread_auto_archive_duration(cls, v: str | int | None) -> int | None:
+        """空文字列をNoneに変換する."""
+        if v == "" or v is None:
+            return None
+        if isinstance(v, str):
+            return int(v)
+        return v
 
     # レート制限設定
     rate_limit_capacity: int = 50  # レート制限の上限値（1分間に50リクエストまで）
@@ -403,6 +414,18 @@ class Settings(BaseSettings):
 
     # スレッド型設定
     thread_auto_archive_duration: int | None = None
+    # 有効な値: 60 (1時間), 1440 (1日), 4320 (3日), 10080 (7日), 43200 (30日)
+    # None の場合はサーバーのデフォルト値を使用
+
+    @field_validator("thread_auto_archive_duration", mode="before")
+    @classmethod
+    def validate_thread_auto_archive_duration(cls, v: str | int | None) -> int | None:
+        """空文字列をNoneに変換する."""
+        if v == "" or v is None:
+            return None
+        if isinstance(v, str):
+            return int(v)
+        return v
 
     # レート制限設定
     rate_limit_capacity: int = 50
