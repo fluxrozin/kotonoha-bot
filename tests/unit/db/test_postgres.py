@@ -828,7 +828,7 @@ async def test_postgres_db_init_default_port():
         # localhost の場合は 5433（ホスト側のポート）
     )
     assert db.port == 5433
-    
+
     # postgres（Dockerコンテナ名）の場合は 5432 がデフォルト
     db2 = PostgreSQLDatabase(
         host="postgres",
