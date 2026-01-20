@@ -111,3 +111,28 @@ class KnowledgeBaseProtocol(ABC):
     ) -> int:
         """知識チャンクを保存し、IDを返す."""
         pass
+
+    @abstractmethod
+    async def hybrid_search(
+        self,
+        query_embedding: list[float],
+        query_text: str,
+        limit: int = 10,
+        vector_weight: float = 0.7,
+        keyword_weight: float = 0.3,
+        filters: dict | None = None,
+    ) -> list[SearchResult]:
+        """ハイブリッド検索（ベクトル検索 + キーワード検索）を実行.
+
+        Args:
+            query_embedding: クエリのベクトル（1536次元）
+            query_text: クエリのテキスト（キーワード検索用）
+            limit: 返却する結果の数（デフォルト: 10）
+            vector_weight: ベクトル類似度の重み（デフォルト: 0.7）
+            keyword_weight: キーワードスコアの重み（デフォルト: 0.3）
+            filters: フィルタ条件（source_type, channel_id, user_id等）
+
+        Returns:
+            検索結果のリスト（スコア順）
+        """
+        pass

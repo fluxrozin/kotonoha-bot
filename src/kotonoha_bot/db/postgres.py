@@ -639,3 +639,228 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
             )
 
             return chunk_id
+
+    async def hybrid_search(
+        self,
+        query_embedding: list[float],
+        query_text: str,
+        limit: int = 10,
+        vector_weight: float = 0.7,
+        keyword_weight: float = 0.3,
+        filters: dict | None = None,
+    ) -> list[SearchResult]:
+        """ハイブリッド検索（ベクトル検索 + キーワード検索）.
+
+        Args:
+            query_embedding: クエリのベクトル（1536次元）
+            query_text: クエリのテキスト（キーワード検索用）
+            limit: 返却する結果の数（デフォルト: 10）
+            vector_weight: ベクトル類似度の重み（デフォルト: 0.7）
+            keyword_weight: キーワードスコアの重み（デフォルト: 0.3）
+            filters: フィルタ条件（source_type, channel_id, user_id等）
+
+        Returns:
+            検索結果のリスト（スコア順）
+        """
+        from ..constants import DatabaseConstants, SearchConstants
+
+        vector_cast = SearchConstants.VECTOR_CAST
+        vector_dimension = SearchConstants.VECTOR_DIMENSION
+
+        # 重みの合計が1.0になることを確認
+        if abs(vector_weight + keyword_weight - 1.0) > 0.001:
+            raise ValueError(
+                f"vector_weight ({vector_weight}) + keyword_weight ({keyword_weight}) "
+                "must equal 1.0"
+            )
+
+        # キーワード検索用のLIKEパターンを作成（SQLインジェクション対策）
+        # query_textは信頼できる入力として扱う（内部からの呼び出しのみ）
+        keyword_pattern = f"%{query_text}%"
+
+        try:
+            from asyncio import timeout
+
+            async with timeout(DatabaseConstants.POOL_ACQUIRE_TIMEOUT):
+                async with self._ensure_pool().acquire() as conn:
+                    # ベースクエリの構築
+                    query = f"""
+                        WITH vector_results AS (
+                            SELECT 
+                                s.id as source_id,
+                                s.type,
+                                s.title,
+                                s.uri,
+                                s.metadata as source_metadata,
+                                c.id as chunk_id,
+                                c.content,
+                                c.location,
+                                c.token_count,
+                                1 - (c.embedding <=> $1::{vector_cast}({vector_dimension})) AS vector_similarity
+                            FROM knowledge_chunks c
+                            JOIN knowledge_sources s ON c.source_id = s.id
+                            WHERE c.embedding IS NOT NULL
+                    """
+
+                    params = [query_embedding]
+                    param_index = 2
+
+                    # フィルタの適用（ベクトル検索用）
+                    if filters:
+                        invalid_keys = set(filters.keys()) - ALLOWED_FILTER_KEYS
+                        if invalid_keys:
+                            raise ValueError(
+                                f"Invalid filter keys: {invalid_keys}. "
+                                f"Allowed keys: {ALLOWED_FILTER_KEYS}"
+                            )
+
+                        if "source_type" in filters:
+                            source_type = filters["source_type"]
+                            if source_type not in VALID_SOURCE_TYPES:
+                                raise ValueError(f"Invalid source_type: {source_type}.")
+                            query += f" AND s.type = ${param_index}"
+                            params.append(source_type)
+                            param_index += 1
+
+                        if "source_types" in filters:
+                            source_types = filters["source_types"]
+                            if not isinstance(source_types, list):
+                                raise ValueError("source_types must be a list")
+                            if len(source_types) == 0:
+                                raise ValueError("source_types must not be empty")
+                            invalid_types = set(source_types) - VALID_SOURCE_TYPES
+                            if invalid_types:
+                                raise ValueError(
+                                    f"Invalid source_types: {invalid_types}."
+                                )
+                            query += (
+                                f" AND s.type = ANY(${param_index}::source_type_enum[])"
+                            )
+                            params.append(source_types)
+                            param_index += 1
+
+                        if "channel_id" in filters:
+                            try:
+                                channel_id = int(filters["channel_id"])
+                            except (ValueError, TypeError) as err:
+                                raise ValueError(
+                                    "Invalid channel_id: must be an integer."
+                                ) from err
+                            query += f" AND (s.metadata->>'channel_id')::bigint = ${param_index}"
+                            params.append(channel_id)
+                            param_index += 1
+
+                        if "user_id" in filters:
+                            try:
+                                user_id = int(filters["user_id"])
+                            except (ValueError, TypeError) as err:
+                                raise ValueError(
+                                    "Invalid user_id: must be an integer."
+                                ) from err
+                            query += f" AND (s.metadata->>'author_id')::bigint = ${param_index}"
+                            params.append(user_id)
+                            param_index += 1
+
+                    query += f"""
+                            ORDER BY c.embedding <=> $1::{vector_cast}({vector_dimension})
+                            LIMIT {SearchConstants.VECTOR_SEARCH_CANDIDATE_LIMIT}
+                        ),
+                        keyword_results AS (
+                            SELECT 
+                                s.id as source_id,
+                                s.type,
+                                s.title,
+                                s.uri,
+                                s.metadata as source_metadata,
+                                c.id as chunk_id,
+                                c.content,
+                                c.location,
+                                c.token_count,
+                                1.0 AS keyword_score
+                            FROM knowledge_chunks c
+                            JOIN knowledge_sources s ON c.source_id = s.id
+                            WHERE c.content LIKE ${param_index}
+                              AND c.embedding IS NOT NULL
+                    """
+
+                    params.append(keyword_pattern)
+                    param_index += 1
+
+                    # フィルタの適用（キーワード検索用）
+                    if filters:
+                        if "source_type" in filters:
+                            query += f" AND s.type = ${param_index}"
+                            params.append(filters["source_type"])
+                            param_index += 1
+                        if "source_types" in filters:
+                            query += (
+                                f" AND s.type = ANY(${param_index}::source_type_enum[])"
+                            )
+                            params.append(filters["source_types"])
+                            param_index += 1
+                        if "channel_id" in filters:
+                            query += f" AND (s.metadata->>'channel_id')::bigint = ${param_index}"
+                            params.append(int(filters["channel_id"]))
+                            param_index += 1
+                        if "user_id" in filters:
+                            query += f" AND (s.metadata->>'author_id')::bigint = ${param_index}"
+                            params.append(int(filters["user_id"]))
+                            param_index += 1
+
+                    query += f"""
+                            LIMIT {SearchConstants.KEYWORD_SEARCH_LIMIT}
+                        ),
+                        combined AS (
+                            SELECT 
+                                source_id, type, title, uri, source_metadata,
+                                chunk_id, content, location, token_count,
+                                vector_similarity * {vector_weight} AS score
+                            FROM vector_results
+                            UNION ALL
+                            SELECT 
+                                source_id, type, title, uri, source_metadata,
+                                chunk_id, content, location, token_count,
+                                keyword_score * {keyword_weight} AS score
+                            FROM keyword_results
+                        )
+                        SELECT 
+                            source_id, type, title, uri, source_metadata,
+                            chunk_id, content, location, token_count,
+                            SUM(score) AS combined_score
+                        FROM combined
+                        GROUP BY source_id, type, title, uri, source_metadata,
+                                 chunk_id, content, location, token_count
+                        ORDER BY combined_score DESC
+                        LIMIT ${param_index}
+                    """
+
+                    params.append(limit)
+
+                    rows = await conn.fetch(query, *params)
+        except TimeoutError:
+            logger.error("Failed to acquire database connection: pool exhausted")
+            raise RuntimeError("Database connection pool exhausted") from None
+        except asyncpg.PostgresConnectionError as e:
+            logger.error(f"Database connection failed: {e}")
+            raise RuntimeError(f"Database connection failed: {e}") from e
+        except Exception as e:
+            logger.error(f"Error during hybrid search: {e}", exc_info=True)
+            raise
+
+        return [
+            SearchResult(
+                {
+                    "source_id": row["source_id"],
+                    "source_type": row["type"],
+                    "title": row["title"],
+                    "uri": row["uri"],
+                    "source_metadata": row["source_metadata"] or {},
+                    "chunk_id": row["chunk_id"],
+                    "content": row["content"],
+                    "location": row["location"] or {},
+                    "token_count": row["token_count"],
+                    "similarity": float(row["combined_score"]),
+                }
+            )
+            for row in rows
+        ]

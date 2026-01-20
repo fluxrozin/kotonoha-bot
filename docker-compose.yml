@@ -19,7 +19,10 @@
 #
 services:
   postgres:
-    image: pgvector/pgvector:0.8.1-pg18
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    image: kotonoha-postgres:pg18-pgvector0.8.1-pgbigm1.2
     container_name: kotonoha-postgres
     restart: unless-stopped
     environment:
@@ -55,10 +58,10 @@ services:
       - .env
 
     volumes:
-      - ./data:/app/data
       - ./logs:/app/logs
       - ./backups:/app/backups
       # Phase 10: 新しいフォルダ構造に対応（src/ と prompts/ はコンテナ内にコピーされる）
+      # Phase 8: PostgreSQL 移行後、data/ ディレクトリは不要（PostgreSQL データは Docker ボリュームで管理）
 
     networks:
       - kotonoha-network

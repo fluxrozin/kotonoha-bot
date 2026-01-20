@@ -109,6 +109,7 @@
 
 #### 51_guides/（ガイド）
 
+- [**開発環境ガイド**](./50_implementation/51_guides/development-environment-guide.md): 開発環境のセットアップ、通常の開発フロー、マイグレーション管理、データベース管理、テストの実行方法（**開発者必読**）
 - [**実装検討事項**](./50_implementation/51_guides/considerations.md): 実装前に検討すべき技術的詳細（エラーハンドリング、レート制限、セキュリティなど）
 - [**コード品質チェック・テスト実施マニュアル**](./50_implementation/51_guides/code-quality-and-testing.md): 型ヒント、docstring、フォーマット、型チェック、テストカバレッジのベストプラクティス（**開発者必読**）
 - [**プロンプト管理**](./50_implementation/51_guides/prompt-management.md): プロンプトファイルの管理方法とベストプラクティス
