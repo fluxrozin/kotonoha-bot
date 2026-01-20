@@ -204,17 +204,19 @@ class TestSettings:
         """デフォルト値で初期化できる."""
         # 環境変数をクリアしてデフォルト値をテスト
         monkeypatch.delenv("LLM_MODEL", raising=False)
+        monkeypatch.delenv("POSTGRES_PORT", raising=False)
         # .envファイルの影響を排除するため、明示的に値を設定
         settings = Settings(
             discord_token="test_token",
             openai_api_key="test_openai_key",
             anthropic_api_key="test_anthropic_key",
             llm_model="claude-opus-4-5",  # デフォルト値を明示的に設定
+            postgres_port=5433,  # デフォルト値を明示的に設定
         )
         assert settings.bot_prefix == "!"
         # Settingsのデフォルト値はclaude-opus-4-5
         assert settings.llm_model == "claude-opus-4-5"
-        assert settings.postgres_port == 5432
+        assert settings.postgres_port == 5433
         assert settings.postgres_db == "kotonoha"
 
     def test_init_from_env(self, monkeypatch):

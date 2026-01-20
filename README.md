@@ -122,8 +122,8 @@ KOTONOHA は、場面緘黙で困っている人々が安心してコミュニ�
      - 本番用（最高品質）: `claude-opus-4-5`
      - バランス型: `claude-sonnet-4-5`
    - **`DATABASE_URL`**: PostgreSQL 接続文字列
-     - Docker Compose を使用する場合: `postgresql://kotonoha:password@postgres:5432/kotonoha`
-     - ローカルの場合: `postgresql://user:pass@localhost:5432/kotonoha`
+     - Docker Compose を使用する場合: `postgresql://kotonoha:password@postgres:5433/kotonoha`
+     - ローカルの場合: `postgresql://user:pass@localhost:5433/kotonoha`
 
 3. **依存関係のインストール**
 

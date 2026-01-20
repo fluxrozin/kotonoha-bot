@@ -324,7 +324,7 @@ class Settings(BaseSettings):
 
     # PostgreSQL接続設定（本番環境推奨: パスワードを分離）
     postgres_host: str | None = None
-    postgres_port: int = 5432
+    postgres_port: int = 5433
     postgres_db: str = "kotonoha"
     postgres_user: str = "kotonoha"
     postgres_password: str | None = None

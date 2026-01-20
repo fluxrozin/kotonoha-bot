@@ -94,7 +94,7 @@ if [ "$TARGET" = "all" ] || [ "$TARGET" = "main" ]; then
     else
         export POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
     fi
-    export POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+    export POSTGRES_PORT="${POSTGRES_PORT:-5433}"
     export POSTGRES_DB="${POSTGRES_DB:-kotonoha}"
     export POSTGRES_USER="${POSTGRES_USER:-kotonoha}"
     export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-password}"
@@ -170,7 +170,7 @@ if [ "$TARGET" = "all" ] || [ "$TARGET" = "test" ]; then
     echo "5. テスト用データベースにマイグレーションを実行中..."
     # テスト用環境変数を明示的に設定
     export POSTGRES_HOST="${TEST_POSTGRES_HOST:-localhost}"
-    export POSTGRES_PORT="${TEST_POSTGRES_PORT:-5433}"
+    export POSTGRES_PORT="${TEST_POSTGRES_PORT:-5435}"
     export POSTGRES_DB="${TEST_POSTGRES_DB:-test_kotonoha}"
     export POSTGRES_USER="${TEST_POSTGRES_USER:-test}"
     export POSTGRES_PASSWORD="${TEST_POSTGRES_PASSWORD:-test}"

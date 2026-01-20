@@ -148,7 +148,7 @@ services:
     networks:
       - kotonoha-network
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kotonoha}"]
       interval: 10s
@@ -275,7 +275,7 @@ services:
       - kotonoha-network
     # 本番環境ではポートを公開しない（内部ネットワークのみ）
     # ports:
-    #   - "127.0.0.1:5432:5432"
+    #   - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -523,7 +523,7 @@ services:
     networks:
       - kotonoha-network
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kotonoha}"]
       interval: 10s
@@ -604,13 +604,13 @@ docker compose logs postgres
 1. **ポート競合**
 
    ```bash
-   # ポート5432が使用中か確認
-   sudo lsof -i :5432
+   # ポート5433が使用中か確認（ホスト側）
+   sudo lsof -i :5433
    
    # 別のポートを使用する
    # docker-compose.ymlで:
    # ports:
-   #   - "127.0.0.1:5433:5432"
+   #   - "127.0.0.1:5435:5432"
    ```
 
 2. **ボリュームの権限エラー**

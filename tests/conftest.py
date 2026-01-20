@@ -119,7 +119,7 @@ async def postgres_db():
     # テストDB接続文字列を環境変数から読み込み
     test_db_url = os.getenv(
         "TEST_DATABASE_URL",
-        "postgresql://test:test@localhost:5433/test_kotonoha",
+        "postgresql://test:test@localhost:5435/test_kotonoha",
     )
 
     # 接続パラメータを抽出
@@ -128,13 +128,13 @@ async def postgres_db():
     if test_db_url.startswith("postgresql://"):
         parsed = urlparse(test_db_url)
         test_host = parsed.hostname or "localhost"
-        test_port = parsed.port or 5433
+        test_port = parsed.port or 5435
         test_database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
         test_user = parsed.username or "test"
         test_password = parsed.password or "test"
     else:
         test_host = os.getenv("TEST_POSTGRES_HOST", "localhost")
-        test_port = int(os.getenv("TEST_POSTGRES_PORT", "5433"))
+        test_port = int(os.getenv("TEST_POSTGRES_PORT", "5435"))
         test_database = os.getenv("TEST_POSTGRES_DB", "test_kotonoha")
         test_user = os.getenv("TEST_POSTGRES_USER", "test")
         test_password = os.getenv("TEST_POSTGRES_PASSWORD", "test")
@@ -194,7 +194,7 @@ async def postgres_db_with_rollback():
     # テストDB接続文字列を環境変数から読み込み
     test_db_url = os.getenv(
         "TEST_DATABASE_URL",
-        "postgresql://test:test@localhost:5433/test_kotonoha",
+        "postgresql://test:test@localhost:5435/test_kotonoha",
     )
 
     # 接続パラメータを抽出
@@ -203,13 +203,13 @@ async def postgres_db_with_rollback():
     if test_db_url.startswith("postgresql://"):
         parsed = urlparse(test_db_url)
         test_host = parsed.hostname or "localhost"
-        test_port = parsed.port or 5433
+        test_port = parsed.port or 5435
         test_database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
         test_user = parsed.username or "test"
         test_password = parsed.password or "test"
     else:
         test_host = os.getenv("TEST_POSTGRES_HOST", "localhost")
-        test_port = int(os.getenv("TEST_POSTGRES_PORT", "5433"))
+        test_port = int(os.getenv("TEST_POSTGRES_PORT", "5435"))
         test_database = os.getenv("TEST_POSTGRES_DB", "test_kotonoha")
         test_user = os.getenv("TEST_POSTGRES_USER", "test")
         test_password = os.getenv("TEST_POSTGRES_PASSWORD", "test")

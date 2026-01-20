@@ -338,7 +338,7 @@ class PostgreSQLDatabase(DatabaseProtocol):
 DATABASE_TYPE: str = os.getenv("DATABASE_TYPE", "sqlite")  # 'sqlite' or 'postgres'
 DATABASE_URL: str = os.getenv(
     "DATABASE_URL",
-    "postgresql://kotonoha:password@localhost:5432/kotonoha"
+    "postgresql://kotonoha:password@localhost:5433/kotonoha"
 )
 
 # main.py
@@ -358,7 +358,7 @@ services:
       - postgres
     environment:
       - DATABASE_TYPE=postgres
-      - DATABASE_URL=postgresql://kotonoha:${POSTGRES_PASSWORD}@postgres:5432/kotonoha
+      - DATABASE_URL=postgresql://kotonoha:${POSTGRES_PASSWORD}@postgres:5433/kotonoha
 
   postgres:
     image: pgvector/pgvector:0.8.1-pg18
@@ -415,7 +415,7 @@ networks:
 3. サーバーを追加:
    - **名前**: `kotonoha-postgres`（任意）
    - **ホスト名/アドレス**: `postgres`（Docker サービス名）
-   - **ポート**: `5432`
+   - **ポート**: `5433`（ホスト側、コンテナ内は5432）
    - **メンテナンスデータベース**: `kotonoha`
    - **ユーザー名**: `kotonoha`
    - **パスワード**: `${POSTGRES_PASSWORD}` の値

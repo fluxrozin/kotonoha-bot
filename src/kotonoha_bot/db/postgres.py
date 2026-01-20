@@ -57,19 +57,52 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         Args:
             connection_string: 接続文字列（開発環境用、後方互換性のため残す）
             host: PostgreSQL ホスト（本番環境推奨）
-            port: PostgreSQL ポート（デフォルト: 5432）
+            port: PostgreSQL ポート（Noneの場合はホスト名に応じて自動決定）
             database: データベース名
             user: ユーザー名
             password: パスワード（分離して管理）
+
+        Note:
+            - Dockerコンテナ内から`postgres`（コンテナ名）に接続する場合: ポート5432（コンテナ内のポート）
+            - ホストマシンから`localhost`に接続する場合: ポート5433（ホスト側のポート）
         """
         if host and database and user and password:
             self.connection_string = None
             self.host = host
-            self.port = port or 5432
+            # ポートが指定されていない場合、ホスト名に応じて自動決定
+            if port is None:
+                # Dockerコンテナ名（postgres）の場合はコンテナ内のポート5432を使用
+                # ホストマシン（localhost）の場合はホスト側のポート5433を使用
+                if host == "postgres":
+                    self.port = 5432
+                else:
+                    self.port = 5433
+            else:
+                self.port = port
             self.database = database
             self.user = user
             self.password = password
         elif connection_string:
+            # connection_stringをパースして、Dockerコンテナ内の場合はポートを調整
+            from urllib.parse import urlparse, urlunparse
+
+            parsed = urlparse(connection_string)
+            # ホスト名がpostgres（Dockerコンテナ名）の場合、ポートを5432に変更
+            if parsed.hostname == "postgres" and parsed.port == 5433:
+                # ポートを5432に変更（コンテナ内のポート）
+                new_netloc = (
+                    f"{parsed.username}:{parsed.password}@{parsed.hostname}:5432"
+                )
+                connection_string = urlunparse(
+                    (
+                        parsed.scheme,
+                        new_netloc,
+                        parsed.path,
+                        parsed.params,
+                        parsed.query,
+                        parsed.fragment,
+                    )
+                )
             self.connection_string = connection_string
             self.host = None
             self.port = None
@@ -154,7 +187,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
 
         # テスト用接続情報を取得
         test_host = os.getenv("TEST_POSTGRES_HOST", "localhost")
-        test_port = int(os.getenv("TEST_POSTGRES_PORT", "5432"))
+        test_port = int(os.getenv("TEST_POSTGRES_PORT", "5435"))
         test_database = os.getenv("TEST_POSTGRES_DB", "test_kotonoha")
         test_user = os.getenv("TEST_POSTGRES_USER", "test")
         test_password = os.getenv("TEST_POSTGRES_PASSWORD", "test")

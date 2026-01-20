@@ -195,7 +195,7 @@ CHECK (status IN ('pending', 'processing', 'completed', 'partial', 'failed'));
 ```bash
 # 推奨: パスワードを分離
 POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
+POSTGRES_PORT=5433
 POSTGRES_DB=kotonoha
 POSTGRES_USER=kotonoha
 POSTGRES_PASSWORD=<secret>
@@ -203,9 +203,9 @@ POSTGRES_PASSWORD=<secret>
 
 | 環境変数 | 説明 | デフォルト値 |
 |---------|------|------------|
-| `DATABASE_URL` | PostgreSQL接続文字列（開発環境用） | `postgresql://kotonoha:password@localhost:5432/kotonoha` |
+| `DATABASE_URL` | PostgreSQL接続文字列（開発環境用） | `postgresql://kotonoha:password@localhost:5433/kotonoha` |
 | `POSTGRES_HOST` | PostgreSQLホスト（本番環境推奨） | - |
-| `POSTGRES_PORT` | PostgreSQLポート（本番環境推奨） | `5432` |
+| `POSTGRES_PORT` | PostgreSQLポート（本番環境推奨） | `5433` |
 | `POSTGRES_DB` | データベース名（本番環境推奨） | - |
 | `POSTGRES_USER` | ユーザー名（本番環境推奨） | - |
 | `POSTGRES_PASSWORD` | パスワード（本番環境推奨、シークレット管理） | - |

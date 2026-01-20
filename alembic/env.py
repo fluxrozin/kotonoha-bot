@@ -56,7 +56,7 @@ else:
     else:
         # 個別パラメータから接続文字列を構築
         postgres_host = os.getenv("POSTGRES_HOST", "localhost")
-        postgres_port = os.getenv("POSTGRES_PORT", "5432")
+        postgres_port = os.getenv("POSTGRES_PORT", "5433")
         postgres_db = os.getenv("POSTGRES_DB", "kotonoha")
         postgres_user = os.getenv("POSTGRES_USER", "kotonoha")
         postgres_password = os.getenv("POSTGRES_PASSWORD", "password")
@@ -131,7 +131,7 @@ async def _ensure_test_user_and_database() -> None:
 
     # テスト用接続情報を取得
     test_host = os.getenv("TEST_POSTGRES_HOST", "localhost")
-    test_port = int(os.getenv("TEST_POSTGRES_PORT", "5432"))
+    test_port = int(os.getenv("TEST_POSTGRES_PORT", "5435"))
     test_database = os.getenv("TEST_POSTGRES_DB", "test_kotonoha")
     test_user = os.getenv("TEST_POSTGRES_USER", "test")
     test_password = os.getenv("TEST_POSTGRES_PASSWORD", "test")

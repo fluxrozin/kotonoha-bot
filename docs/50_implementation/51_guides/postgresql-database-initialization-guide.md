@@ -50,7 +50,7 @@ grep -E "^(POSTGRES_|DATABASE_URL)" .env
 
 ```bash
 POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
+POSTGRES_PORT=5433
 POSTGRES_DB=kotonoha
 POSTGRES_USER=kotonoha
 POSTGRES_PASSWORD=admin
@@ -98,10 +98,10 @@ POSTGRES_DB=kotonoha
 
 ```bash
 # 変更前
-DATABASE_URL=postgresql://kotonoha:old_password@postgres:5432/kotonoha
+DATABASE_URL=postgresql://kotonoha:old_password@postgres:5433/kotonoha
 
 # 変更後（初期化前に更新）
-DATABASE_URL=postgresql://kotonoha:new_password@postgres:5432/kotonoha
+DATABASE_URL=postgresql://kotonoha:new_password@postgres:5433/kotonoha
 ```
 
 ### パスワードリセットの完全な手順
@@ -190,7 +190,7 @@ docker compose up -d
 - **パスワード**: `password`（`.env`で上書き可能）
 - **データベース名**: `kotonoha`
 - **ホスト**: `postgres`（コンテナ名）
-- **ポート**: `5432`
+- **ポート**: `5433`（ホスト側、コンテナ内は5432）
 
 ### 環境変数での上書き
 

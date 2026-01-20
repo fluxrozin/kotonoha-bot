@@ -19,7 +19,7 @@ def test_db_url():
     """テスト用データベースURL."""
     return os.getenv(
         "TEST_DATABASE_URL",
-        "postgresql://test:test@localhost:5433/test_kotonoha",
+        "postgresql://test:test@localhost:5435/test_kotonoha",
     )
 
 
@@ -108,7 +108,7 @@ async def clean_test_db(test_db_url):
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -200,7 +200,7 @@ async def get_table_names(test_db_url: str) -> list[str]:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -239,7 +239,7 @@ async def check_extension_exists(test_db_url: str, extension_name: str) -> bool:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -274,7 +274,7 @@ async def get_alembic_version(test_db_url: str) -> str | None:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -405,7 +405,7 @@ async def test_migration_schema_validation(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -521,7 +521,7 @@ async def get_enum_types(test_db_url: str) -> list[str]:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -555,7 +555,7 @@ async def get_enum_values(test_db_url: str, enum_name: str) -> list[str]:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -589,7 +589,7 @@ async def get_indexes(test_db_url: str, table_name: str) -> list[str]:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -624,7 +624,7 @@ async def get_foreign_keys(test_db_url: str, table_name: str) -> list[dict]:
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -783,7 +783,7 @@ async def test_migration_constraints(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -839,7 +839,7 @@ async def test_migration_default_values(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -892,7 +892,7 @@ async def test_migration_data_integrity(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -1050,7 +1050,7 @@ async def test_migration_hnsw_index(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -1097,7 +1097,7 @@ async def test_migration_gin_index(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -1141,7 +1141,7 @@ async def test_migration_partial_indexes(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"
@@ -1214,7 +1214,7 @@ async def test_migration_table_columns_complete(
 
     parsed = urlparse(test_db_url)
     host = parsed.hostname or "localhost"
-    port = parsed.port or 5433
+    port = parsed.port or 5435
     database = parsed.path.lstrip("/") if parsed.path else "test_kotonoha"
     user = parsed.username or "test"
     password = parsed.password or "test"

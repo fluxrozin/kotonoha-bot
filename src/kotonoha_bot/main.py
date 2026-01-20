@@ -181,9 +181,15 @@ async def async_main() -> None:
     else:
         # 本番環境推奨: 個別パラメータを使用（パスワードを分離）
         logger.debug("Using individual parameters for database connection")
+        # Dockerコンテナ内からpostgresコンテナに接続する場合、コンテナ内のポート5432を使用
+        # ホストマシンから接続する場合、ホスト側のポート5433を使用
+        effective_port = settings.postgres_port
+        if settings.postgres_host == "postgres":
+            # Dockerコンテナ名の場合はコンテナ内のポート5432を使用
+            effective_port = 5432
         db = PostgreSQLDatabase(
             host=settings.postgres_host,
-            port=settings.postgres_port,
+            port=effective_port,
             database=settings.postgres_db,
             user=settings.postgres_user,
             password=settings.postgres_password,

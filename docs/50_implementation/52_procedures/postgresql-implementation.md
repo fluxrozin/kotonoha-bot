@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     
     # PostgreSQL接続設定
     postgres_host: str | None = None
-    postgres_port: int = 5432
+    postgres_port: int = 5433
     postgres_db: str = "kotonoha"
     postgres_user: str = "kotonoha"
     postgres_password: str | None = None
@@ -778,7 +778,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: kotonoha
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -794,10 +794,10 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://kotonoha:${POSTGRES_PASSWORD}@postgres:5432/kotonoha
+      DATABASE_URL: postgresql://kotonoha:${POSTGRES_PASSWORD}@postgres:5433/kotonoha
       # または個別パラメータ（本番環境推奨）
       POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
+      POSTGRES_PORT: 5433
       POSTGRES_DB: kotonoha
       POSTGRES_USER: kotonoha
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

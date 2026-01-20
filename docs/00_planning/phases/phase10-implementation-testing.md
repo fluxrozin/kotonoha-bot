@@ -397,11 +397,11 @@ async def db():
         テスト用の PostgreSQL インスタンスに接続します。
     """
     # テスト用の接続文字列（環境変数から取得、またはテスト専用DB）
-    database = PostgreSQLDatabase(connection_string="postgresql://test:test@localhost:5432/test_db")
+    database = PostgreSQLDatabase(connection_string="postgresql://test:test@localhost:5435/test_db")
     await database.initialize()
     yield database
     # テスト後にテーブルをクリア（データ汚染防止）
-    async with asyncpg.connect("postgresql://test:test@localhost:5432/test_db") as conn:
+    async with asyncpg.connect("postgresql://test:test@localhost:5435/test_db") as conn:
         await conn.execute("TRUNCATE TABLE sessions CASCADE")
     await database.close()  # 明示的にクローズ
 ```
