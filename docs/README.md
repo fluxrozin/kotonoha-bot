@@ -28,7 +28,7 @@
   - [Phase 9](./00_planning/phases/phase09.md): LiteLLM 削除、Anthropic SDK 直接使用への移行
   - [Phase 10](./00_planning/phases/phase10.md): 完全リファクタリング
   - [Phase 11](./00_planning/phases/phase11.md): ハイブリッド検索（pg_bigm）
-- [**将来機能レビュー**](./00_planning/future-features-review.md): 将来実装予定の機能のレビュー
+- [**将来機能レビュー**](./00_planning/phases/future-features-review.md): 将来実装予定の機能のレビュー
 
 ### 10_requirements/（要件定義 - Why & What）
 
@@ -110,6 +110,7 @@
 #### 51_guides/（ガイド）
 
 - [**実装検討事項**](./50_implementation/51_guides/considerations.md): 実装前に検討すべき技術的詳細（エラーハンドリング、レート制限、セキュリティなど）
+- [**コード品質チェック・テスト実施マニュアル**](./50_implementation/51_guides/code-quality-and-testing.md): 型ヒント、docstring、フォーマット、型チェック、テストカバレッジのベストプラクティス（**開発者必読**）
 - [**プロンプト管理**](./50_implementation/51_guides/prompt-management.md): プロンプトファイルの管理方法とベストプラクティス
 - [**FAQ**](./50_implementation/51_guides/faq.md): セットアップ、開発環境、Bot動作、AI機能、セッション管理、デプロイメント、トラブルシューティングに関するよくある質問と回答
 - [**PostgreSQL クエリガイド**](./50_implementation/51_guides/postgresql-query-guide.md): PostgreSQLの使用例とクエリ
@@ -160,7 +161,8 @@
 1. **[実装ロードマップ](./00_planning/roadmap.md)**: 段階的な実装計画を確認
 2. **[ADR](./20_architecture/22_adrs/)**: 重要な技術的決定の背景を理解
 3. **[実装検討事項](./50_implementation/51_guides/considerations.md)**: 実装上の注意点を確認
-4. **[プロジェクト管理](./00_planning/project-management.md)**: 現在のスプリントとタスクを確認
+4. **[コード品質チェック・テスト実施マニュアル](./50_implementation/51_guides/code-quality-and-testing.md)**: コード品質ツールの使い方とベストプラクティス
+5. **[プロジェクト管理](./00_planning/project-management.md)**: 現在のスプリントとタスクを確認
 
 ### 設計を確認する方
 
@@ -204,7 +206,8 @@ docs_new/
 ├── 00_planning/                       # 企画・計画
 │   ├── project-management.md          # WBS、バックログ、スプリント計画
 │   ├── roadmap.md                     # 11段階実装計画（実装開始前必読）
-│   ├── future-features-review.md      # 将来機能レビュー
+│   ├── phases/
+│   │   ├── future-features-review.md  # 将来機能レビュー
 │   └── phases/                        # フェーズ別実装計画
 │       ├── phase01.md                # Phase 1: MVP実装ステップ（完了）
 │       ├── phase02.md                # Phase 2: NASデプロイ（完了）
@@ -216,7 +219,9 @@ docs_new/
 │       ├── phase08.md                # Phase 8: PostgreSQL移行
 │       ├── phase09.md                # Phase 9: LiteLLM削除、Anthropic SDK直接使用への移行
 │       ├── phase10.md                # Phase 10: 完全リファクタリング
-│       ├── phase10-implementation.md  # Phase 10: 完全リファクタリング実装ガイド
+│       ├── phase10-implementation.md  # Phase 10: 完全リファクタリング実装ガイド（メイン）
+│       ├── phase10-implementation-steps.md  # Phase 10: 詳細実装計画（Step 0-7）
+│       ├── phase10-implementation-testing.md  # Phase 10: テスト・完了基準・リスク管理
 │       └── phase11.md                 # Phase 11: ハイブリッド検索（pg_bigm）
 │
 ├── 10_requirements/                   # 要件定義
@@ -271,6 +276,7 @@ docs_new/
 ├── 50_implementation/                  # 実装ガイド
 │   ├── 51_guides/                     # ガイド
 │   │   ├── considerations.md          # 実装上の検討事項
+│   │   ├── code-quality-and-testing.md # コード品質チェック・テスト実施マニュアル（開発者必読）
 │   │   ├── prompt-management.md       # プロンプト管理
 │   │   ├── faq.md                     # よくある質問と回答
 │   │   ├── postgresql-query-guide.md  # PostgreSQLクエリガイド

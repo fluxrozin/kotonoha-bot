@@ -1,4 +1,4 @@
-"""Discord Bot Client"""
+"""Discord Bot Client."""
 
 import logging
 
@@ -11,22 +11,33 @@ logger = logging.getLogger(__name__)
 
 
 class KotonohaBot(commands.Bot):
-    """Kotonoha Discord Bot"""
+    """Kotonoha Discord Bot."""
 
-    def __init__(self):
+    def __init__(self, config: Config | None = None):
+        """KotonohaBot を初期化.
+
+        Args:
+            config: 設定インスタンス（依存性注入、必須）
+
+        Raises:
+            ValueError: config が None の場合
+        """
+        if config is None:
+            raise ValueError("config parameter is required (DI pattern)")
+        self.config = config
         intents = discord.Intents.default()
         intents.message_content = True  # メッセージ内容を読み取る権限
         intents.messages = True
         intents.guilds = True
 
         super().__init__(
-            command_prefix=Config.BOT_PREFIX,
+            command_prefix=self.config.BOT_PREFIX,
             intents=intents,
             help_command=None,  # デフォルトのhelpコマンドを無効化
         )
 
     async def on_ready(self):
-        """Bot起動時"""
+        """Bot起動時."""
         if self.user is None:
             logger.error("Bot user is None in on_ready event")
             return
@@ -41,5 +52,5 @@ class KotonohaBot(commands.Bot):
         )
 
     async def on_error(self, event_method: str, *_args, **_kwargs):
-        """エラーハンドリング"""
+        """エラーハンドリング."""
         logger.exception(f"Error in {event_method}")

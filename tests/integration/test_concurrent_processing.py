@@ -8,13 +8,13 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from kotonoha_bot.db.models import ChatSession, Message, MessageRole
 from kotonoha_bot.features.knowledge_base.embedding_processor import (
     EmbeddingProcessor,
 )
 from kotonoha_bot.features.knowledge_base.session_archiver import (
     SessionArchiver,
 )
-from kotonoha_bot.session.models import ChatSession, Message, MessageRole
 
 
 @pytest.mark.asyncio
@@ -281,7 +281,7 @@ async def test_concurrent_save_and_archive(postgres_db, mock_embedding_provider)
     """セッション保存とアーカイブの同時実行テスト"""
     from datetime import UTC, datetime, timedelta
 
-    from kotonoha_bot.session.models import ChatSession, Message, MessageRole
+    from kotonoha_bot.db.models import ChatSession, Message, MessageRole
 
     # セッションを作成
     session = ChatSession(
@@ -405,7 +405,7 @@ async def test_optimistic_locking_conflict_retry(postgres_db, mock_embedding_pro
     """楽観的ロックの競合時リトライテスト"""
     from datetime import UTC, datetime, timedelta
 
-    from kotonoha_bot.session.models import ChatSession, Message, MessageRole
+    from kotonoha_bot.db.models import ChatSession, Message, MessageRole
 
     # セッションを作成
     session = ChatSession(
@@ -472,6 +472,7 @@ async def test_full_flow_with_errors(postgres_db):
     from datetime import UTC, datetime, timedelta
     from unittest.mock import AsyncMock
 
+    from kotonoha_bot.db.models import ChatSession, Message, MessageRole
     from kotonoha_bot.external.embedding.openai_embedding import (
         OpenAIEmbeddingProvider,
     )
@@ -481,7 +482,6 @@ async def test_full_flow_with_errors(postgres_db):
     from kotonoha_bot.features.knowledge_base.session_archiver import (
         SessionArchiver,
     )
-    from kotonoha_bot.session.models import ChatSession, Message, MessageRole
 
     # 部分的にエラーを発生させるモック
     call_count = [0]
@@ -635,13 +635,13 @@ async def test_end_to_end_knowledge_search_flow(postgres_db, mock_embedding_prov
     """エンドツーエンドの知識検索フローテスト"""
     from datetime import UTC, datetime, timedelta
 
+    from kotonoha_bot.db.models import ChatSession, Message, MessageRole
     from kotonoha_bot.features.knowledge_base.embedding_processor import (
         EmbeddingProcessor,
     )
     from kotonoha_bot.features.knowledge_base.session_archiver import (
         SessionArchiver,
     )
-    from kotonoha_bot.session.models import ChatSession, Message, MessageRole
 
     # 1. セッションを作成
     session = ChatSession(
@@ -797,13 +797,13 @@ async def test_session_archive_with_vector_search_filtering(
     """セッションアーカイブとフィルタリング付きベクトル検索の統合テスト"""
     from datetime import UTC, datetime, timedelta
 
+    from kotonoha_bot.db.models import ChatSession, Message, MessageRole
     from kotonoha_bot.features.knowledge_base.embedding_processor import (
         EmbeddingProcessor,
     )
     from kotonoha_bot.features.knowledge_base.session_archiver import (
         SessionArchiver,
     )
-    from kotonoha_bot.session.models import ChatSession, Message, MessageRole
 
     # 2つの異なるチャンネルのセッションを作成
     session1 = ChatSession(

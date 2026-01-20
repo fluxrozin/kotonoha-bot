@@ -1,8 +1,22 @@
+"""Alembicマイグレーション環境設定モジュール.
+
+このモジュールは、Alembicによるデータベースマイグレーションの実行環境を設定する。
+非同期SQLAlchemy（asyncpg）を使用したPostgreSQLマイグレーションをサポートする。
+
+主な機能:
+- 非同期エンジンの作成とマイグレーション実行
+- 環境変数または設定ファイルからの接続文字列の取得
+- アプリケーションからの呼び出しとコマンドライン実行の両方に対応
+"""
+
+import asyncio
 import logging
 import os
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import pool
+from sqlalchemy.engine import Connection
+from sqlalchemy.ext.asyncio import async_engine_from_config
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -10,7 +24,7 @@ config = context.config
 
 # ⚠️ 重要: fileConfig()はアプリケーションのログ設定を上書きするため、
 # アプリケーションから呼ばれる場合はスキップする。
-# postgres.py から command.upgrade() が呼ばれる場合、すでにログ設定済みなので、
+# postgres.py から command.upgrade() を呼ぶ場合、すでにログ設定済みなので、
 # Alembicのログ設定で上書きしない。
 # コマンドラインから直接 alembic upgrade head を実行する場合のみログ設定を適用。
 if config.config_file_name is not None:
@@ -25,23 +39,19 @@ if config.config_file_name is not None:
 
 # 接続文字列の設定
 # postgres.py から alembic.command.upgrade() を呼ぶ際に設定されている場合はそれを使用
-# その場合、asyncpg形式をpsycopg2形式に変換する必要がある
 existing_url = config.get_main_option("sqlalchemy.url")
 if existing_url and existing_url != "driver://user:pass@localhost/dbname":
-    # postgres.py から設定された URL がある場合
-    # asyncpg形式をpsycopg2形式に変換（Alembicは同期接続を使用するため）
-    if "+asyncpg" in existing_url:
-        sqlalchemy_url = existing_url.replace("+asyncpg", "+psycopg2")
-        config.set_main_option("sqlalchemy.url", sqlalchemy_url)
-    # それ以外（すでにpsycopg2形式など）はそのまま使用
+    # postgres.py から設定された URL がある場合はそのまま使用
+    # asyncpg形式であることを確認（必要に応じて変換）
+    if "+asyncpg" not in existing_url:
+        existing_url = existing_url.replace("postgresql://", "postgresql+asyncpg://")
+        config.set_main_option("sqlalchemy.url", existing_url)
 else:
     # 環境変数から接続文字列を取得
-    # Alembicは同期接続を使用するため、psycopg2を使用
     database_url = os.getenv("DATABASE_URL")
     if database_url:
-        # asyncpgの接続文字列をpsycopg2形式に変換
-        # postgresql://user:pass@host:port/db -> postgresql+psycopg2://...
-        sqlalchemy_url = database_url.replace("postgresql://", "postgresql+psycopg2://")
+        # asyncpg形式に変換
+        sqlalchemy_url = database_url.replace("postgresql://", "postgresql+asyncpg://")
         config.set_main_option("sqlalchemy.url", sqlalchemy_url)
     else:
         # 個別パラメータから接続文字列を構築
@@ -52,7 +62,7 @@ else:
         postgres_password = os.getenv("POSTGRES_PASSWORD", "password")
 
         sqlalchemy_url = (
-            f"postgresql+psycopg2://{postgres_user}:{postgres_password}@"
+            f"postgresql+asyncpg://{postgres_user}:{postgres_password}@"
             f"{postgres_host}:{postgres_port}/{postgres_db}"
         )
         config.set_main_option("sqlalchemy.url", sqlalchemy_url)
@@ -93,28 +103,58 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
+def do_run_migrations(connection: Connection) -> None:
+    """マイグレーションを実行する（同期関数）.
 
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
+    この関数は非同期接続の run_sync() から呼び出されます。
     """
-    connectable = engine_from_config(
+    context.configure(connection=connection, target_metadata=target_metadata)
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+async def run_async_migrations() -> None:
+    """非同期マイグレーションを実行."""
+    connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
-    try:
-        with connectable.connect() as connection:
-            context.configure(connection=connection, target_metadata=target_metadata)
+    async with connectable.connect() as connection:
+        await connection.run_sync(do_run_migrations)
 
-            with context.begin_transaction():
-                context.run_migrations()
-    finally:
-        # 確実にエンジンを破棄（接続プールがNullPoolでも明示的に閉じる）
-        connectable.dispose()
+    await connectable.dispose()
+
+
+def run_migrations_online() -> None:
+    """Run migrations in 'online' mode.
+
+    非同期エンジンを使用してマイグレーションを実行します。
+
+    接続が提供されている場合（cfg.attributes["connection"]）はそれを使用し、
+    ない場合は新規に非同期エンジンを作成して実行します。
+    """
+    # 接続が提供されている場合（アプリケーションから呼び出される場合）
+    connection = config.attributes.get("connection", None)
+    if connection is not None:
+        # 提供された接続を使用（同期関数として実行）
+        do_run_migrations(connection)
+        return
+
+    # 接続が提供されていない場合（コマンドライン実行時）
+    # イベントループがない場合のみ asyncio.run() を使用
+    try:
+        asyncio.get_running_loop()
+        # 既存のループがある場合はエラー
+        raise RuntimeError(
+            "Cannot run migrations from within an existing event loop. "
+            "Provide a connection via config.attributes['connection'] instead."
+        )
+    except RuntimeError:
+        # イベントループがない場合は新規作成（コマンドライン実行時）
+        asyncio.run(run_async_migrations())
 
 
 if context.is_offline_mode():

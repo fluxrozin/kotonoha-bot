@@ -6,8 +6,9 @@
 from datetime import UTC, datetime
 
 import pytest
+from dirty_equals import IsDatetime, IsPartialDict
 
-from kotonoha_bot.session.models import ChatSession, Message, MessageRole
+from kotonoha_bot.db.models import ChatSession, Message, MessageRole
 
 
 @pytest.mark.asyncio
@@ -40,6 +41,11 @@ async def test_session_management_flow(postgres_db):
     assert loaded_session.session_key == "test:session:integration:001"
     assert len(loaded_session.messages) == 1
     assert loaded_session.messages[0].content == "こんにちは"
+    # dirty-equalsを使用してタイムスタンプをチェック（created_at, last_active_atは動的な値）
+    assert loaded_session.created_at == IsDatetime(approx=datetime.now(UTC), delta=10)
+    assert loaded_session.last_active_at == IsDatetime(
+        approx=datetime.now(UTC), delta=10
+    )
 
     # 3. セッションの更新（メッセージを追加）
     loaded_session.messages.append(
@@ -96,6 +102,22 @@ async def test_session_persistence(postgres_db):
     # 実際の統合テストでは、別の接続プールから読み込むことを想定
     loaded_session = await postgres_db.load_session("test:session:persistence:001")
     assert loaded_session is not None
+    # dirty-equalsを使用してセッションの主要な属性をチェック
+    # 辞書に変換してから比較（タイムスタンプは無視）
+    session_dict = loaded_session.to_dict()
+    assert session_dict == IsPartialDict(
+        session_key="test:session:persistence:001",
+        guild_id=123456789,
+        channel_id=987654321,
+        user_id=111222333,
+        messages=[
+            IsPartialDict(
+                role="user",
+                content="永続化テスト",
+            )
+        ],
+    )
+    # 個別の属性も確認
     assert loaded_session.session_key == "test:session:persistence:001"
     assert loaded_session.guild_id == 123456789
     assert loaded_session.channel_id == 987654321

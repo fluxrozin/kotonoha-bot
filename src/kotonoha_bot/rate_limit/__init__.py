@@ -1,4 +1,4 @@
-"""レート制限モジュール"""
+"""レート制限モジュール."""
 
 from .monitor import RateLimitMonitor
 from .request_queue import RequestPriority, RequestQueue

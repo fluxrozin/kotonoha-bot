@@ -1,4 +1,4 @@
-"""ヘルスチェックサーバー"""
+"""ヘルスチェックサーバー."""
 
 import json
 import logging
@@ -8,23 +8,23 @@ from threading import Thread
 
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from .config import Config
+from .config import get_config
 
 logger = logging.getLogger(__name__)
 
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
-    """ヘルスチェック用HTTPハンドラー"""
+    """ヘルスチェック用HTTPハンドラー."""
 
     # クラス変数としてステータス取得関数を保持
     get_status: Callable[[], dict] | None = None
 
     def log_message(self, format: str, *args) -> None:
-        """ログ出力をロガーにリダイレクト"""
+        """ログ出力をロガーにリダイレクト."""
         logger.debug(f"Health check: {format % args}")
 
     def do_GET(self) -> None:
-        """GETリクエストの処理"""
+        """GETリクエストの処理."""
         if self.path == "/health" or self.path == "/":
             self._handle_health()
         elif self.path == "/ready":
@@ -35,7 +35,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Not Found")
 
     def _handle_health(self) -> None:
-        """ヘルスチェックエンドポイント"""
+        """ヘルスチェックエンドポイント."""
         try:
             get_status_func = HealthCheckHandler.get_status
             status = get_status_func() if get_status_func else {"status": "unknown"}
@@ -55,7 +55,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             )
 
     def _handle_ready(self) -> None:
-        """レディネスチェックエンドポイント"""
+        """レディネスチェックエンドポイント."""
         try:
             get_status_func = HealthCheckHandler.get_status
             status = get_status_func() if get_status_func else {"status": "unknown"}
@@ -75,7 +75,7 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
             )
 
     def _handle_metrics(self) -> None:
-        """Prometheusメトリクスエンドポイント"""
+        """Prometheusメトリクスエンドポイント."""
         try:
             self.send_response(200)
             self.send_header("Content-Type", CONTENT_TYPE_LATEST)
@@ -87,22 +87,32 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
 
 class HealthCheckServer:
-    """ヘルスチェックサーバー"""
+    """ヘルスチェックサーバー."""
 
-    def __init__(self, port: int = Config.HEALTH_CHECK_PORT):
-        self.port = port
+    def __init__(self, port: int | None = None):
+        """HealthCheckServer を初期化.
+
+        Args:
+            port: ポート番号（省略時は Config.HEALTH_CHECK_PORT を使用）
+        """
+        if port is not None:
+            self.port: int = port
+        else:
+            config = get_config()
+            self.port: int = config.HEALTH_CHECK_PORT
         self.server: HTTPServer | None = None
         self.thread: Thread | None = None
         self._get_status: Callable[[], dict] | None = None
 
     def set_status_callback(self, callback: Callable[[], dict]) -> None:
-        """ステータス取得コールバックを設定"""
+        """ステータス取得コールバックを設定."""
         self._get_status = callback
         HealthCheckHandler.get_status = callback
 
     def start(self) -> None:
-        """サーバーを開始"""
-        if not Config.HEALTH_CHECK_ENABLED:
+        """サーバーを開始."""
+        config = get_config()
+        if not config.HEALTH_CHECK_ENABLED:
             logger.info("Health check server is disabled")
             return
 
@@ -115,7 +125,7 @@ class HealthCheckServer:
             logger.error(f"Failed to start health check server: {e}")
 
     def stop(self) -> None:
-        """サーバーを停止"""
+        """サーバーを停止."""
         if self.server:
             self.server.shutdown()
             logger.info("Health check server stopped")

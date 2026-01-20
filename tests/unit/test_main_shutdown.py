@@ -104,24 +104,31 @@ async def test_async_main_sets_up_components(
     mock_bot, mock_handler, mock_health_server
 ):
     """async_mainがコンポーネントを適切にセットアップすることを確認"""
-    mock_db = AsyncMock()
+    mock_db = MagicMock()
     mock_db.initialize = AsyncMock()
     mock_db.close = AsyncMock()
 
+    mock_embedding_provider = MagicMock()
     with (
         patch("kotonoha_bot.main.KotonohaBot", return_value=mock_bot),
         patch("kotonoha_bot.main.setup_handlers", return_value=mock_handler),
         patch("kotonoha_bot.main.HealthCheckServer", return_value=mock_health_server),
-        patch("kotonoha_bot.main.Config") as mock_config,
+        patch("kotonoha_bot.main.get_config") as mock_get_config,
         patch("kotonoha_bot.main.PostgreSQLDatabase", return_value=mock_db),
         patch("kotonoha_bot.main.settings") as mock_settings,
+        patch(
+            "kotonoha_bot.main.OpenAIEmbeddingProvider",
+            return_value=mock_embedding_provider,
+        ),
     ):
         mock_settings.database_url = "postgresql://test:test@localhost:5432/test"
         mock_settings.postgres_host = None
-        mock_config.validate = Mock()
-        mock_config.LOG_LEVEL = "INFO"
-        mock_config.LLM_MODEL = "test-model"
-        mock_config.DISCORD_TOKEN = "test-token"
+        mock_config_instance = MagicMock()
+        mock_config_instance.validate_config = Mock()
+        mock_config_instance.LOG_LEVEL = "INFO"
+        mock_config_instance.LLM_MODEL = "test-model"
+        mock_config_instance.DISCORD_TOKEN = "test-token"
+        mock_get_config.return_value = mock_config_instance
 
         # シャットダウンイベントを即座にトリガーするタスクを作成
         shutdown_event = asyncio.Event()
@@ -186,7 +193,7 @@ async def test_signal_handler_triggers_shutdown(
         patch("kotonoha_bot.main.KotonohaBot", return_value=mock_bot),
         patch("kotonoha_bot.main.setup_handlers", return_value=mock_handler),
         patch("kotonoha_bot.main.HealthCheckServer", return_value=mock_health_server),
-        patch("kotonoha_bot.main.Config") as mock_config,
+        patch("kotonoha_bot.main.get_config") as mock_get_config,
         patch("kotonoha_bot.main.signal.signal") as mock_signal,
         patch("kotonoha_bot.main.PostgreSQLDatabase", return_value=mock_db),
         patch("kotonoha_bot.main.settings") as mock_settings,
@@ -199,10 +206,12 @@ async def test_signal_handler_triggers_shutdown(
     ):
         mock_settings.database_url = "postgresql://test:test@localhost:5432/test"
         mock_settings.postgres_host = None
-        mock_config.validate = Mock()
-        mock_config.LOG_LEVEL = "INFO"
-        mock_config.LLM_MODEL = "test-model"
-        mock_config.DISCORD_TOKEN = "test-token"
+        mock_config_instance = MagicMock()
+        mock_config_instance.validate_config = Mock()
+        mock_config_instance.LOG_LEVEL = "INFO"
+        mock_config_instance.LLM_MODEL = "test-model"
+        mock_config_instance.DISCORD_TOKEN = "test-token"
+        mock_get_config.return_value = mock_config_instance
 
         # bot.start() を即座に終了させるために、bot.__aenter__ で即座に終了するように設定
         async def mock_aenter():

@@ -8,8 +8,8 @@ from datetime import UTC, datetime
 import pytest
 
 from kotonoha_bot.db.base import DatabaseProtocol, KnowledgeBaseProtocol
+from kotonoha_bot.db.models import ChatSession, Message, MessageRole
 from kotonoha_bot.db.postgres import PostgreSQLDatabase
-from kotonoha_bot.session.models import ChatSession, Message, MessageRole
 
 
 def test_postgres_database_implements_database_protocol():

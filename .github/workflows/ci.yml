@@ -3,9 +3,15 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    # すべてのブランチでCIを実行
+    branches: ["**"]
   pull_request:
-    branches: [main]
+    # すべてのブランチからのPRでCIを実行
+    branches: ["**"]
+
+env:
+  PYTHON_VERSION: "3.14"
+  UV_CACHE_DIR: ~/.cache/uv
 
 jobs:
   lint:
@@ -20,7 +26,17 @@ jobs:
           version: "latest"
 
       - name: Set up Python
-        run: uv python install 3.14
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.UV_CACHE_DIR }}
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
 
       - name: Install dependencies
         run: uv sync --frozen
@@ -43,7 +59,17 @@ jobs:
           version: "latest"
 
       - name: Set up Python
-        run: uv python install 3.14
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.UV_CACHE_DIR }}
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
 
       - name: Install dependencies
         run: uv sync --frozen
@@ -51,8 +77,8 @@ jobs:
       - name: Run ty
         run: uv run ty check src/
 
-  test:
-    name: Tests
+  dependency-check:
+    name: Dependency Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,16 +89,135 @@ jobs:
           version: "latest"
 
       - name: Set up Python
-        run: uv python install 3.14
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.UV_CACHE_DIR }}
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
 
       - name: Install dependencies
         run: uv sync --frozen
 
+      - name: Check for unused dependencies (deptry)
+        run: uv run deptry .
+
+      - name: Check for circular dependencies (pydeps)
+        run: |
+          # 循環依存を検出（エラーがある場合は失敗）
+          # --no-output でファイル出力を抑制し、循環依存の検出のみ実行
+          uv run pydeps src/kotonoha_bot/ --show-cycles --no-output || exit 1
+
+      - name: Generate dependency graph (optional)
+        continue-on-error: true
+        run: |
+          # 依存関係グラフを生成（失敗しても続行）
+          # SVG出力はCI環境では不要なため、テキスト出力のみ
+          uv run pydeps src/kotonoha_bot/ --show-deps --no-output || true
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.1-pg18
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_kotonoha
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      TEST_DATABASE_URL: postgresql://test:test@localhost:5432/test_kotonoha
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.UV_CACHE_DIR }}
+            .venv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Wait for PostgreSQL
+        run: |
+          # PostgreSQLサービスのヘルスチェックを待機
+          # GitHub Actionsのサービスコンテナは自動的にヘルスチェックを行うが、
+          # 念のため追加の待機処理を実装（Pythonを使用して汎用的に実装）
+          python3 -c "
+          import socket
+          import time
+          import sys
+          
+          timeout = 60
+          elapsed = 0
+          while elapsed < timeout:
+              try:
+                  sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                  sock.settimeout(1)
+                  result = sock.connect_ex(('localhost', 5432))
+                  sock.close()
+                  if result == 0:
+                      print('PostgreSQL is ready!')
+                      sys.exit(0)
+              except Exception:
+                  pass
+              print(f'Waiting for PostgreSQL... ({elapsed}/{timeout} seconds)')
+              time.sleep(2)
+              elapsed += 2
+          print('PostgreSQL did not become available in time')
+          sys.exit(1)
+          "
+
       - name: Run tests
-        run: uv run pytest tests/ -v --cov=src/kotonoha_bot --cov-report=xml
+        run: uv run pytest tests/ -v --cov=src/kotonoha_bot --cov-report=xml --cov-report=term
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.xml
           fail_ci_if_error: false
+
+  # すべてのチェックが成功した場合のみ実行される統合ジョブ
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, dependency-check, test]
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.type-check.result }}" != "success" ] || \
+             [ "${{ needs.dependency-check.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ]; then
+            echo "One or more jobs failed"
+            exit 1
+          fi
+          echo "All CI checks passed!"

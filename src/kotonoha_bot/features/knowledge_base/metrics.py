@@ -1,4 +1,4 @@
-"""メトリクス収集（Prometheus）"""
+"""メトリクス収集（Prometheus）."""
 
 from prometheus_client import Counter, Gauge, Histogram
 
