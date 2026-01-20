@@ -817,15 +817,27 @@ async def test_postgres_db_init_with_individual_params():
 
 @pytest.mark.asyncio
 async def test_postgres_db_init_default_port():
-    """デフォルトポート（5432）のテスト"""
+    """デフォルトポートのテスト"""
+    # localhost の場合は 5433 がデフォルト
     db = PostgreSQLDatabase(
         host="localhost",
         database="test_kotonoha",
         user="test",
         password="test",
-        # port を指定しない場合、デフォルト値 5432 が使用される
+        # port を指定しない場合、ホスト名に応じて自動決定される
+        # localhost の場合は 5433（ホスト側のポート）
     )
-    assert db.port == 5432
+    assert db.port == 5433
+    
+    # postgres（Dockerコンテナ名）の場合は 5432 がデフォルト
+    db2 = PostgreSQLDatabase(
+        host="postgres",
+        database="test_kotonoha",
+        user="test",
+        password="test",
+        # postgres の場合は 5432（コンテナ内のポート）
+    )
+    assert db2.port == 5432
 
 
 @pytest.mark.asyncio
