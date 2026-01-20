@@ -1,7 +1,6 @@
 """ハンドラーの統合テスト（Embed、エラーハンドリング、リクエストキュー、スレッド機能）."""
 
 import asyncio
-import os
 import sqlite3
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -106,8 +105,24 @@ def mock_request_queue():
 @pytest.fixture
 def handler(mock_bot, mock_db):
     """MessageHandlerのフィクスチャ（DI パターン対応）."""
-    # 環境変数を設定してAnthropicProviderの初期化を可能にする
-    with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-api-key"}):
+    # AnthropicProviderの初期化をモック化して環境変数の問題を回避
+    mock_ai_provider = MagicMock()
+    token_info = TokenInfo(
+        input_tokens=10,
+        output_tokens=5,
+        total_tokens=15,
+        model_used="anthropic/claude-3-haiku-20240307",
+        latency_ms=100,
+    )
+    mock_ai_provider.generate_response = AsyncMock(
+        return_value=("テスト応答", token_info)
+    )
+    mock_ai_provider.get_last_used_model = MagicMock(
+        return_value="anthropic/claude-3-haiku-20240307"
+    )
+    mock_ai_provider.get_rate_limit_usage = MagicMock(return_value=0.5)
+
+    with patch("kotonoha_bot.bot.handlers.AnthropicProvider", return_value=mock_ai_provider):
         config = get_config()
         # MessageHandler のコンストラクタに必要なパラメータを渡す
         handler = MessageHandler(
@@ -125,21 +140,7 @@ def handler(mock_bot, mock_db):
         handler.session_manager.save_session = AsyncMock()
         handler.session_manager.initialize = AsyncMock()
 
-        token_info = TokenInfo(
-            input_tokens=10,
-            output_tokens=5,
-            total_tokens=15,
-            model_used="anthropic/claude-3-haiku-20240307",
-            latency_ms=100,
-        )
-        handler.ai_provider = MagicMock()
-        handler.ai_provider.generate_response = AsyncMock(
-            return_value=("テスト応答", token_info)
-        )
-        handler.ai_provider.get_last_used_model = MagicMock(
-            return_value="anthropic/claude-3-haiku-20240307"
-        )
-        handler.ai_provider.get_rate_limit_usage = MagicMock(return_value=0.5)
+        # ai_providerは既にモック化されているので、そのまま使用
 
         handler.router = MagicMock()
         handler.router.register_bot_thread = MagicMock()

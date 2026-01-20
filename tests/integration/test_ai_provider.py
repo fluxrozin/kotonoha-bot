@@ -27,9 +27,12 @@ def mock_anthropic_response():
 @pytest.fixture
 def anthropic_provider_with_mock():
     """モック付きAnthropicProviderのフィクスチャ"""
+    import kotonoha_bot.config
     from kotonoha_bot.config import get_config
 
     with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-api-key"}):
+        # get_config()のシングルトンインスタンスをリセット
+        kotonoha_bot.config._config_instance = None
         config = get_config()
         provider = AnthropicProvider(config=config)
         # クライアントをモック化
