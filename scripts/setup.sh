@@ -24,8 +24,8 @@ TOTAL_COUNT=0
 # データ保存用ディレクトリの作成
 echo "Creating data directories..."
 TOTAL_COUNT=$((TOTAL_COUNT + 1))
-if mkdir -p data logs backups 2>/dev/null; then
-    echo "[OK] Created directories: data/, logs/, backups/"
+if mkdir -p logs backups pgadmin 2>/dev/null; then
+    echo "[OK] Created directories: logs/, backups/, pgadmin/"
     SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
 else
     echo "[ERROR] Failed to create directories"
@@ -67,11 +67,26 @@ SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
 echo "[OK] File permissions configured"
 echo ""
 
+# pgAdminディレクトリの権限設定
+echo "Setting pgAdmin directory permissions..."
+TOTAL_COUNT=$((TOTAL_COUNT + 1))
+if [ -d pgadmin ]; then
+    if chmod -R 777 pgadmin 2>/dev/null; then
+        echo "[OK] Set permissions (777) for: pgadmin/ (pgAdmin container will use this)"
+        SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+    else
+        echo "[WARN] Could not set permissions for pgadmin/ (will be fixed by container entrypoint)"
+    fi
+else
+    echo "[WARN] pgadmin/ directory not found (will be created automatically)"
+fi
+echo ""
+
 # ディレクトリの権限設定（オプション - 通常は不要）
 # コンテナ起動時にentrypoint.shが自動的に修正します
 echo "Directory permissions:"
-echo "  - data/, logs/, backups/ will be automatically fixed by entrypoint.sh"
-echo "  - No manual permission setting required for these directories"
+echo "  - logs/, backups/ will be automatically fixed by entrypoint.sh"
+echo "  - pgadmin/ permissions are set above (or will be fixed by container entrypoint)"
 echo ""
 
 # 結果サマリー

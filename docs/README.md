@@ -127,6 +127,7 @@
 #### 52_procedures/（手順）
 
 - [**PostgreSQL 実装手順**](./50_implementation/52_procedures/postgresql-implementation.md): PostgreSQL実装の詳細手順
+- [**PostgreSQL カスタムイメージ作成・デプロイ完全ガイド**](./50_implementation/52_procedures/postgres-custom-image-guide.md): Dockerfile.postgresを使用したカスタムイメージの作成、GHCRへのプッシュ、自動化、導入・デプロイまでの全手順
 - [**PostgreSQL セッションアーカイブ手順**](./50_implementation/52_procedures/postgresql-session-archiving.md): PostgreSQLセッションアーカイブの手順
 - [**PostgreSQL Embedding処理手順**](./50_implementation/52_procedures/postgresql-embedding-processing.md): PostgreSQL Embedding処理の手順
 - [**監査ログ実装計画**](./50_implementation/52_procedures/audit-logging-implementation-plan.md): 監査ログ機能の実装計画、データベーススキーマ、実装ステップ

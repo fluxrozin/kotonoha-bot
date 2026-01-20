@@ -10,20 +10,20 @@ USER root
 
 # ビルド依存関係のインストール
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    postgresql-server-dev-18 \
-    wget \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+  build-essential \
+  postgresql-server-dev-18 \
+  wget \
+  ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 
 # pg_bigm のダウンロード
 RUN wget -O pg_bigm.tar.gz \
-    https://github.com/pgbigm/pg_bigm/archive/refs/tags/v${PG_BIGM_VERSION}.tar.gz \
-    && if [ -n "$PG_BIGM_CHECKSUM" ]; then \
-        echo "$PG_BIGM_CHECKSUM  pg_bigm.tar.gz" | sha256sum -c - || exit 1; \
-    fi \
-    && mkdir -p /usr/src/pg_bigm \
-    && tar -xzf pg_bigm.tar.gz -C /usr/src/pg_bigm --strip-components=1
+  https://github.com/pgbigm/pg_bigm/archive/refs/tags/v${PG_BIGM_VERSION}.tar.gz \
+  && if [ -n "$PG_BIGM_CHECKSUM" ]; then \
+  echo "$PG_BIGM_CHECKSUM  pg_bigm.tar.gz" | sha256sum -c - || exit 1; \
+  fi \
+  && mkdir -p /usr/src/pg_bigm \
+  && tar -xzf pg_bigm.tar.gz -C /usr/src/pg_bigm --strip-components=1
 
 # pg_bigm のビルド
 WORKDIR /usr/src/pg_bigm

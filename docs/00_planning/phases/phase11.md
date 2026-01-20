@@ -253,6 +253,72 @@ USING gin (content gin_bigm_ops);
   - 理由: 最適なパフォーマンスを得るため、pg_bigm拡張が必要
   - ビルドはCI/CDパイプラインで行い、レジストリにプッシュすることを推奨
 
+#### Step 1.5: カスタムイメージのビルド方法
+
+**目的**: `Dockerfile.postgres`を作成した後、実際にカスタムイメージをビルドする方法を説明する。
+
+**ビルド方法**:
+
+1. **ローカルでビルドしてテストする場合**
+
+   ```bash
+   # プロジェクトルートで実行
+   # カスタムイメージのビルド（時間がかかる場合がある: 10-20分）
+   docker build -f Dockerfile.postgres -t kotonoha-postgres:test .
+   
+   # ビルドが成功したか確認
+   docker images | grep kotonoha-postgres
+   ```
+
+2. **GHCR（GitHub Container Registry）にプッシュする場合**
+
+   **実行環境**: 以下のコマンドは、ホストマシン（開発環境やCI/CD環境）から実行する。
+   コンテナ内から実行するものではない。
+
+   **注意**: ホストマシンから実行する場合、`.env`ファイルは自動的に読み込まれないため、
+   事前に環境変数を設定する必要がある。
+
+   ```bash
+   # 0. .envファイルから環境変数を読み込む（ホストマシンから実行）
+   export $(grep -v '^#' .env | xargs)
+   
+   # 1. GitHubにログイン（ホストマシンから実行）
+   echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+   
+   # 2. イメージをビルド（ホストマシンから実行）
+   docker build -f Dockerfile.postgres -t ghcr.io/${GITHUB_REPOSITORY}/kotonoha-postgres:latest .
+   
+   # 3. レジストリにプッシュ（ホストマシンから実行）
+   docker push ghcr.io/${GITHUB_REPOSITORY}/kotonoha-postgres:latest
+   ```
+
+   **必要な環境変数**:
+   
+   - `GITHUB_TOKEN`: GitHub Personal Access Token（`read:packages`と`write:packages`権限が必要）
+   - `GITHUB_USERNAME`: GitHubのユーザー名
+   - `GITHUB_REPOSITORY`: リポジトリ名（形式: `owner/repository-name`、例: `your-username/kotonoha-bot`）
+
+   **環境変数の設定方法**:
+   
+   `.env`ファイルに以下を設定する:
+   
+   ```bash
+   GITHUB_TOKEN=your-token
+   GITHUB_USERNAME=your-username
+   GITHUB_REPOSITORY=your-username/kotonoha-bot
+   ```
+
+3. **CI/CDパイプラインでの自動化（推奨）**
+
+   GitHub ActionsなどのCI/CDパイプラインで、コードをプッシュした際に自動的にビルド・プッシュすることを推奨します。
+   これにより、手動でのビルド・プッシュが不要になります。
+
+**注意点**:
+
+- ビルドには10-20分程度かかる場合があります
+- 初回ビルド後は、イメージをキャッシュしておくことで、次回以降のビルド時間を短縮できます
+- GHCRにプッシュしたイメージは、`docker-compose.yml`で`image: ghcr.io/${GITHUB_REPOSITORY}/kotonoha-postgres:latest`として使用できます
+
 #### Step 2: pg_bigm拡張の有効化（Alembicマイグレーション）
 
 **完了内容**:
@@ -813,33 +879,29 @@ async def hybrid_search(
 
 1. **カスタムイメージをビルドしてレジストリにプッシュ（推奨）**
 
-   **推奨**: カスタムイメージをビルドしたら、Docker HubやGHCR（GitHub Container Registry）にプッシュしておくことで、
+   **推奨**: カスタムイメージをビルドしたら、GHCR（GitHub Container Registry）にプッシュしておくことで、
    本番環境で簡単にプルできるようになります。
 
    **GHCR（GitHub Container Registry）へのプッシュ**:
 
+   **実行環境**: 以下のコマンドは、ホストマシン（開発環境やCI/CD環境）から実行する。
+   コンテナ内から実行するものではない。
+
+   **注意**: ホストマシンから実行する場合、`.env`ファイルは自動的に読み込まれないため、
+   事前に環境変数を設定する必要がある。
+
    ```bash
-   # 1. GitHubにログイン
+   # 0. .envファイルから環境変数を読み込む（ホストマシンから実行）
+   export $(grep -v '^#' .env | xargs)
+   
+   # 1. GitHubにログイン（ホストマシンから実行）
    echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
    
-   # 2. イメージをビルド
+   # 2. イメージをビルド（ホストマシンから実行）
    docker build -f Dockerfile.postgres -t ghcr.io/${GITHUB_REPOSITORY}/kotonoha-postgres:latest .
    
-   # 3. レジストリにプッシュ
+   # 3. レジストリにプッシュ（ホストマシンから実行）
    docker push ghcr.io/${GITHUB_REPOSITORY}/kotonoha-postgres:latest
-   ```
-
-   **Docker Hubへのプッシュ**:
-
-   ```bash
-   # 1. Docker Hubにログイン
-   docker login -u your-dockerhub-username
-   
-   # 2. イメージをビルド
-   docker build -f Dockerfile.postgres -t your-dockerhub-username/kotonoha-postgres:latest .
-   
-   # 3. レジストリにプッシュ
-   docker push your-dockerhub-username/kotonoha-postgres:latest
    ```
 
    **CI/CDパイプラインでの自動化（推奨）**:
@@ -890,9 +952,6 @@ async def hybrid_search(
      postgres:
        # GHCRからプル（推奨）
        image: ghcr.io/${GITHUB_REPOSITORY}/kotonoha-postgres:latest
-       
-       # または、Docker Hubからプルする場合
-       # image: your-dockerhub-username/kotonoha-postgres:latest
    ```
 
    **毎回ビルドする場合（非推奨: ビルド時間がかかる）**:
@@ -1233,9 +1292,6 @@ services:
   postgres:
     # GHCRからプル（推奨: ビルド時間不要）
     image: ghcr.io/${GITHUB_REPOSITORY}/kotonoha-postgres:latest
-    
-    # または、Docker Hubからプルする場合
-    # image: your-dockerhub-username/kotonoha-postgres:latest
 ```
 
 **環境変数の設定**:
@@ -1263,9 +1319,6 @@ GITHUB_REPOSITORY=your-username/kotonoha-bot
      postgres:
        # GHCRからプル（推奨: ビルド時間不要）
        image: ghcr.io/${GITHUB_REPOSITORY}/kotonoha-postgres:latest
-       
-       # または、Docker Hubからプルする場合
-       # image: your-dockerhub-username/kotonoha-postgres:latest
        
        # 標準イメージはコメントアウト
        # image: pgvector/pgvector:0.8.1-pg18
@@ -1393,6 +1446,7 @@ A: 初回のみ、CI/CDパイプラインでカスタムイメージをビルド
 ## 参考資料
 
 - **開発環境ガイド**: [開発環境ガイド](../../50_implementation/51_guides/development-environment-guide.md) - 開発環境のセットアップ、開発フロー、マイグレーション管理、データベース管理、テストの実行方法
+- **カスタムイメージ作成・デプロイ完全ガイド**: [PostgreSQLカスタムイメージ作成・デプロイ完全ガイド](../../50_implementation/52_procedures/postgres-custom-image-guide.md) - Dockerfile.postgresを使用したカスタムイメージの作成、GHCRへのプッシュ、自動化、導入・デプロイまでの全手順
 - **スキーマ設計書**: [PostgreSQL スキーマ設計書](../../40_design_detailed/42_db-schema-physical/postgresql-schema-overview.md)
 - **実装ガイド**: [PostgreSQL実装ガイド](../../50_implementation/51_guides/postgresql-implementation-guide.md)
 - **クエリガイド**: [PostgreSQLクエリガイド](../../50_implementation/51_guides/postgresql-query-guide.md)

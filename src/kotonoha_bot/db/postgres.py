@@ -686,7 +686,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
                     # ベースクエリの構築
                     query = f"""
                         WITH vector_results AS (
-                            SELECT 
+                            SELECT
                                 s.id as source_id,
                                 s.type,
                                 s.title,
@@ -766,7 +766,7 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
                             LIMIT {SearchConstants.VECTOR_SEARCH_CANDIDATE_LIMIT}
                         ),
                         keyword_results AS (
-                            SELECT 
+                            SELECT
                                 s.id as source_id,
                                 s.type,
                                 s.title,
@@ -811,19 +811,19 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
                             LIMIT {SearchConstants.KEYWORD_SEARCH_LIMIT}
                         ),
                         combined AS (
-                            SELECT 
+                            SELECT
                                 source_id, type, title, uri, source_metadata,
                                 chunk_id, content, location, token_count,
                                 vector_similarity * {vector_weight} AS score
                             FROM vector_results
                             UNION ALL
-                            SELECT 
+                            SELECT
                                 source_id, type, title, uri, source_metadata,
                                 chunk_id, content, location, token_count,
                                 keyword_score * {keyword_weight} AS score
                             FROM keyword_results
                         )
-                        SELECT 
+                        SELECT
                             source_id, type, title, uri, source_metadata,
                             chunk_id, content, location, token_count,
                             SUM(score) AS combined_score

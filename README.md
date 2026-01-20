@@ -247,7 +247,7 @@ kotonoha-bot/
 │   └── restore.sh                       # リストア
 ├── logs/                                # ログファイル（自動生成）
 ├── backups/                             # バックアップファイル（自動生成）
-├── Dockerfile                           # Bot コンテナイメージ
+├── Dockerfile.kotonoha                 # Bot コンテナイメージ
 ├── Dockerfile.postgres                  # PostgreSQL カスタムイメージ（pg_bigm 対応）
 ├── docker-compose.yml                   # Docker Compose 設定
 └── pyproject.toml                       # プロジェクト設定

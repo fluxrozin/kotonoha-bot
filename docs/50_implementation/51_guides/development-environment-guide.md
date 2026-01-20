@@ -237,7 +237,9 @@ uv run alembic revision -m "add_new_table" --rev-id "$DATE_ID"
 
 Revision IDを変更した場合や、データベースを完全にリセットしたい場合のフローです。
 
-**開発環境でのフロー**:
+詳細な手順については、[PostgreSQLデータベース初期化ガイド](./postgresql-database-initialization-guide.md)を参照してください。
+
+**簡易手順（開発環境）**:
 
 1. **コンテナを停止・削除**
 
@@ -282,6 +284,21 @@ docker compose exec postgres psql -U kotonoha kotonoha
 # マイグレーション履歴の確認
 SELECT * FROM alembic_version;
 ```
+
+### pgAdminを使用したデータベース管理
+
+pgAdminは、PostgreSQLデータベースを管理するためのWebベースのGUIツールです。
+
+**セットアップ方法**: [pgAdminセットアップガイド](./pgadmin-setup-guide.md)を参照してください。
+
+**主な機能**:
+- データベースの閲覧・編集
+- SQLクエリの実行
+- テーブル構造の確認
+- インデックスの管理
+- データのエクスポート・インポート
+
+**注意**: pgAdminは開発環境でのみ使用してください。本番環境では使用しないでください。
 
 ---
 
@@ -427,6 +444,7 @@ echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
 
 - [PostgreSQL実装ガイド](./postgresql-implementation-guide.md): PostgreSQLの実装詳細
 - [PostgreSQLクエリガイド](./postgresql-query-guide.md): クエリの書き方
+- [pgAdminセットアップガイド](./pgadmin-setup-guide.md): pgAdminのセットアップと使用方法
 - [Phase 11実装計画](../00_planning/phases/phase11.md): Phase 11の詳細実装計画
 
 ---

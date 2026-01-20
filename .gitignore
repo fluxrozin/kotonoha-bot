@@ -43,6 +43,10 @@ logs/*
 backups/*
 !backups/.gitkeep
 
+# pgAdmin (開発環境のみ)
+pgadmin/*
+!pgadmin/.gitkeep
+
 # OS
 .DS_Store
 Thumbs.db

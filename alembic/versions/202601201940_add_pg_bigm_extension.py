@@ -34,8 +34,8 @@ def upgrade() -> None:
     # pg_bigm拡張が利用できない場合はスキップ
     op.execute("""
         DO $$ BEGIN
-            CREATE INDEX IF NOT EXISTS idx_chunks_content_bigm 
-            ON knowledge_chunks 
+            CREATE INDEX IF NOT EXISTS idx_chunks_content_bigm
+            ON knowledge_chunks
             USING gin (content gin_bigm_ops);
         EXCEPTION
             WHEN OTHERS THEN

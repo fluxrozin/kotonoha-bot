@@ -2,8 +2,6 @@
 
 import pytest
 
-from kotonoha_bot.db.postgres import PostgreSQLDatabase
-
 
 @pytest.mark.asyncio
 async def test_hybrid_search_integration(postgres_db):
