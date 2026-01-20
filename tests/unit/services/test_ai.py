@@ -24,6 +24,7 @@ def anthropic_provider():
     with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-api-key"}):
         # get_config()のシングルトンインスタンスをリセット
         import kotonoha_bot.config
+
         # 設定をリセット（シングルトンインスタンスをクリア）
         kotonoha_bot.config._config_instance = None
         config = get_config()

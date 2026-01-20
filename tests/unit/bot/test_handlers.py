@@ -122,7 +122,9 @@ def handler(mock_bot, mock_db):
     )
     mock_ai_provider.get_rate_limit_usage = MagicMock(return_value=0.5)
 
-    with patch("kotonoha_bot.bot.handlers.AnthropicProvider", return_value=mock_ai_provider):
+    with patch(
+        "kotonoha_bot.bot.handlers.AnthropicProvider", return_value=mock_ai_provider
+    ):
         config = get_config()
         # MessageHandler のコンストラクタに必要なパラメータを渡す
         handler = MessageHandler(
