@@ -213,11 +213,27 @@ jobs:
     steps:
       - name: Check all jobs
         run: |
-          if [ "${{ needs.lint.result }}" != "success" ] || \
-             [ "${{ needs.type-check.result }}" != "success" ] || \
-             [ "${{ needs.dependency-check.result }}" != "success" ] || \
-             [ "${{ needs.test.result }}" != "success" ]; then
-            echo "One or more jobs failed"
+          # 各ジョブの結果をチェック（success以外は失敗として扱う）
+          failed=0
+          if [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "lint job failed with status: ${{ needs.lint.result }}"
+            failed=1
+          fi
+          if [ "${{ needs.type-check.result }}" != "success" ]; then
+            echo "type-check job failed with status: ${{ needs.type-check.result }}"
+            failed=1
+          fi
+          if [ "${{ needs.dependency-check.result }}" != "success" ]; then
+            echo "dependency-check job failed with status: ${{ needs.dependency-check.result }}"
+            failed=1
+          fi
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            echo "test job failed with status: ${{ needs.test.result }}"
+            failed=1
+          fi
+          
+          if [ "$failed" -eq 1 ]; then
+            echo "One or more jobs failed or were cancelled"
             exit 1
           fi
           echo "All CI checks passed!"
