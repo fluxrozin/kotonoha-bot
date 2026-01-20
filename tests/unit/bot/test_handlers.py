@@ -1,8 +1,9 @@
 """ハンドラーの統合テスト（Embed、エラーハンドリング、リクエストキュー、スレッド機能）."""
 
 import asyncio
+import os
 import sqlite3
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 import pytest
@@ -105,65 +106,67 @@ def mock_request_queue():
 @pytest.fixture
 def handler(mock_bot, mock_db):
     """MessageHandlerのフィクスチャ（DI パターン対応）."""
-    config = get_config()
-    # MessageHandler のコンストラクタに必要なパラメータを渡す
-    handler = MessageHandler(
-        bot=mock_bot,
-        db=mock_db,
-        config=config,
-    )
-    # 内部で作成されたインスタンスをモックに置き換え
-    handler.session_manager = MagicMock()
-    session = MagicMock()
-    session.get_conversation_history = MagicMock(return_value=[])
-    handler.session_manager.get_session = AsyncMock(return_value=session)
-    handler.session_manager.create_session = AsyncMock(return_value=session)
-    handler.session_manager.add_message = AsyncMock()
-    handler.session_manager.save_session = AsyncMock()
-    handler.session_manager.initialize = AsyncMock()
+    # 環境変数を設定してAnthropicProviderの初期化を可能にする
+    with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-api-key"}):
+        config = get_config()
+        # MessageHandler のコンストラクタに必要なパラメータを渡す
+        handler = MessageHandler(
+            bot=mock_bot,
+            db=mock_db,
+            config=config,
+        )
+        # 内部で作成されたインスタンスをモックに置き換え
+        handler.session_manager = MagicMock()
+        session = MagicMock()
+        session.get_conversation_history = MagicMock(return_value=[])
+        handler.session_manager.get_session = AsyncMock(return_value=session)
+        handler.session_manager.create_session = AsyncMock(return_value=session)
+        handler.session_manager.add_message = AsyncMock()
+        handler.session_manager.save_session = AsyncMock()
+        handler.session_manager.initialize = AsyncMock()
 
-    token_info = TokenInfo(
-        input_tokens=10,
-        output_tokens=5,
-        total_tokens=15,
-        model_used="anthropic/claude-3-haiku-20240307",
-        latency_ms=100,
-    )
-    handler.ai_provider = MagicMock()
-    handler.ai_provider.generate_response = AsyncMock(
-        return_value=("テスト応答", token_info)
-    )
-    handler.ai_provider.get_last_used_model = MagicMock(
-        return_value="anthropic/claude-3-haiku-20240307"
-    )
-    handler.ai_provider.get_rate_limit_usage = MagicMock(return_value=0.5)
+        token_info = TokenInfo(
+            input_tokens=10,
+            output_tokens=5,
+            total_tokens=15,
+            model_used="anthropic/claude-3-haiku-20240307",
+            latency_ms=100,
+        )
+        handler.ai_provider = MagicMock()
+        handler.ai_provider.generate_response = AsyncMock(
+            return_value=("テスト応答", token_info)
+        )
+        handler.ai_provider.get_last_used_model = MagicMock(
+            return_value="anthropic/claude-3-haiku-20240307"
+        )
+        handler.ai_provider.get_rate_limit_usage = MagicMock(return_value=0.5)
 
-    handler.router = MagicMock()
-    handler.router.register_bot_thread = MagicMock()
-    handler.router.eavesdrop_enabled_channels = set()
-    handler.router.enable_eavesdrop_for_channel = MagicMock()
+        handler.router = MagicMock()
+        handler.router.register_bot_thread = MagicMock()
+        handler.router.eavesdrop_enabled_channels = set()
+        handler.router.enable_eavesdrop_for_channel = MagicMock()
 
-    handler.request_queue = MagicMock()
+        handler.request_queue = MagicMock()
 
-    async def enqueue_side_effect(_priority, func, *args, **kwargs):
-        result = await func(*args, **kwargs)
-        future = asyncio.Future()
-        future.set_result(result)
-        return future
+        async def enqueue_side_effect(_priority, func, *args, **kwargs):
+            result = await func(*args, **kwargs)
+            future = asyncio.Future()
+            future.set_result(result)
+            return future
 
-    handler.request_queue.enqueue = AsyncMock(side_effect=enqueue_side_effect)
-    handler.request_queue.start = AsyncMock()
-    handler.request_queue.stop = AsyncMock()
+        handler.request_queue.enqueue = AsyncMock(side_effect=enqueue_side_effect)
+        handler.request_queue.start = AsyncMock()
+        handler.request_queue.stop = AsyncMock()
 
-    # サブハンドラーもモックに置き換え
-    handler.mention = MagicMock()
-    handler.mention.handle = AsyncMock()
-    handler.thread = MagicMock()
-    handler.thread.handle = AsyncMock()
-    handler.eavesdrop = MagicMock()
-    handler.eavesdrop.handle = AsyncMock()
+        # サブハンドラーもモックに置き換え
+        handler.mention = MagicMock()
+        handler.mention.handle = AsyncMock()
+        handler.thread = MagicMock()
+        handler.thread.handle = AsyncMock()
+        handler.eavesdrop = MagicMock()
+        handler.eavesdrop.handle = AsyncMock()
 
-    return handler
+        return handler
 
 
 # ============================================

@@ -108,6 +108,7 @@ async def test_async_main_sets_up_components(
     mock_db.initialize = AsyncMock()
     mock_db.close = AsyncMock()
 
+    mock_embedding_provider = MagicMock()
     with (
         patch("kotonoha_bot.main.KotonohaBot", return_value=mock_bot),
         patch("kotonoha_bot.main.setup_handlers", return_value=mock_handler),
@@ -115,6 +116,10 @@ async def test_async_main_sets_up_components(
         patch("kotonoha_bot.main.get_config") as mock_get_config,
         patch("kotonoha_bot.main.PostgreSQLDatabase", return_value=mock_db),
         patch("kotonoha_bot.main.settings") as mock_settings,
+        patch(
+            "kotonoha_bot.main.OpenAIEmbeddingProvider",
+            return_value=mock_embedding_provider,
+        ),
     ):
         mock_settings.database_url = "postgresql://test:test@localhost:5432/test"
         mock_settings.postgres_host = None
