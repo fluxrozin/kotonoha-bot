@@ -205,7 +205,11 @@ class TestMentionHandlerProcess:
             args = call[0] if call[0] else []
             kwargs = call[1] if len(call) > 1 else {}
             # role が USER である呼び出しを探す
-            if len(args) >= 2 and args[1] == MessageRole.USER or kwargs.get("role") == MessageRole.USER:
+            if (
+                len(args) >= 2
+                and args[1] == MessageRole.USER
+                or kwargs.get("role") == MessageRole.USER
+            ):
                 user_calls.append(call)
 
         assert len(user_calls) > 0, (

@@ -569,9 +569,7 @@ class TestOnMessageIntegration:
     """on_message イベントの統合テスト."""
 
     @pytest.mark.asyncio
-    async def test_on_message_bot_message_processes_commands(
-        self, mock_bot
-    ):
+    async def test_on_message_bot_message_processes_commands(self, mock_bot):
         """Bot自身のメッセージの場合、コマンド処理のみ実行される."""
         mock_message = MagicMock(spec=discord.Message)
         mock_message.author = MagicMock()
