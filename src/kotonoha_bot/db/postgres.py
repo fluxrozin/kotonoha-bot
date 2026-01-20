@@ -137,6 +137,84 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
             format="text",
         )
 
+    async def _ensure_test_user_and_database(self) -> None:
+        """テスト用ユーザーとデータベースを自動作成（アプリケーション起動時）.
+
+        環境変数でテスト用の設定が有効な場合、マイグレーション実行前に
+        テスト用ユーザーとデータベースを作成します。
+        """
+        import os
+
+        # テスト用設定が有効かチェック
+        test_admin_user = os.getenv("TEST_POSTGRES_ADMIN_USER")
+        test_admin_password = os.getenv("TEST_POSTGRES_ADMIN_PASSWORD")
+        if not test_admin_user or not test_admin_password:
+            # テスト用設定が無効な場合はスキップ
+            return
+
+        # テスト用接続情報を取得
+        test_host = os.getenv("TEST_POSTGRES_HOST", "localhost")
+        test_port = int(os.getenv("TEST_POSTGRES_PORT", "5432"))
+        test_database = os.getenv("TEST_POSTGRES_DB", "test_kotonoha")
+        test_user = os.getenv("TEST_POSTGRES_USER", "test")
+        test_password = os.getenv("TEST_POSTGRES_PASSWORD", "test")
+
+        try:
+            # 管理者権限で接続
+            conn = await asyncpg.connect(
+                host=test_host,
+                port=test_port,
+                database="postgres",
+                user=test_admin_user,
+                password=test_admin_password,
+            )
+
+            try:
+                # テストユーザーが存在するか確認
+                user_exists = await conn.fetchval(
+                    "SELECT 1 FROM pg_user WHERE usename = $1", test_user
+                )
+
+                if not user_exists:
+                    # テストユーザーを作成
+                    await conn.execute(
+                        f"CREATE USER {test_user} WITH PASSWORD '{test_password}'"
+                    )
+
+                # テストデータベースが存在するか確認
+                db_exists = await conn.fetchval(
+                    "SELECT 1 FROM pg_database WHERE datname = $1", test_database
+                )
+
+                if not db_exists:
+                    # テストデータベースを作成（所有者をテストユーザーに設定）
+                    await conn.execute(
+                        f"CREATE DATABASE {test_database} OWNER {test_user}"
+                    )
+                else:
+                    # 既存のデータベースの所有者を確認・更新
+                    current_owner = await conn.fetchval(
+                        "SELECT pg_catalog.pg_get_userbyid(datdba) FROM pg_database WHERE datname = $1",
+                        test_database,
+                    )
+                    if current_owner != test_user:
+                        # 所有者を変更
+                        await conn.execute(
+                            f"ALTER DATABASE {test_database} OWNER TO {test_user}"
+                        )
+
+                # テストユーザーにデータベースへの権限を付与
+                await conn.execute(
+                    f"GRANT ALL PRIVILEGES ON DATABASE {test_database} TO {test_user}"
+                )
+
+            finally:
+                await conn.close()
+
+        except Exception:
+            # ユーザー/DB作成に失敗しても続行（既に存在する可能性があるため）
+            pass
+
     async def initialize(self) -> None:
         """データベースの初期化."""
         import os
@@ -145,6 +223,9 @@ class PostgreSQLDatabase(DatabaseProtocol, KnowledgeBaseProtocol):
         min_size = settings.db_pool_min_size
         max_size = settings.db_pool_max_size
         command_timeout = settings.db_command_timeout
+
+        # テスト用ユーザーとデータベースを自動作成（設定されている場合）
+        await self._ensure_test_user_and_database()
 
         # Alembicマイグレーションの自動適用（接続プール作成前に実行）
         # 非同期コンテキストから実行するため、接続を共有してマイグレーションを実行

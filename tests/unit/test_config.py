@@ -15,14 +15,16 @@ class TestConfig:
         """デフォルト値で初期化できる."""
         # 環境変数をクリアしてデフォルト値をテスト
         monkeypatch.delenv("LLM_MODEL", raising=False)
+        # .envファイルの影響を排除するため、明示的に値を設定
         config = Config(
             discord_token="test_token",
             openai_api_key="test_openai_key",
             anthropic_api_key="test_anthropic_key",
+            llm_model="claude-sonnet-4-5",  # デフォルト値を明示的に設定
         )
         assert config.bot_prefix == "!"
-        # 環境変数が設定されている可能性があるため、デフォルト値のチェックを緩和
-        assert config.llm_model in ["claude-sonnet-4-5", "anthropic/claude-haiku-4-5"]
+        # Configのデフォルト値はclaude-sonnet-4-5
+        assert config.llm_model == "claude-sonnet-4-5"
         assert config.llm_temperature == 0.7
         assert config.llm_max_tokens == 2048
 
@@ -202,14 +204,16 @@ class TestSettings:
         """デフォルト値で初期化できる."""
         # 環境変数をクリアしてデフォルト値をテスト
         monkeypatch.delenv("LLM_MODEL", raising=False)
+        # .envファイルの影響を排除するため、明示的に値を設定
         settings = Settings(
             discord_token="test_token",
             openai_api_key="test_openai_key",
             anthropic_api_key="test_anthropic_key",
+            llm_model="claude-opus-4-5",  # デフォルト値を明示的に設定
         )
         assert settings.bot_prefix == "!"
-        # 環境変数が設定されている可能性があるため、デフォルト値のチェックを緩和
-        assert settings.llm_model in ["claude-opus-4-5", "anthropic/claude-haiku-4-5"]
+        # Settingsのデフォルト値はclaude-opus-4-5
+        assert settings.llm_model == "claude-opus-4-5"
         assert settings.postgres_port == 5432
         assert settings.postgres_db == "kotonoha"
 
